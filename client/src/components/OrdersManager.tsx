@@ -9,7 +9,6 @@ import {
   Mail,
   Camera,
   PenTool,
-  ExternalLink,
   ChevronDown,
   ChevronUp,
   Navigation,
@@ -25,7 +24,6 @@ interface Props {
   depots: Depot[];
   brandTheme: BrandTheme;
   selectedDepotId: string;
-  onOpenCustomerTracker: (trackingNumber: string) => void;
   onUpdateOrderDwell: (orderId: string, dwell: number) => void;
   onSelectOrdersForRouting?: (orderIds: string[]) => void;
 }
@@ -37,7 +35,6 @@ export const OrdersManager: React.FC<Props> = ({
   depots,
   brandTheme,
   selectedDepotId,
-  onOpenCustomerTracker,
 }) => {
   const [filterMode, setFilterMode] = useState<'ALL' | 'UNASSIGNED' | 'HELD_CRITERIA' | 'ROUTED' | 'OUT_FOR_DELIVERY' | 'COMPLETED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -388,21 +385,12 @@ export const OrdersManager: React.FC<Props> = ({
                 <h3 className="text-lg font-black text-slate-900 mt-1">{selectedOrder.customerName}</h3>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => onOpenCustomerTracker(selectedOrder.trackingNumber)}
-                  className="px-3 py-1.5 rounded-xl bg-blue-50 text-xs font-bold text-[#0072CE] border border-blue-200 flex items-center gap-1"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  Live Portal
-                </button>
-                <button
-                  onClick={() => setSelectedOrder(null)}
-                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold"
-                >
-                  ✕
-                </button>
-              </div>
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold"
+              >
+                ✕
+              </button>
             </div>
 
             {selectedOrder.belowRouteCriteria && selectedOrder.criteriaReason && (

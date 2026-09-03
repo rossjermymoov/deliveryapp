@@ -3,7 +3,6 @@ import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, 
 import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
-import { CustomerTrackingPortal } from './components/CustomerTrackingPortal';
 
 export const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
@@ -13,9 +12,8 @@ export const App: React.FC = () => {
   const [skuCatalog, setSkuCatalog] = useState<SkuDwellSetting[]>(INITIAL_SKU_SETTINGS);
   const [brandTheme, setBrandTheme] = useState<BrandTheme>(KALSI_BRAND_THEME);
 
-  const [viewMode, setViewMode] = useState<'admin' | 'driver' | 'customer'>('admin');
+  const [viewMode, setViewMode] = useState<'admin' | 'driver'>('admin');
   const [activeDriverId, setActiveDriverId] = useState<string>(INITIAL_DRIVERS[0].id);
-  const [activeCustomerTracking, setActiveCustomerTracking] = useState<string>('KAL-889101');
 
   const handleCreateRoute = (newRoute: DeliveryRoute) => {
     setRoutes((prev) => [newRoute, ...prev]);
@@ -203,13 +201,9 @@ export const App: React.FC = () => {
             setActiveDriverId(driverId);
             setViewMode('driver');
           }}
-          onOpenCustomerTracker={(trk) => {
-            setActiveCustomerTracking(trk);
-            setViewMode('customer');
-          }}
           onConfirmRouteLoaded={handleConfirmRouteLoaded}
         />
-      ) : viewMode === 'driver' ? (
+      ) : (
         <DriverApp
           driver={currentDriver}
           brandTheme={brandTheme}
@@ -221,19 +215,6 @@ export const App: React.FC = () => {
           onCompletePod={handleCompletePod}
           onCompleteRoute={handleCompleteRoute}
           onBackToAdmin={() => setViewMode('admin')}
-          onOpenCustomerTracker={(trk) => {
-            setActiveCustomerTracking(trk);
-            setViewMode('customer');
-          }}
-        />
-      ) : (
-        <CustomerTrackingPortal
-          orders={orders}
-          routes={routes}
-          drivers={drivers}
-          brandTheme={brandTheme}
-          initialTrackingNumber={activeCustomerTracking}
-          onBackToPortal={() => setViewMode('admin')}
         />
       )}
     </div>

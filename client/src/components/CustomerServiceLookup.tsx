@@ -8,7 +8,6 @@ import {
   MapPin,
   CheckCircle2,
   FileCheck2,
-  ExternalLink,
   ShieldCheck,
   Send
 } from 'lucide-react';
@@ -18,7 +17,6 @@ interface Props {
   routes: DeliveryRoute[];
   drivers: Driver[];
   brandTheme: BrandTheme;
-  onOpenCustomerTracker: (trackingNumber: string) => void;
 }
 
 export const CustomerServiceLookup: React.FC<Props> = ({
@@ -26,7 +24,6 @@ export const CustomerServiceLookup: React.FC<Props> = ({
   routes,
   drivers,
   brandTheme,
-  onOpenCustomerTracker,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(orders[0] || null);
@@ -146,7 +143,7 @@ export const CustomerServiceLookup: React.FC<Props> = ({
                     {selectedOrder.trackingNumber}
                   </span>
                   <span className="text-xs text-slate-400 font-bold">
-                    • Inbound Webhook {new Date(selectedOrder.createdAt).toLocaleDateString()}
+                    • Inbound Order {new Date(selectedOrder.createdAt).toLocaleDateString()}
                   </span>
                 </div>
                 <h3 className="text-lg font-black text-slate-900 mt-0.5">{selectedOrder.customerName}</h3>
@@ -154,20 +151,11 @@ export const CustomerServiceLookup: React.FC<Props> = ({
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => onOpenCustomerTracker(selectedOrder.trackingNumber)}
-                  className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-xs font-bold transition flex items-center gap-1.5"
-                  style={{ color: brandTheme.secondaryColour }}
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  View Customer Portal 🌐
-                </button>
-
-                <button
                   onClick={() => handleResendTrackingSms(selectedOrder)}
-                  className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-bold transition flex items-center gap-1.5 shadow-xs"
+                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-black transition flex items-center gap-1.5 shadow-xs"
                 >
                   <Send className="w-3.5 h-3.5 text-amber-300" />
-                  Re-send SMS Link
+                  Re-send SMS Tracking Link
                 </button>
               </div>
             </div>

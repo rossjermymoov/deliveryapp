@@ -17,7 +17,6 @@ import {
   LayoutDashboard,
   Warehouse,
   Barcode,
-  ExternalLink,
   Headphones,
   Settings
 } from 'lucide-react';
@@ -37,7 +36,7 @@ interface Props {
   onUpdateSkuCatalog: (catalog: SkuDwellSetting[]) => void;
   onSimulateNewOrder: (order: Partial<Order>) => void;
   onSwitchToDriver: (driverId: string) => void;
-  onOpenCustomerTracker: (trackingNumber: string) => void;
+  onOpenCustomerTracker?: (trackingNumber: string) => void;
   onConfirmRouteLoaded: (routeId: string) => void;
 }
 
@@ -55,7 +54,6 @@ export const AdminPortal: React.FC<Props> = ({
   onUpdateOrderDwell,
   onUpdateSkuCatalog,
   onSwitchToDriver,
-  onOpenCustomerTracker,
   onConfirmRouteLoaded,
 }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map' | 'cs_lookup'>('dashboard');
@@ -192,14 +190,6 @@ export const AdminPortal: React.FC<Props> = ({
               </select>
             </div>
 
-            <button
-              onClick={() => onOpenCustomerTracker(orders[0]?.trackingNumber || 'KAL-889101')}
-              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-2 transition"
-            >
-              <ExternalLink className="w-4 h-4 text-amber-300" />
-              Customer Portal 🌐
-            </button>
-
             {/* TOP SETTINGS BUTTON */}
             <button
               onClick={() => setIsSettingsOpen(true)}
@@ -329,7 +319,6 @@ export const AdminPortal: React.FC<Props> = ({
             depots={depots}
             brandTheme={brandTheme}
             selectedDepotId={selectedDepotId}
-            onOpenCustomerTracker={onOpenCustomerTracker}
             onUpdateOrderDwell={onUpdateOrderDwell}
           />
         )}
@@ -512,7 +501,6 @@ export const AdminPortal: React.FC<Props> = ({
             routes={routes}
             drivers={drivers}
             brandTheme={brandTheme}
-            onOpenCustomerTracker={onOpenCustomerTracker}
           />
         )}
       </main>
