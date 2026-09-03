@@ -10,24 +10,8 @@ export const KALSI_BRAND_THEME: BrandTheme = {
   headerBgColour: '#0F1E36',
 };
 
+// Clean list of actual physical UK Depots (NO FAKE "NATIONAL" DEPOT)
 export const UK_DEPOTS: Depot[] = [
-  { 
-    id: 'depot-all', 
-    code: 'ALL', 
-    name: 'All 22 UK Depots (National Network Overview)', 
-    region: 'UK Nationwide', 
-    city: 'National', 
-    address: '22 Distribution Hubs', 
-    postcode: 'UK-WIDE', 
-    lat: 52.4862, 
-    lng: -1.8904, 
-    activeVansCount: 48,
-    maxDeliveryRadiusMiles: 25,
-    maxOrdersPerVan: 6, // Realistic for 5m fascias, soffits, and heavy pipes
-    maxDailyCapacityOrders: 288,
-    minOrdersPerRoute: 3,
-    maxDistancePerDropMiles: 20
-  },
   { 
     id: 'depot-bhm', 
     code: 'BHM', 
@@ -40,7 +24,7 @@ export const UK_DEPOTS: Depot[] = [
     lng: -1.8687, 
     activeVansCount: 8,
     maxDeliveryRadiusMiles: 18,
-    maxOrdersPerVan: 6, // 6 drops per 3.5t / 7.5t long-wheelbase van due to 5m lengths
+    maxOrdersPerVan: 6, // 6 drops max per van for 5m building lengths
     maxDailyCapacityOrders: 48,
     trafficMultiplierOverride: 1.25,
     minOrdersPerRoute: 3,
@@ -58,7 +42,7 @@ export const UK_DEPOTS: Depot[] = [
     lng: -0.0350, 
     activeVansCount: 7,
     maxDeliveryRadiusMiles: 10,
-    maxOrdersPerVan: 5, // 5 drops max due to urban unloading & long product sizes
+    maxOrdersPerVan: 5,
     maxDailyCapacityOrders: 35,
     trafficMultiplierOverride: 1.45,
     minOrdersPerRoute: 3,
@@ -353,8 +337,8 @@ export const INITIAL_ORDERS: Order[] = generateLargeOrderDataset();
 
 export const INITIAL_ROUTES: DeliveryRoute[] = [
   {
-    id: 'route-morning-1',
-    routeNumber: 'Route 1 (Birmingham South & Solihull)',
+    id: 'route-bhm-1',
+    routeNumber: 'Route 1 (Birmingham Central)',
     depotId: 'depot-bhm',
     date: new Date().toISOString(),
     status: 'IN_PROGRESS',
@@ -370,8 +354,8 @@ export const INITIAL_ROUTES: DeliveryRoute[] = [
     orders: [INITIAL_ORDERS[0], INITIAL_ORDERS[3]],
   },
   {
-    id: 'route-morning-2',
-    routeNumber: 'Route 2 (Peak Birmingham - Feasible)',
+    id: 'route-bhm-2',
+    routeNumber: 'Route 2 (Birmingham North & Solihull)',
     depotId: 'depot-bhm',
     date: new Date().toISOString(),
     status: 'UNASSIGNED',

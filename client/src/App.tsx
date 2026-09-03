@@ -34,6 +34,89 @@ export const App: React.FC = () => {
     );
   };
 
+  // Cancel / Undo a Route and return all its orders back to Unassigned PENDING status
+  const handleUnassignOrCancelRoute = (routeId: string) => {
+    const targetRoute = routes.find((r) => r.id === routeId);
+    if (!targetRoute) return;
+
+    // Reset all orders on this route back to PENDING status
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.routeId === routeId
+          ? { ...o, routeId: undefined, status: 'PENDING' as const, stopSequence: undefined }
+          : o
+      )
+    );
+
+    // Remove the route
+    setRoutes((prev) => prev.filter((r) => r.id !== routeId));
+
+    // Reset assigned driver status to IDLE if any
+    if (targetRoute.driverId) {
+      setDrivers((prev) =>
+        prev.map((d) => (d.id === targetRoute.driverId ? { ...d, status: 'IDLE' } : d))
+      );
+    }
+  };
+
+  // Drag and Drop: Move an Order from one Route to another Route
+  const handleMoveOrderBetweenRoutes = (orderId: string, sourceRouteId: string, targetRouteId: string) => {
+    const sourceRoute = routes.find((r) => r.id === sourceRouteId);
+    const targetRoute = routes.find((r) => r.id === targetRouteId);
+    const movedOrder = orders.find((o) => o.id === orderId);
+
+    if (!sourceRoute || !targetRoute || !movedOrder) return;
+
+    // Update order object
+    const updatedMovedOrder = { ...movedOrder, routeId: targetRouteId };
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? updatedMovedOrder : o))
+    );
+
+    // Update both routes
+    setRoutes((prev) =>
+      prev.map((r) => {
+        if (r.id === sourceRouteId) {
+          const updatedOrders = r.orders.filter((o) => o.id !== orderId);
+          const totalDwell = updatedOrders.reduce((acc, o) => acc + (o.manualDwellOverrideMins ?? o.totalDwellMins), 0);
+          const totalDrive = 50 + (updatedOrders.length * 15);
+          const totalEstimated = totalDwell + totalDrive + 45;
+
+          return {
+            ...r,
+            orders: updatedOrders,
+            totalDwellMins: totalDwell,
+            totalDrivingMins: totalDrive,
+            totalEstimatedMins: totalEstimated,
+            totalDistanceKm: 20 + (updatedOrders.length * 7),
+            shiftUtilisationPct: Math.round((totalEstimated / 480) * 100),
+            isProblemRoute: totalEstimated > 480,
+          };
+        }
+
+        if (r.id === targetRouteId) {
+          const updatedOrders = [...r.orders, updatedMovedOrder];
+          const totalDwell = updatedOrders.reduce((acc, o) => acc + (o.manualDwellOverrideMins ?? o.totalDwellMins), 0);
+          const totalDrive = 50 + (updatedOrders.length * 15);
+          const totalEstimated = totalDwell + totalDrive + 45;
+
+          return {
+            ...r,
+            orders: updatedOrders,
+            totalDwellMins: totalDwell,
+            totalDrivingMins: totalDrive,
+            totalEstimatedMins: totalEstimated,
+            totalDistanceKm: 20 + (updatedOrders.length * 7),
+            shiftUtilisationPct: Math.round((totalEstimated / 480) * 100),
+            isProblemRoute: totalEstimated > 480,
+          };
+        }
+
+        return r;
+      })
+    );
+  };
+
   const handleAssignDriverToRoute = (routeId: string, driverId: string) => {
     const selectedDriver = drivers.find((d) => d.id === driverId);
     setRoutes((prev) =>
@@ -194,6 +277,8 @@ export const App: React.FC = () => {
           onUpdateDepots={setDepots}
           onCreateRoute={handleCreateRoute}
           onAssignDriverToRoute={handleAssignDriverToRoute}
+          onUnassignOrCancelRoute={handleUnassignOrCancelRoute}
+          onMoveOrderBetweenRoutes={handleMoveOrderBetweenRoutes}
           onUpdateOrderDwell={handleUpdateOrderDwell}
           onUpdateSkuCatalog={setSkuCatalog}
           onSimulateNewOrder={handleSimulateNewOrder}

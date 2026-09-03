@@ -6,17 +6,15 @@ import { MorningDashboard } from './MorningDashboard';
 import { ScanToVanModal } from './ScanToVanModal';
 import { CustomerServiceLookup } from './CustomerServiceLookup';
 import { OrdersManager } from './OrdersManager';
+import { RoutesManager } from './RoutesManager';
 import { SettingsModal } from './SettingsModal';
 import { 
   Package, 
   Route as RouteIcon, 
-  CheckCircle2, 
-  UserCheck, 
   Radio, 
   Truck, 
   LayoutDashboard,
   Warehouse,
-  Barcode,
   Headphones,
   Settings
 } from 'lucide-react';
@@ -32,11 +30,12 @@ interface Props {
   onUpdateDepots: (depots: Depot[]) => void;
   onCreateRoute: (route: DeliveryRoute) => void;
   onAssignDriverToRoute: (routeId: string, driverId: string) => void;
+  onUnassignOrCancelRoute: (routeId: string) => void;
+  onMoveOrderBetweenRoutes: (orderId: string, sourceRouteId: string, targetRouteId: string) => void;
   onUpdateOrderDwell: (orderId: string, manualDwell: number) => void;
   onUpdateSkuCatalog: (catalog: SkuDwellSetting[]) => void;
   onSimulateNewOrder: (order: Partial<Order>) => void;
   onSwitchToDriver: (driverId: string) => void;
-  onOpenCustomerTracker?: (trackingNumber: string) => void;
   onConfirmRouteLoaded: (routeId: string) => void;
 }
 
@@ -51,13 +50,16 @@ export const AdminPortal: React.FC<Props> = ({
   onUpdateDepots,
   onCreateRoute,
   onAssignDriverToRoute,
+  onUnassignOrCancelRoute,
+  onMoveOrderBetweenRoutes,
   onUpdateOrderDwell,
   onUpdateSkuCatalog,
   onSwitchToDriver,
   onConfirmRouteLoaded,
 }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map' | 'cs_lookup'>('dashboard');
-  const [selectedDepotId, setSelectedDepotId] = useState<string>('depot-all');
+  // Default to first physical regional depot (Birmingham Central)
+  const [selectedDepotId, setSelectedDepotId] = useState<string>(depots[0]?.id || 'depot-bhm');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Scan to Van modal state
@@ -66,20 +68,16 @@ export const AdminPortal: React.FC<Props> = ({
   // Shift & Traffic Parameters
   const [shiftParams, setShiftParams] = useState<ShiftParameters>(DEFAULT_SHIFT_PARAMS);
 
-  // Filtered lists by selected depot
-  const activeRoutes = selectedDepotId === 'depot-all'
-    ? routes
-    : routes.filter((r) => r.depotId === selectedDepotId);
-
-  const activeOrders = selectedDepotId === 'depot-all'
-    ? orders
-    : orders.filter((o) => o.depotId === selectedDepotId);
+  // Filtered lists strictly by selected local depot
+  const activeRoutes = routes.filter((r) => r.depotId === selectedDepotId);
+  const activeOrders = orders.filter((o) => o.depotId === selectedDepotId);
+  const activeDrivers = drivers.filter((d) => d.depotId === selectedDepotId);
 
   const handleAutoBatchDepot = () => {
     const currentDepot = depots.find(d => d.id === selectedDepotId) || depots[0];
     const maxPerVan = currentDepot.maxOrdersPerVan || 6;
 
-    // Filter to only qualifying unassigned orders
+    // Filter to only qualifying unassigned orders for this depot
     const pendingOrders = activeOrders.filter((o) => o.status === 'PENDING' && !o.belowRouteCriteria);
     if (pendingOrders.length === 0) return;
 
@@ -89,24 +87,24 @@ export const AdminPortal: React.FC<Props> = ({
     }
 
     batches.forEach((batch, idx) => {
-      const routeId = `route-auto-${Date.now()}-${idx + 1}`;
-      const depotName = currentDepot.city || 'Depot';
+      const routeId = `route-local-${Date.now()}-${idx + 1}`;
+      const depotCity = currentDepot.city || 'Depot';
 
       const totalDwell = batch.reduce((acc, o) => acc + (o.manualDwellOverrideMins ?? o.totalDwellMins), 0);
-      const totalDrive = 75 + (batch.length * 15);
+      const totalDrive = 60 + (batch.length * 15);
       const totalEstimated = totalDwell + totalDrive + 45;
 
       const newRoute: DeliveryRoute = {
         id: routeId,
-        routeNumber: `Route ${routes.length + idx + 1} (${depotName} Wave ${idx + 1})`,
-        depotId: selectedDepotId === 'depot-all' ? 'depot-bhm' : selectedDepotId,
+        routeNumber: `Route ${routes.length + idx + 1} (${depotCity} Van ${idx + 1})`,
+        depotId: selectedDepotId,
         date: new Date().toISOString(),
         status: 'UNASSIGNED',
         totalDwellMins: totalDwell,
         totalDrivingMins: totalDrive,
         breakTimeMins: 45,
         totalEstimatedMins: totalEstimated,
-        totalDistanceKm: 28 + (batch.length * 7),
+        totalDistanceKm: 25 + (batch.length * 7),
         shiftUtilisationPct: Math.round((totalEstimated / (shiftParams.shiftLengthHours * 60)) * 100),
         isProblemRoute: totalEstimated > (shiftParams.shiftLengthHours * 60),
         problemReason: totalEstimated > (shiftParams.shiftLengthHours * 60) ? `Exceeds ${shiftParams.shiftLengthHours}h limit.` : undefined,
@@ -174,7 +172,7 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
 
           <div className="flex items-center space-x-3">
-            {/* Depot Selector */}
+            {/* Depot Selector: Strictly Physical Regional Depots */}
             <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/20 flex items-center gap-2 text-xs">
               <Warehouse className="w-3.5 h-3.5 text-blue-200" />
               <select
@@ -231,7 +229,7 @@ export const AdminPortal: React.FC<Props> = ({
               style={{ backgroundColor: activeTab === 'orders' ? brandTheme.secondaryColour : undefined }}
             >
               <Package className="w-4 h-4" />
-              Orders & Completed Deliveries ({activeOrders.length})
+              Orders ({activeOrders.length})
             </button>
 
             <button
@@ -275,11 +273,11 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
 
           {/* Launch Driver App Direct Workflow */}
-          {drivers.length > 0 && (
+          {activeDrivers.length > 0 && (
             <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs">
               <Truck className="w-4 h-4 text-emerald-700" />
               <span className="text-xs font-black text-emerald-900">Launch Driver Mobile App:</span>
-              {drivers.slice(0, 3).map((drv) => (
+              {activeDrivers.slice(0, 3).map((drv) => (
                 <button
                   key={drv.id}
                   onClick={() => onSwitchToDriver(drv.id)}
@@ -323,166 +321,20 @@ export const AdminPortal: React.FC<Props> = ({
           />
         )}
 
-        {/* TAB 2: ROUTES & MANIFESTS */}
+        {/* TAB 2: ROUTES & MANIFESTS WITH DRAG & DROP REBALANCING + CANCEL / UNDO */}
         {activeTab === 'routes' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <RouteIcon className="w-5 h-5" style={{ color: brandTheme.secondaryColour }} />
-                  Delivery Routes & Manifests ({activeRoutes.length})
-                </h2>
-                <p className="text-xs text-gray-500">
-                  Verify scan-to-van loading, check shift feasibility, and assign fleet drivers.
-                </p>
-              </div>
-            </div>
-
-            {activeRoutes.length === 0 ? (
-              <div className="bg-white rounded-2xl p-12 text-center text-gray-400 border border-gray-200">
-                <RouteIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p className="font-semibold text-gray-700">No delivery routes created yet for this depot</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Go to Dashboard and select unassigned orders to calculate routes.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {activeRoutes.map((route) => {
-                  const isAssigned = !!route.driverId;
-                  const isProblem = route.isProblemRoute || route.totalEstimatedMins > 480;
-
-                  return (
-                    <div
-                      key={route.id}
-                      className={`bg-white rounded-2xl p-5 shadow-sm border flex flex-col justify-between ${
-                        isProblem ? 'border-rose-300 ring-1 ring-rose-200' : 'border-gray-200'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                          <div>
-                            <span className="text-xs font-mono font-black" style={{ color: brandTheme.secondaryColour }}>
-                              {route.routeNumber}
-                            </span>
-                            <h3 className="font-bold text-gray-900 text-sm">Delivery Manifest</h3>
-                          </div>
-                          
-                          <div className="flex items-center gap-1.5">
-                            {route.allLoaded && (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 flex items-center gap-0.5">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Van Loaded
-                              </span>
-                            )}
-                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                              isProblem ? 'bg-rose-100 text-rose-800' :
-                              route.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
-                              route.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800 animate-pulse' :
-                              isAssigned ? 'bg-indigo-100 text-indigo-800' :
-                              'bg-amber-100 text-amber-800'
-                            }`}>
-                              {isProblem ? '⚠️ Problem: Over 8h Shift' : isAssigned ? `Driver: ${route.driver?.name}` : 'UNASSIGNED'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Shift Breakdown Pills */}
-                        <div className="grid grid-cols-4 gap-2 my-3 text-center text-xs">
-                          <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
-                            <span className="text-gray-400 block text-[10px] font-bold">STOPS</span>
-                            <span className="font-black text-gray-800">{route.orders.length}</span>
-                          </div>
-                          <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
-                            <span className="text-gray-400 block text-[10px] font-bold">DRIVE TIME</span>
-                            <span className="font-black text-gray-800">{Math.floor(route.totalDrivingMins / 60)}h {route.totalDrivingMins % 60}m</span>
-                          </div>
-                          <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
-                            <span className="text-gray-400 block text-[10px] font-bold">DWELL TIME</span>
-                            <span className="font-black" style={{ color: brandTheme.secondaryColour }}>{Math.floor(route.totalDwellMins / 60)}h {route.totalDwellMins % 60}m</span>
-                          </div>
-                          <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
-                            <span className="text-gray-400 block text-[10px] font-bold">TOTAL SHIFT</span>
-                            <span className={`font-black ${isProblem ? 'text-rose-700' : 'text-emerald-700'}`}>
-                              {Math.floor(route.totalEstimatedMins / 60)}h {route.totalEstimatedMins % 60}m
-                            </span>
-                          </div>
-                        </div>
-
-                        {isProblem && route.problemReason && (
-                          <div className="p-2.5 bg-rose-50 rounded-lg border border-rose-200 text-xs text-rose-800 font-bold mb-2">
-                            🚨 {route.problemReason}
-                          </div>
-                        )}
-
-                        {/* Staging Scan-to-Van Button */}
-                        <div className="my-2">
-                          <button
-                            onClick={() => setLoadingRoute(route)}
-                            className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 border border-gray-200"
-                          >
-                            <Barcode className="w-4 h-4 text-blue-600" />
-                            {route.allLoaded ? 'Review Loaded Van Items' : 'Scan-to-Van Loading Verification (LIFO)'}
-                          </button>
-                        </div>
-
-                        {/* Route Stops */}
-                        <div className="space-y-2 mt-2 max-h-40 overflow-y-auto pr-1">
-                          {route.orders.map((ord, idx) => (
-                            <div key={ord.id} className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 text-xs flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="w-5 h-5 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center font-bold text-[10px]">
-                                  {idx + 1}
-                                </span>
-                                <div>
-                                  <span className="font-semibold text-gray-900 block">{ord.customerName}</span>
-                                  <span className="text-gray-500 text-[11px]">{ord.postcode} • {ord.items.map((i) => `${i.quantity}x ${i.sku}`).join(', ')}</span>
-                                </div>
-                              </div>
-                              <span className="text-[10px] font-bold text-gray-600 bg-white px-2 py-0.5 rounded border">
-                                {ord.manualDwellOverrideMins || ord.totalDwellMins}m dwell
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Driver Assignment Dropdown */}
-                      <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
-                        <div className="flex-1">
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 flex items-center gap-1">
-                            <UserCheck className="w-3 h-3" style={{ color: brandTheme.secondaryColour }} />
-                            Assign Driver to Route:
-                          </label>
-                          <select
-                            value={route.driverId || ''}
-                            onChange={(e) => onAssignDriverToRoute(route.id, e.target.value)}
-                            className="w-full text-xs font-semibold rounded-lg border-gray-300 p-2 border focus:ring-blue-500"
-                          >
-                            <option value="">-- Unassigned (Choose Driver) --</option>
-                            {drivers.map((drv) => (
-                              <option key={drv.id} value={drv.id}>
-                                {drv.name} ({drv.vehicleReg})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {route.driverId && (
-                          <button
-                            onClick={() => onSwitchToDriver(route.driverId!)}
-                            className="mt-4 py-2 px-3 bg-blue-50 hover:bg-blue-100 font-bold text-xs rounded-lg transition shrink-0"
-                            style={{ color: brandTheme.secondaryColour }}
-                          >
-                            Open Driver View 📱
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <RoutesManager
+            routes={routes}
+            drivers={drivers}
+            depots={depots}
+            selectedDepotId={selectedDepotId}
+            brandTheme={brandTheme}
+            onAssignDriverToRoute={onAssignDriverToRoute}
+            onUnassignOrCancelRoute={onUnassignOrCancelRoute}
+            onMoveOrderBetweenRoutes={onMoveOrderBetweenRoutes}
+            onOpenScanToVan={(r) => setLoadingRoute(r)}
+            onSwitchToDriver={onSwitchToDriver}
+          />
         )}
 
         {/* TAB 3: REAL MAP */}
