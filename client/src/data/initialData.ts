@@ -4,9 +4,9 @@ export const KALSI_BRAND_THEME: BrandTheme = {
   companyName: 'Kalsi Plastics',
   tagline: 'Advanced Building Product Manufacturing & Fleet Logistics',
   logoText: 'KALSI',
-  primaryColour: '#0F1E36', // Kalsi Navy
+  primaryColour: '#0F1E36', // Kalsi Deep Navy
   secondaryColour: '#0072CE', // Kalsi Blue
-  accentColour: '#16A34A', // Kalsi Green
+  accentColour: '#16A34A', // Kalsi Emerald
   headerBgColour: '#0F1E36',
 };
 
@@ -51,7 +51,7 @@ export const UK_DEPOTS: Depot[] = [
     lat: 51.6680, 
     lng: -0.0350, 
     activeVansCount: 7,
-    maxDeliveryRadiusMiles: 10, // 10 miles in London due to traffic density & low speeds
+    maxDeliveryRadiusMiles: 10,
     maxDailyCapacityOrders: 65,
     trafficMultiplierOverride: 1.45
   },
@@ -73,15 +73,15 @@ export const UK_DEPOTS: Depot[] = [
   { 
     id: 'depot-ncl', 
     code: 'NCL', 
-    name: 'Newcastle & North East Distribution Depot', 
+    name: 'Newcastle & North East Depot', 
     region: 'North East', 
     city: 'Newcastle', 
-    address: 'Team Valley Trading Estate, Gateshead', 
+    address: 'Team Valley Trading Estate', 
     postcode: 'NE11 0QA', 
     lat: 54.9350, 
     lng: -1.6150, 
     activeVansCount: 5,
-    maxDeliveryRadiusMiles: 30, // 30 miles in Newcastle/North East due to dispersed territory
+    maxDeliveryRadiusMiles: 30,
     maxDailyCapacityOrders: 45,
     trafficMultiplierOverride: 1.15
   },
@@ -229,103 +229,60 @@ export const INITIAL_SKU_SETTINGS: SkuDwellSetting[] = [
 ];
 
 export const INITIAL_DRIVERS: Driver[] = [
-  {
-    id: 'drv-1',
-    name: 'Dave Jenkins',
-    phone: '07700 900101',
-    vehicleReg: 'KL24 BHM',
-    depotId: 'depot-bhm',
-    currentLat: 52.4862,
-    currentLng: -1.8904,
-    lastUpdated: '08:42 AM',
-    status: 'ON_ROUTE',
-  },
-  {
-    id: 'drv-2',
-    name: 'Sarah Miller',
-    phone: '07700 900102',
-    vehicleReg: 'KP23 BHM',
-    depotId: 'depot-bhm',
-    currentLat: 52.4550,
-    currentLng: -1.9400,
-    lastUpdated: '08:40 AM',
-    status: 'DELIVERING',
-  },
-  {
-    id: 'drv-3',
-    name: 'Kieran Scott',
-    phone: '07700 900103',
-    vehicleReg: 'KV72 BHM',
-    depotId: 'depot-bhm',
-    currentLat: 52.5200,
-    currentLng: -1.8600,
-    lastUpdated: '08:35 AM',
-    status: 'IDLE',
-  },
-  {
-    id: 'drv-4',
-    name: 'Gary Wright',
-    phone: '07700 900104',
-    vehicleReg: 'KM73 MAN',
-    depotId: 'depot-man',
-    currentLat: 53.4680,
-    currentLng: -2.3120,
-    lastUpdated: '08:30 AM',
-    status: 'ON_ROUTE',
-  },
-  {
-    id: 'drv-5',
-    name: 'Tom Henderson',
-    phone: '07700 900105',
-    vehicleReg: 'KL71 LON',
-    depotId: 'depot-lon-n',
-    currentLat: 51.6680,
-    currentLng: -0.0350,
-    lastUpdated: '08:25 AM',
-    status: 'IDLE',
-  },
-  {
-    id: 'drv-6',
-    name: 'Alan Armstrong',
-    phone: '07700 900106',
-    vehicleReg: 'KN24 NCL',
-    depotId: 'depot-ncl',
-    currentLat: 54.9350,
-    currentLng: -1.6150,
-    lastUpdated: '08:20 AM',
-    status: 'IDLE',
-  },
+  { id: 'drv-1', name: 'Dave Jenkins', phone: '07700 900101', vehicleReg: 'KL24 BHM', depotId: 'depot-bhm', currentLat: 52.4862, currentLng: -1.8904, lastUpdated: '08:42 AM', status: 'ON_ROUTE' },
+  { id: 'drv-2', name: 'Sarah Miller', phone: '07700 900102', vehicleReg: 'KP23 BHM', depotId: 'depot-bhm', currentLat: 52.4550, currentLng: -1.9400, lastUpdated: '08:40 AM', status: 'DELIVERING' },
+  { id: 'drv-3', name: 'Kieran Scott', phone: '07700 900103', vehicleReg: 'KV72 BHM', depotId: 'depot-bhm', currentLat: 52.5200, currentLng: -1.8600, lastUpdated: '08:35 AM', status: 'IDLE' },
+  { id: 'drv-4', name: 'Gary Wright', phone: '07700 900104', vehicleReg: 'KM73 MAN', depotId: 'depot-man', currentLat: 53.4680, currentLng: -2.3120, lastUpdated: '08:30 AM', status: 'ON_ROUTE' },
+  { id: 'drv-5', name: 'Tom Henderson', phone: '07700 900105', vehicleReg: 'KL71 LON', depotId: 'depot-lon-n', currentLat: 51.6680, currentLng: -0.0350, lastUpdated: '08:25 AM', status: 'IDLE' },
+  { id: 'drv-6', name: 'Alan Armstrong', phone: '07700 900106', vehicleReg: 'KN24 NCL', depotId: 'depot-ncl', currentLat: 54.9350, currentLng: -1.6150, lastUpdated: '08:20 AM', status: 'IDLE' },
 ];
 
-export function generateMorningOrders(): Order[] {
-  const seedNames = [
-    { name: 'Marcus Evans (Apex Builders)', phone: '07711 223344', email: 'm.evans@apex.co.uk', addr: '42 Highfield Rd, Edgbaston', city: 'Birmingham', pc: 'B15 3DZ', lat: 52.4688, lng: -1.9325, depot: 'depot-bhm' },
-    { name: 'Janet Wood (Wood Renovations)', phone: '07822 334455', email: 'janet@wood.co.uk', addr: '15 Sutton Rd, Erdington', city: 'Birmingham', pc: 'B23 6QJ', lat: 52.5273, lng: -1.8411, depot: 'depot-bhm' },
-    { name: 'Liam Patterson (Patterson Plastics)', phone: '07933 445566', email: 'liam@patterson.co.uk', addr: 'Unit 4 Redfern Estate, Tyseley', city: 'Birmingham', pc: 'B11 2BE', lat: 52.4578, lng: -1.8415, depot: 'depot-bhm' },
-    { name: 'Claire Smith (Shirley Roofing)', phone: '07544 112233', email: 'claire@shirleyroof.co.uk', addr: '88 Solihull Rd, Shirley', city: 'Solihull', pc: 'B90 3HG', lat: 52.4144, lng: -1.8211, depot: 'depot-bhm' },
-    { name: 'Arthur Pendelton (Midlands Cladding)', phone: '07633 889900', email: 'arthur@midlandsclad.co.uk', addr: '102 Walsall Rd, Perry Barr', city: 'Birmingham', pc: 'B42 1SG', lat: 52.5204, lng: -1.9056, depot: 'depot-bhm' },
-    { name: 'David Miller (Miller Gutters)', phone: '07412 884411', email: 'dave@millers.co.uk', addr: '19 Harborne High St', city: 'Birmingham', pc: 'B17 9NT', lat: 52.4590, lng: -1.9442, depot: 'depot-bhm' },
-    { name: 'Richard Hall (Coventry Civils)', phone: '07700 112299', email: 'rich@covcivils.co.uk', addr: '55 Foleshill Rd', city: 'Coventry', pc: 'CV1 4NR', lat: 52.4180, lng: -1.5050, depot: 'depot-cov' },
-    { name: 'Simon Fletcher (Warwick Build)', phone: '07700 334488', email: 'simon@warwickbuild.co.uk', addr: '12 Castle Hill', city: 'Warwick', pc: 'CV34 4EX', lat: 52.2810, lng: -1.5890, depot: 'depot-cov' },
-    { name: 'Paul Gallagher (Manchester Plastics)', phone: '07700 998811', email: 'paul@mcrplastics.co.uk', addr: '78 Trafford Park Way', city: 'Manchester', pc: 'M17 1AN', lat: 53.4680, lng: -2.3120, depot: 'depot-man' },
-    { name: 'Martin Green (Salford Developments)', phone: '07700 887766', email: 'martin@salforddev.co.uk', addr: '22 Chapel St', city: 'Salford', pc: 'M3 5BZ', lat: 53.4830, lng: -2.2590, depot: 'depot-man' },
-    { name: 'Graham Walker (Enfield Drainage)', phone: '07700 556677', email: 'graham@enfielddrain.co.uk', addr: '10 Innova Way, Enfield', city: 'London', pc: 'EN3 7FL', lat: 51.6680, lng: -0.0350, depot: 'depot-lon-n' },
-    { name: 'Steven Clark (Croydon Roofing)', phone: '07700 443322', email: 'steven@croydonroof.co.uk', addr: '94 Purley Way', city: 'Croydon', pc: 'CR0 4XJ', lat: 51.3780, lng: -0.1190, depot: 'depot-lon-s' },
-    { name: 'Ian Robson (Tyne Valley Plastics)', phone: '07700 665544', email: 'ian@tyneplastics.co.uk', addr: '34 Team Valley Way', city: 'Gateshead', pc: 'NE11 0QA', lat: 54.9350, lng: -1.6150, depot: 'depot-ncl' },
+// Rich set of realistic UK nationwide orders for true OMS demonstration
+export function generateLargeOrderDataset(): Order[] {
+  const seedData = [
+    // Birmingham Hub (BHM)
+    { name: 'Marcus Evans (Apex Builders)', phone: '07711 223344', email: 'm.evans@apex.co.uk', addr: '42 Highfield Rd, Edgbaston', city: 'Birmingham', pc: 'B15 3DZ', lat: 52.4688, lng: -1.9325, depot: 'depot-bhm', status: 'DELIVERED', date: 'Today 08:15 AM', deliveredBy: 'Dave Jenkins (KL24 BHM)', notes: 'Signed at trade counter' },
+    { name: 'Janet Wood (Wood Renovations)', phone: '07822 334455', email: 'janet@wood.co.uk', addr: '15 Sutton Rd, Erdington', city: 'Birmingham', pc: 'B23 6QJ', lat: 52.5273, lng: -1.8411, depot: 'depot-bhm', status: 'OUT_FOR_DELIVERY' },
+    { name: 'Liam Patterson (Patterson Plastics)', phone: '07933 445566', email: 'liam@patterson.co.uk', addr: 'Unit 4 Redfern Estate, Tyseley', city: 'Birmingham', pc: 'B11 2BE', lat: 52.4578, lng: -1.8415, depot: 'depot-bhm', status: 'ROUTED' },
+    { name: 'Claire Smith (Shirley Roofing)', phone: '07544 112233', email: 'claire@shirleyroof.co.uk', addr: '88 Solihull Rd, Shirley', city: 'Solihull', pc: 'B90 3HG', lat: 52.4144, lng: -1.8211, depot: 'depot-bhm', status: 'DELIVERED', date: 'Today 08:35 AM', deliveredBy: 'Dave Jenkins (KL24 BHM)', notes: 'Left inside front side gate' },
+    { name: 'Arthur Pendelton (Midlands Cladding)', phone: '07633 889900', email: 'arthur@midlandsclad.co.uk', addr: '102 Walsall Rd, Perry Barr', city: 'Birmingham', pc: 'B42 1SG', lat: 52.5204, lng: -1.9056, depot: 'depot-bhm', status: 'PENDING' },
+    { name: 'David Miller (Miller Gutters)', phone: '07412 884411', email: 'dave@millers.co.uk', addr: '19 Harborne High St', city: 'Birmingham', pc: 'B17 9NT', lat: 52.4590, lng: -1.9442, depot: 'depot-bhm', status: 'PENDING' },
+    { name: 'Keith Reynolds (Brum Fascias)', phone: '07700 882211', email: 'keith@brumfascias.co.uk', addr: '77 Kingsbury Rd', city: 'Birmingham', pc: 'B24 8QQ', lat: 52.5180, lng: -1.8320, depot: 'depot-bhm', status: 'PENDING' },
+    { name: 'Darren Cox (Aston Developments)', phone: '07700 994433', email: 'darren@astondev.co.uk', addr: '5 Licenced St', city: 'Birmingham', pc: 'B6 5TX', lat: 52.4980, lng: -1.8890, depot: 'depot-bhm', status: 'PENDING' },
+
+    // London North Hub (LON-N)
+    { name: 'Graham Walker (Enfield Drainage)', phone: '07700 556677', email: 'graham@enfielddrain.co.uk', addr: '10 Innova Way, Enfield', city: 'London', pc: 'EN3 7FL', lat: 51.6680, lng: -0.0350, depot: 'depot-lon-n', status: 'PENDING' },
+    { name: 'Toby Marshall (Tottenham Timber & Plastic)', phone: '07700 667788', email: 'toby@tottenhamtp.co.uk', addr: '44 High Rd, Tottenham', city: 'London', pc: 'N17 9TA', lat: 51.5980, lng: -0.0710, depot: 'depot-lon-n', status: 'PENDING' },
+    { name: 'Oliver King (Barnet Building Supplies)', phone: '07700 778899', email: 'oliver@barnetbuild.co.uk', addr: '12 Wood St, Barnet', city: 'London', pc: 'EN5 4BP', lat: 51.6540, lng: -0.2010, depot: 'depot-lon-n', status: 'PENDING' },
+    { name: 'Dean Harris (Islington Civils)', phone: '07700 889911', email: 'dean@islingtoncivils.co.uk', addr: '82 Upper St, Islington', city: 'London', pc: 'N1 0NU', lat: 51.5380, lng: -0.1030, depot: 'depot-lon-n', status: 'DELIVERED', date: 'Yesterday 15:40', deliveredBy: 'Tom Henderson (KL71 LON)', notes: 'Direct delivery to site store' },
+
+    // London South Hub (LON-S)
+    { name: 'Steven Clark (Croydon Roofing)', phone: '07700 443322', email: 'steven@croydonroof.co.uk', addr: '94 Purley Way', city: 'Croydon', pc: 'CR0 4XJ', lat: 51.3780, lng: -0.1190, depot: 'depot-lon-s', status: 'PENDING' },
+    { name: 'Ray Campbell (Bromley Plastics)', phone: '07700 332211', email: 'ray@bromleyplastics.co.uk', addr: '28 Masons Hill', city: 'Bromley', pc: 'BR2 9HG', lat: 51.3980, lng: 0.0190, depot: 'depot-lon-s', status: 'PENDING' },
+    { name: 'Lewis Finch (Mitcham Civils)', phone: '07700 221100', email: 'lewis@mitcham.co.uk', addr: '14 London Rd', city: 'Mitcham', pc: 'CR4 2YR', lat: 51.4020, lng: -0.1680, depot: 'depot-lon-s', status: 'DELIVERED', date: 'Yesterday 11:20', deliveredBy: 'Sarah Miller (KP23 BHM)', notes: 'Forklift offload at depot' },
+
+    // Newcastle & North East (NCL)
+    { name: 'Ian Robson (Tyne Valley Plastics)', phone: '07700 665544', email: 'ian@tyneplastics.co.uk', addr: '34 Team Valley Way', city: 'Gateshead', pc: 'NE11 0QA', lat: 54.9350, lng: -1.6150, depot: 'depot-ncl', status: 'PENDING' },
+    { name: 'Barry Dobson (Durham Trade Counters)', phone: '07700 554433', email: 'barry@durhamtrade.co.uk', addr: 'Unit 2 Belmont Estate', city: 'Durham', pc: 'DH1 1TW', lat: 54.7890, lng: -1.5420, depot: 'depot-ncl', status: 'PENDING' },
+    { name: 'Graeme Watson (Sunderland Roofing)', phone: '07700 445566', email: 'graeme@sunderlandroof.co.uk', addr: '18 Riverside Rd', city: 'Sunderland', pc: 'SR5 3JG', lat: 54.9120, lng: -1.4110, depot: 'depot-ncl', status: 'PENDING' },
+
+    // Manchester (MAN)
+    { name: 'Paul Gallagher (Manchester Plastics)', phone: '07700 998811', email: 'paul@mcrplastics.co.uk', addr: '78 Trafford Park Way', city: 'Manchester', pc: 'M17 1AN', lat: 53.4680, lng: -2.3120, depot: 'depot-man', status: 'OUT_FOR_DELIVERY' },
+    { name: 'Martin Green (Salford Developments)', phone: '07700 887766', email: 'martin@salforddev.co.uk', addr: '22 Chapel St', city: 'Salford', pc: 'M3 5BZ', lat: 53.4830, lng: -2.2590, depot: 'depot-man', status: 'PENDING' },
+    { name: 'Craig Hughes (Stockport Cladding)', phone: '07700 776655', email: 'craig@stockportclad.co.uk', addr: '5 Buxton Rd', city: 'Stockport', pc: 'SK2 6LS', lat: 53.3980, lng: -2.1450, depot: 'depot-man', status: 'PENDING' },
   ];
 
   const skuList = INITIAL_SKU_SETTINGS;
 
-  return seedNames.map((s, idx) => {
+  return seedData.map((s, idx) => {
     const item1 = skuList[idx % skuList.length];
-    const item2 = skuList[(idx + 2) % skuList.length];
-
-    const isDelivered = idx === 0;
-    const isOut = idx === 1 || idx === 8;
-    const isRouted = idx === 2 || idx === 3;
+    const item2 = skuList[(idx + 3) % skuList.length];
+    const isDelivered = s.status === 'DELIVERED';
+    const isOut = s.status === 'OUT_FOR_DELIVERY';
+    const isRouted = s.status === 'ROUTED';
 
     return {
-      id: `ord-seed-${idx + 1}`,
+      id: `ord-oms-${idx + 1}`,
       trackingNumber: `KAL-${889100 + idx + 1}`,
       depotId: s.depot,
       customerName: s.name,
@@ -341,23 +298,24 @@ export function generateMorningOrders(): Order[] {
         { sku: item2.sku, name: item2.name, quantity: 2 + (idx % 3), dwellMinsPerUnit: item2.defaultDwellMins },
       ],
       totalDwellMins: item1.defaultDwellMins + (idx % 2 === 0 ? 5 : 0),
-      status: isDelivered ? 'DELIVERED' : isOut ? 'OUT_FOR_DELIVERY' : isRouted ? 'ROUTED' : 'PENDING',
-      createdAt: new Date(Date.now() - (idx * 3600000)).toISOString(),
+      status: (isDelivered ? 'DELIVERED' : isOut ? 'OUT_FOR_DELIVERY' : isRouted ? 'ROUTED' : 'PENDING') as any,
+      createdAt: new Date(Date.now() - (idx * 7200000)).toISOString(),
       proofOfDelivery: isDelivered ? {
-        id: 'pod-demo-1',
-        orderId: `ord-seed-1`,
-        recipientName: 'Marcus Evans',
-        signatureData: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="30"><text y="20" font-family="cursive" font-size="16" fill="%230F1E36">M. Evans</text></svg>',
-        notes: 'Signed at trade counter',
-        deliveredLat: 52.4688,
-        deliveredLng: -1.9325,
-        timestamp: '08:15 AM',
+        id: `pod-oms-${idx + 1}`,
+        orderId: `ord-oms-${idx + 1}`,
+        recipientName: s.name.split(' ')[0] + ' ' + s.name.split(' ')[1],
+        signatureData: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="140" height="35"><text y="24" font-family="cursive" font-size="20" fill="%230F1E36">Verified Signee</text></svg>',
+        photoUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=400&q=80',
+        notes: (s as any).notes || 'Delivered to site',
+        deliveredLat: s.lat + 0.0001,
+        deliveredLng: s.lng + 0.0001,
+        timestamp: (s as any).date || 'Today 08:30 AM',
       } : undefined,
     };
   });
 }
 
-export const INITIAL_ORDERS: Order[] = generateMorningOrders();
+export const INITIAL_ORDERS: Order[] = generateLargeOrderDataset();
 
 export const INITIAL_ROUTES: DeliveryRoute[] = [
   {
@@ -379,18 +337,17 @@ export const INITIAL_ROUTES: DeliveryRoute[] = [
   },
   {
     id: 'route-morning-2',
-    routeNumber: 'Route 2 (Overloaded Peak Birmingham - Problem Warning)',
+    routeNumber: 'Route 2 (Peak Birmingham - Feasible)',
     depotId: 'depot-bhm',
     date: new Date().toISOString(),
     status: 'UNASSIGNED',
-    totalDwellMins: 290,
-    totalDrivingMins: 280,
+    totalDwellMins: 120,
+    totalDrivingMins: 190,
     breakTimeMins: 45,
-    totalEstimatedMins: 615,
-    totalDistanceKm: 148.0,
-    shiftUtilisationPct: 128,
-    isProblemRoute: true,
-    problemReason: 'Exceeds Legal 8h Shift Limit (10h 15m total estimated shift time). Driver would breach statutory driving hours.',
-    orders: [INITIAL_ORDERS[1], INITIAL_ORDERS[2], INITIAL_ORDERS[4], INITIAL_ORDERS[5]],
+    totalEstimatedMins: 355,
+    totalDistanceKm: 78.0,
+    shiftUtilisationPct: 74,
+    isProblemRoute: false,
+    orders: [INITIAL_ORDERS[1], INITIAL_ORDERS[2], INITIAL_ORDERS[4]],
   },
 ];
