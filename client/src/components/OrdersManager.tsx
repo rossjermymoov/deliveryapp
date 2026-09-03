@@ -38,7 +38,8 @@ export const OrdersManager: React.FC<Props> = ({
   brandTheme,
   selectedDepotId,
 }) => {
-  const [filterMode, setFilterMode] = useState<'ALL' | 'UNASSIGNED' | 'HELD_CRITERIA' | 'ROUTED' | 'OUT_FOR_DELIVERY' | 'COMPLETED'>('ALL');
+  // Clean 4-State Filter Tabs
+  const [filterMode, setFilterMode] = useState<'UNASSIGNED' | 'HELD_CRITERIA' | 'AWAITING_DELIVERY' | 'COMPLETED'>('UNASSIGNED');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [sortField, setSortField] = useState<'createdAt' | 'customerName' | 'status' | 'dwell'>('createdAt');
@@ -48,12 +49,20 @@ export const OrdersManager: React.FC<Props> = ({
   const depotOrders = orders.filter((o) => o.depotId === selectedDepotId);
 
   const filteredOrders = depotOrders.filter((o) => {
-    // Status filter
-    if (filterMode === 'UNASSIGNED' && (o.status !== 'PENDING' || o.belowRouteCriteria)) return false;
-    if (filterMode === 'HELD_CRITERIA' && (!o.belowRouteCriteria || o.status !== 'PENDING')) return false;
-    if (filterMode === 'ROUTED' && o.status !== 'ROUTED' && o.status !== 'LOADED') return false;
-    if (filterMode === 'OUT_FOR_DELIVERY' && o.status !== 'OUT_FOR_DELIVERY') return false;
-    if (filterMode === 'COMPLETED' && o.status !== 'DELIVERED') return false;
+    // 4 Clean Filter Modes
+    if (filterMode === 'UNASSIGNED') {
+      if (o.status !== 'PENDING' || o.belowRouteCriteria) return false;
+    }
+    if (filterMode === 'HELD_CRITERIA') {
+      if (!o.belowRouteCriteria || o.status !== 'PENDING') return false;
+    }
+    if (filterMode === 'AWAITING_DELIVERY') {
+      // Combines ROUTED, LOADED, and OUT_FOR_DELIVERY (everything assigned to a van currently in motion)
+      if (o.status !== 'ROUTED' && o.status !== 'LOADED' && o.status !== 'OUT_FOR_DELIVERY') return false;
+    }
+    if (filterMode === 'COMPLETED') {
+      if (o.status !== 'DELIVERED') return false;
+    }
 
     // Search query
     if (!searchQuery) return true;
@@ -88,10 +97,10 @@ export const OrdersManager: React.FC<Props> = ({
     return 0;
   });
 
-  const unassignedReadyCount = depotOrders.filter((o) => o.status === 'PENDING' && !o.belowRouteCriteria).length;
-  const heldCriteriaCount = depotOrders.filter((o) => o.status === 'PENDING' && o.belowRouteCriteria).length;
-  const routedCount = depotOrders.filter((o) => o.status === 'ROUTED' || o.status === 'LOADED').length;
-  const transitCount = depotOrders.filter((o) => o.status === 'OUT_FOR_DELIVERY').length;
+  // 4 Core Counts
+  const unassignedCount = depotOrders.filter((o) => o.status === 'PENDING' && !o.belowRouteCriteria).length;
+  const belowCriteriaCount = depotOrders.filter((o) => o.status === 'PENDING' && o.belowRouteCriteria).length;
+  const awaitingDeliveryCount = depotOrders.filter((o) => o.status === 'ROUTED' || o.status === 'LOADED' || o.status === 'OUT_FOR_DELIVERY').length;
   const completedCount = depotOrders.filter((o) => o.status === 'DELIVERED').length;
 
   const matchedRoute = routes.find((r) => r.id === selectedOrder?.routeId);
@@ -100,70 +109,53 @@ export const OrdersManager: React.FC<Props> = ({
 
   return (
     <div className="space-y-4 animate-fadeIn font-sans">
-      {/* Top Filter & Search Bar */}
+      {/* 4 Clean Action Tabs & Search Bar */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-200 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-        {/* Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            onClick={() => setFilterMode('ALL')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
-              filterMode === 'ALL'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-            }`}
-          >
-            All Depot Orders ({depotOrders.length})
-          </button>
-
+        {/* 4 Simplified Filter Tabs */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* 1. Unassigned Orders */}
           <button
             onClick={() => setFilterMode('UNASSIGNED')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${
               filterMode === 'UNASSIGNED'
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200'
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            Unassigned Orders ({unassignedReadyCount})
+            Unassigned Orders ({unassignedCount})
           </button>
 
+          {/* 2. Below Criteria */}
           <button
             onClick={() => setFilterMode('HELD_CRITERIA')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${
               filterMode === 'HELD_CRITERIA'
                 ? 'bg-orange-600 text-white shadow-xs'
                 : 'bg-orange-50 hover:bg-orange-100 text-orange-900 border border-orange-200'
             }`}
           >
             <AlertCircle className="w-3.5 h-3.5 text-orange-600" />
-            Below Criteria ({heldCriteriaCount})
+            Below Criteria ({belowCriteriaCount})
           </button>
 
+          {/* 3. Awaiting Delivery */}
           <button
-            onClick={() => setFilterMode('ROUTED')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
-              filterMode === 'ROUTED'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200'
-            }`}
-          >
-            Assigned to Route ({routedCount})
-          </button>
-
-          <button
-            onClick={() => setFilterMode('OUT_FOR_DELIVERY')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
-              filterMode === 'OUT_FOR_DELIVERY'
+            onClick={() => setFilterMode('AWAITING_DELIVERY')}
+            className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${
+              filterMode === 'AWAITING_DELIVERY'
                 ? 'bg-blue-600 text-white shadow-xs'
                 : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200'
             }`}
           >
-            Out for Delivery ({transitCount})
+            <Truck className="w-3.5 h-3.5" />
+            Awaiting Delivery ({awaitingDeliveryCount})
           </button>
 
+          {/* 4. Completed Orders */}
           <button
             onClick={() => setFilterMode('COMPLETED')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+            className={`px-4 py-2 rounded-xl text-xs font-black transition flex items-center gap-1.5 ${
               filterMode === 'COMPLETED'
                 ? 'bg-emerald-600 text-white shadow-xs'
                 : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200'
@@ -238,7 +230,7 @@ export const OrdersManager: React.FC<Props> = ({
                   }}
                 >
                   <div className="flex items-center justify-center gap-1">
-                    <span>Status & Routing Feasibility</span>
+                    <span>Status</span>
                     {sortField === 'status' && (sortAsc ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
                   </div>
                 </th>
@@ -249,7 +241,7 @@ export const OrdersManager: React.FC<Props> = ({
               {sortedOrders.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400 font-bold">
-                    No orders match your filter criteria.
+                    No orders currently in this status tab.
                   </td>
                 </tr>
               ) : (
@@ -314,12 +306,12 @@ export const OrdersManager: React.FC<Props> = ({
                         </span>
                       </td>
 
-                      {/* Status & Criteria */}
+                      {/* Status */}
                       <td className="p-3.5 text-center">
                         {isBelowCriteria ? (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-orange-100 text-orange-900 border border-orange-300 inline-flex items-center gap-1" title={ord.criteriaReason}>
                             <AlertCircle className="w-3 h-3 text-orange-700" />
-                            Below Route Criteria
+                            Below Criteria
                           </span>
                         ) : (
                           <span
@@ -333,7 +325,7 @@ export const OrdersManager: React.FC<Props> = ({
                                 : 'bg-amber-100 text-amber-900 border border-amber-300'
                             }`}
                           >
-                            {ord.status}
+                            {isRouted ? 'Awaiting Delivery' : ord.status}
                           </span>
                         )}
                       </td>
@@ -359,7 +351,7 @@ export const OrdersManager: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* WIDE FULL-SCREEN POD & DELIVERY AUDIT MODAL (NO SCROLL REQUIRED) */}
+      {/* WIDE FULL-SCREEN POD & DELIVERY AUDIT MODAL */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
           <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] overflow-hidden">
