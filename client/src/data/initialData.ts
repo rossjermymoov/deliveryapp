@@ -4,10 +4,10 @@ export const KALSI_BRAND_THEME: BrandTheme = {
   companyName: 'Kalsi Plastics',
   tagline: 'Advanced Building Product Manufacturing & Fleet Logistics',
   logoText: 'KALSI',
-  primaryColor: '#0F1E36', // Kalsi Navy
-  secondaryColor: '#0072CE', // Kalsi Blue
-  accentColor: '#16A34A', // Kalsi Green
-  headerBgColor: '#0F1E36',
+  primaryColour: '#0F1E36', // Kalsi Navy
+  secondaryColour: '#0072CE', // Kalsi Blue
+  accentColour: '#16A34A', // Kalsi Green
+  headerBgColour: '#0F1E36',
 };
 
 export const PRESET_THEMES: Record<string, BrandTheme> = {
@@ -15,37 +15,37 @@ export const PRESET_THEMES: Record<string, BrandTheme> = {
     companyName: 'Kalsi Plastics',
     tagline: 'Advanced Building Product Manufacturing & Fleet Logistics',
     logoText: 'KALSI',
-    primaryColor: '#0F1E36', // Kalsi Navy
-    secondaryColor: '#0072CE', // Kalsi Blue
-    accentColor: '#16A34A', // Kalsi Green
-    headerBgColor: '#0F1E36',
+    primaryColour: '#0F1E36', // Kalsi Navy
+    secondaryColour: '#0072CE', // Kalsi Blue
+    accentColour: '#16A34A', // Kalsi Green
+    headerBgColour: '#0F1E36',
   },
   moov: {
     companyName: 'Moov Logistics',
-    tagline: 'Next-Generation Delivery & Route Optimization Engine',
+    tagline: 'Next-Generation Delivery & Route Optimisation Engine',
     logoText: 'MOOV',
-    primaryColor: '#18181B', // Dark Zinc
-    secondaryColor: '#6366F1', // Indigo
-    accentColor: '#EC4899', // Pink Accent
-    headerBgColor: '#18181B',
+    primaryColour: '#18181B', // Dark Zinc
+    secondaryColour: '#6366F1', // Indigo
+    accentColour: '#EC4899', // Pink Accent
+    headerBgColour: '#18181B',
   },
   timber: {
     companyName: 'Premier Timber & Building',
     tagline: 'Nationwide Heavy Goods & Trade Delivery Network',
     logoText: 'PREMIER',
-    primaryColor: '#27272A',
-    secondaryColor: '#D97706', // Amber Gold
-    accentColor: '#059669', // Emerald
-    headerBgColor: '#1C1917',
+    primaryColour: '#27272A',
+    secondaryColour: '#D97706', // Amber Gold
+    accentColour: '#059669', // Emerald
+    headerBgColour: '#1C1917',
   },
   generic: {
     companyName: 'Enterprise Delivery OS',
     tagline: 'Multi-Depot Routing & Fleet Management Platform',
     logoText: 'FLEET',
-    primaryColor: '#0F172A', // Slate 900
-    secondaryColor: '#2563EB', // Blue 600
-    accentColor: '#10B981', // Emerald 500
-    headerBgColor: '#0F172A',
+    primaryColour: '#0F172A', // Slate 900
+    secondaryColour: '#2563EB', // Blue 600
+    accentColour: '#10B981', // Emerald 500
+    headerBgColour: '#0F172A',
   },
 };
 

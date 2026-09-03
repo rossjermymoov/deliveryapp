@@ -2,10 +2,10 @@ export interface BrandTheme {
   companyName: string;
   tagline: string;
   logoText: string;
-  primaryColor: string;    // e.g. Navy '#0B2545'
-  secondaryColor: string;  // e.g. Kalsi Blue '#0072CE'
-  accentColor: string;     // e.g. Kalsi Green '#22C55E' or Orange '#FF6B00'
-  headerBgColor: string;
+  primaryColour: string;    // e.g. Navy '#0B2545'
+  secondaryColour: string;  // e.g. Kalsi Blue '#0072CE'
+  accentColour: string;     // e.g. Kalsi Green '#22C55E' or Orange '#FF6B00'
+  headerBgColour: string;
   fontFamily?: string;
 }
 
@@ -80,7 +80,7 @@ export interface RouteShiftAnalysis {
   totalShiftMins: number;
   maxShiftMins: number;
   fitsInShift: boolean;
-  utilizationPct: number;
+  utilisationPct: number;
 }
 
 export interface DeliveryRoute {
@@ -93,7 +93,7 @@ export interface DeliveryRoute {
   breakTimeMins: number;
   totalEstimatedMins: number;
   totalDistanceKm: number;
-  shiftUtilizationPct: number;
+  shiftUtilisationPct: number;
   driverId?: string;
   driver?: Driver;
   orders: Order[];

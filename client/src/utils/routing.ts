@@ -44,13 +44,13 @@ export function analyzeRouteShift(
 ): RouteShiftAnalysis {
   const maxShiftMins = params.shiftLengthHours * 60;
   
-  // UK / EU driver break rule: If working over 4.5 hrs, require 45m break
+  // UK driver break rule: If working over 4.5 hrs, require 45m break
   const rawWorkMins = drivingMins + dwellMins;
   const breakMins = rawWorkMins > 240 ? params.mandatoryBreakMins : 0;
   const totalShiftMins = rawWorkMins + breakMins;
   
   const fitsInShift = totalShiftMins <= maxShiftMins;
-  const utilizationPct = Math.min(100, Math.round((totalShiftMins / maxShiftMins) * 100));
+  const utilisationPct = Math.min(100, Math.round((totalShiftMins / maxShiftMins) * 100));
 
   return {
     drivingTimeMins: drivingMins,
@@ -59,12 +59,12 @@ export function analyzeRouteShift(
     totalShiftMins,
     maxShiftMins,
     fitsInShift,
-    utilizationPct,
+    utilisationPct,
   };
 }
 
 /**
- * Optimizes route sequence using TSP Nearest Neighbor with Shift Feasibility & Traffic Analysis.
+ * Optimises route sequence using TSP Nearest Neighbour with Shift Feasibility & Traffic Analysis.
  */
 export function optimizeRouteStops(
   orders: Order[],

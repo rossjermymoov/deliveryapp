@@ -127,7 +127,7 @@ export const AdminPortal: React.FC<Props> = ({
       breakTimeMins: routePreview.breakTimeMins,
       totalEstimatedMins: routePreview.totalDurationMins,
       totalDistanceKm: routePreview.totalDistanceKm,
-      shiftUtilizationPct: routePreview.shiftAnalysis.utilizationPct,
+      shiftUtilisationPct: routePreview.shiftAnalysis.utilisationPct,
       driverId: undefined,
       orders: routePreview.orderedStops.map((o: Order) => ({
         ...o,
@@ -202,13 +202,13 @@ export const AdminPortal: React.FC<Props> = ({
       {/* Top Header - White Label Theme Enabled */}
       <header
         className="text-white px-6 py-4 shadow-sm border-b transition-colors duration-300"
-        style={{ backgroundColor: brandTheme.primaryColor, borderColor: 'rgba(255,255,255,0.1)' }}
+        style={{ backgroundColor: brandTheme.primaryColour, borderColor: 'rgba(255,255,255,0.1)' }}
       >
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
             <div
               className="text-white px-3 py-1.5 rounded-lg shadow font-black text-xl tracking-wider uppercase transition-colors"
-              style={{ backgroundColor: brandTheme.secondaryColor }}
+              style={{ backgroundColor: brandTheme.secondaryColour }}
             >
               {brandTheme.logoText}
             </div>
@@ -250,7 +250,7 @@ export const AdminPortal: React.FC<Props> = ({
                   ? 'text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
               }`}
-              style={{ backgroundColor: activeTab === 'orders' ? brandTheme.secondaryColor : undefined }}
+              style={{ backgroundColor: activeTab === 'orders' ? brandTheme.secondaryColour : undefined }}
             >
               <Package className="w-4 h-4" />
               Orders ({pendingOrders.length})
@@ -263,7 +263,7 @@ export const AdminPortal: React.FC<Props> = ({
                   ? 'text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
               }`}
-              style={{ backgroundColor: activeTab === 'routes' ? brandTheme.secondaryColor : undefined }}
+              style={{ backgroundColor: activeTab === 'routes' ? brandTheme.secondaryColour : undefined }}
             >
               <RouteIcon className="w-4 h-4" />
               Routes ({routes.length})
@@ -276,7 +276,7 @@ export const AdminPortal: React.FC<Props> = ({
                   ? 'text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
               }`}
-              style={{ backgroundColor: activeTab === 'map' ? brandTheme.secondaryColor : undefined }}
+              style={{ backgroundColor: activeTab === 'map' ? brandTheme.secondaryColour : undefined }}
             >
               <Radio className="w-4 h-4 text-emerald-600" />
               Live Driver Map
@@ -289,7 +289,7 @@ export const AdminPortal: React.FC<Props> = ({
                   ? 'text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
               }`}
-              style={{ backgroundColor: activeTab === 'sku_dwell' ? brandTheme.secondaryColor : undefined }}
+              style={{ backgroundColor: activeTab === 'sku_dwell' ? brandTheme.secondaryColour : undefined }}
             >
               <Sliders className="w-4 h-4 text-amber-500" />
               Dwell Times per Product
@@ -302,7 +302,7 @@ export const AdminPortal: React.FC<Props> = ({
                   ? 'text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
               }`}
-              style={{ backgroundColor: activeTab === 'pods' ? brandTheme.secondaryColor : undefined }}
+              style={{ backgroundColor: activeTab === 'pods' ? brandTheme.secondaryColour : undefined }}
             >
               <FileCheck2 className="w-4 h-4 text-emerald-600" />
               Proof of Delivery ({completedOrders.length})
@@ -315,7 +315,7 @@ export const AdminPortal: React.FC<Props> = ({
                   ? 'text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
               }`}
-              style={{ backgroundColor: activeTab === 'branding' ? brandTheme.secondaryColor : undefined }}
+              style={{ backgroundColor: activeTab === 'branding' ? brandTheme.secondaryColour : undefined }}
             >
               <Palette className="w-4 h-4 text-indigo-500" />
               White-Label Branding
@@ -337,7 +337,7 @@ export const AdminPortal: React.FC<Props> = ({
           {/* Quick Launch Driver Views */}
           {drivers.length > 0 && (
             <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
-              <Truck className="w-4 h-4" style={{ color: brandTheme.secondaryColor }} />
+              <Truck className="w-4 h-4" style={{ color: brandTheme.secondaryColour }} />
               <span className="text-xs font-semibold text-slate-700">Driver View:</span>
               {drivers.map((drv) => (
                 <button
@@ -359,7 +359,7 @@ export const AdminPortal: React.FC<Props> = ({
               <div className="flex flex-wrap items-center justify-between pb-4 border-b border-gray-100 gap-3">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <Package className="w-5 h-5" style={{ color: brandTheme.secondaryColor }} />
+                    <Package className="w-5 h-5" style={{ color: brandTheme.secondaryColour }} />
                     Orders ({pendingOrders.length})
                   </h2>
                   <p className="text-xs text-gray-500">
@@ -401,20 +401,20 @@ export const AdminPortal: React.FC<Props> = ({
                       : order.totalDwellMins;
                     const isOverridden = order.manualDwellOverrideMins !== undefined;
 
-                    // Alternating distinctive high-contrast border colors
-                    const borderColors = [
+                    // Alternating distinctive high-contrast border colours
+                    const borderColours = [
                       'border-l-[#0072CE]', // Secondary Accent
                       'border-l-[#16A34A]', // Green
                       'border-l-[#D97706]', // Amber
                       'border-l-[#6366F1]', // Indigo
                       'border-l-[#0F1E36]', // Navy
                     ];
-                    const activeBorderColor = borderColors[idx % borderColors.length];
+                    const activeBorderColour = borderColours[idx % borderColours.length];
 
                     return (
                       <div
                         key={order.id}
-                        className={`p-4 rounded-xl transition border border-gray-200 border-l-[6px] shadow-sm ${activeBorderColor} ${
+                        className={`p-4 rounded-xl transition border border-gray-200 border-l-[6px] shadow-sm ${activeBorderColour} ${
                           isSelected
                             ? 'bg-blue-50/60 ring-2 ring-blue-600'
                             : 'bg-white hover:bg-slate-50/80'
@@ -433,7 +433,7 @@ export const AdminPortal: React.FC<Props> = ({
                               <div className="flex items-center gap-2">
                                 <span
                                   className="font-mono text-xs font-black px-2 py-0.5 rounded border"
-                                  style={{ color: brandTheme.secondaryColor, backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
+                                  style={{ color: brandTheme.secondaryColour, backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
                                 >
                                   {order.trackingNumber}
                                 </span>
@@ -505,7 +505,7 @@ export const AdminPortal: React.FC<Props> = ({
                         {/* Order Product Lines */}
                         <div className="pt-3">
                           <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                            <ListOrdered className="w-3.5 h-3.5" style={{ color: brandTheme.secondaryColor }} />
+                            <ListOrdered className="w-3.5 h-3.5" style={{ color: brandTheme.secondaryColour }} />
                             Order Items:
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -517,7 +517,7 @@ export const AdminPortal: React.FC<Props> = ({
                                 <div>
                                   <span
                                     className="font-mono font-black text-[11px] block"
-                                    style={{ color: brandTheme.secondaryColor }}
+                                    style={{ color: brandTheme.secondaryColour }}
                                   >
                                     {item.sku}
                                   </span>
@@ -544,14 +544,14 @@ export const AdminPortal: React.FC<Props> = ({
               <div>
                 <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
                   <Sparkles className="w-5 h-5 text-amber-500" />
-                  <h3 className="font-bold text-gray-900">Shift & Route Optimizer</h3>
+                  <h3 className="font-bold text-gray-900">Shift & Route Optimiser</h3>
                 </div>
 
                 {/* Shift & Traffic Settings */}
                 <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-gray-200 space-y-3">
                   <div className="text-xs font-bold text-gray-700 uppercase flex items-center justify-between">
                     <span>Driver Shift Parameters</span>
-                    <span className="font-black" style={{ color: brandTheme.secondaryColor }}>
+                    <span className="font-black" style={{ color: brandTheme.secondaryColour }}>
                       {shiftParams.shiftLengthHours}h Max Shift
                     </span>
                   </div>
@@ -559,7 +559,7 @@ export const AdminPortal: React.FC<Props> = ({
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
                       <label className="block text-[11px] text-gray-500 font-bold mb-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3" style={{ color: brandTheme.secondaryColor }} /> Max Shift (Hours)
+                        <Clock className="w-3 h-3" style={{ color: brandTheme.secondaryColour }} /> Max Shift (Hours)
                       </label>
                       <input
                         type="number"
@@ -592,7 +592,7 @@ export const AdminPortal: React.FC<Props> = ({
                       <span className="flex items-center gap-1">
                         <Car className="w-3 h-3 text-blue-600" /> Traffic Buffer (Google Maps)
                       </span>
-                      <span className="font-black" style={{ color: brandTheme.secondaryColor }}>
+                      <span className="font-black" style={{ color: brandTheme.secondaryColour }}>
                         +{Math.round((shiftParams.trafficBufferMultiplier - 1) * 100)}% Traffic
                       </span>
                     </label>
@@ -612,7 +612,7 @@ export const AdminPortal: React.FC<Props> = ({
                 <div className="mt-4 space-y-4">
                   <div className="flex items-center justify-between bg-blue-50 p-3 rounded-xl border border-blue-200">
                     <span className="text-xs font-bold text-gray-700 uppercase">Selected Orders</span>
-                    <span className="text-sm font-black" style={{ color: brandTheme.secondaryColor }}>
+                    <span className="text-sm font-black" style={{ color: brandTheme.secondaryColour }}>
                       {selectedOrderIds.length} orders
                     </span>
                   </div>
@@ -621,14 +621,14 @@ export const AdminPortal: React.FC<Props> = ({
                     onClick={handleCalculateRoute}
                     disabled={selectedOrderIds.length === 0}
                     className="w-full py-3 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2 disabled:opacity-50"
-                    style={{ backgroundColor: brandTheme.primaryColor }}
+                    style={{ backgroundColor: brandTheme.primaryColour }}
                   >
                     <Sparkles className="w-4 h-4 text-amber-400" />
                     Calculate Route & Evaluate Feasibility
                   </button>
                 </div>
 
-                {/* Optimized Route & Shift Breakdown Preview */}
+                {/* Optimised Route & Shift Breakdown Preview */}
                 {routePreview && (
                   <div className={`mt-5 p-4 rounded-xl border animate-fadeIn ${
                     routePreview.shiftAnalysis.fitsInShift
@@ -640,7 +640,7 @@ export const AdminPortal: React.FC<Props> = ({
                         {routePreview.shiftAnalysis.fitsInShift ? (
                           <>
                             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                            Feasible ({routePreview.shiftAnalysis.utilizationPct}% of {shiftParams.shiftLengthHours}h Shift)
+                            Feasible ({routePreview.shiftAnalysis.utilisationPct}% of {shiftParams.shiftLengthHours}h Shift)
                           </>
                         ) : (
                           <>
@@ -660,7 +660,7 @@ export const AdminPortal: React.FC<Props> = ({
                       </div>
                       <div className="bg-white p-2 rounded shadow-2xs text-center border border-gray-100">
                         <span className="text-gray-400 block text-[10px] font-bold">DWELL TIME</span>
-                        <span className="font-black" style={{ color: brandTheme.secondaryColor }}>
+                        <span className="font-black" style={{ color: brandTheme.secondaryColour }}>
                           {Math.floor(routePreview.totalDwellMins / 60)}h {routePreview.totalDwellMins % 60}m
                         </span>
                       </div>
@@ -674,7 +674,7 @@ export const AdminPortal: React.FC<Props> = ({
 
                     <div className="bg-white p-2.5 rounded-lg border border-gray-200 text-xs mb-3 flex items-center justify-between">
                       <span className="font-bold text-gray-700">Total Shift Duration:</span>
-                      <span className="font-black text-base" style={{ color: brandTheme.secondaryColor }}>
+                      <span className="font-black text-base" style={{ color: brandTheme.secondaryColour }}>
                         {Math.floor(routePreview.totalDurationMins / 60)}h {routePreview.totalDurationMins % 60}m
                         <span className="text-xs text-gray-400 font-normal ml-1">({routePreview.totalDistanceKm} km)</span>
                       </span>
@@ -704,7 +704,7 @@ export const AdminPortal: React.FC<Props> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <RouteIcon className="w-5 h-5" style={{ color: brandTheme.secondaryColor }} />
+                  <RouteIcon className="w-5 h-5" style={{ color: brandTheme.secondaryColour }} />
                   Delivery Routes ({routes.length})
                 </h2>
                 <p className="text-xs text-gray-500">
@@ -731,7 +731,7 @@ export const AdminPortal: React.FC<Props> = ({
                       <div>
                         <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                           <div>
-                            <span className="text-xs font-mono font-black" style={{ color: brandTheme.secondaryColor }}>
+                            <span className="text-xs font-mono font-black" style={{ color: brandTheme.secondaryColour }}>
                               {route.routeNumber}
                             </span>
                             <h3 className="font-bold text-gray-900 text-sm">Delivery Manifest</h3>
@@ -757,7 +757,7 @@ export const AdminPortal: React.FC<Props> = ({
                           </div>
                           <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
                             <span className="text-gray-400 block text-[10px] font-bold">DWELL TIME</span>
-                            <span className="font-black" style={{ color: brandTheme.secondaryColor }}>{Math.floor(route.totalDwellMins / 60)}h {route.totalDwellMins % 60}m</span>
+                            <span className="font-black" style={{ color: brandTheme.secondaryColour }}>{Math.floor(route.totalDwellMins / 60)}h {route.totalDwellMins % 60}m</span>
                           </div>
                           <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
                             <span className="text-gray-400 block text-[10px] font-bold">TOTAL SHIFT</span>
@@ -790,7 +790,7 @@ export const AdminPortal: React.FC<Props> = ({
                       <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
                         <div className="flex-1">
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 flex items-center gap-1">
-                            <UserCheck className="w-3 h-3" style={{ color: brandTheme.secondaryColor }} />
+                            <UserCheck className="w-3 h-3" style={{ color: brandTheme.secondaryColour }} />
                             Assign Driver to Route:
                           </label>
                           <select
@@ -811,7 +811,7 @@ export const AdminPortal: React.FC<Props> = ({
                           <button
                             onClick={() => onSwitchToDriver(route.driverId!)}
                             className="mt-4 py-2 px-3 bg-blue-50 hover:bg-blue-100 font-bold text-xs rounded-lg transition shrink-0"
-                            style={{ color: brandTheme.secondaryColor }}
+                            style={{ color: brandTheme.secondaryColour }}
                           >
                             Open Driver View 📱
                           </button>
@@ -860,7 +860,7 @@ export const AdminPortal: React.FC<Props> = ({
                 <tbody className="divide-y divide-gray-100">
                   {skuCatalog.map((item, index) => (
                     <tr key={item.sku} className="hover:bg-slate-50">
-                      <td className="p-3 font-mono font-bold" style={{ color: brandTheme.secondaryColor }}>{item.sku}</td>
+                      <td className="p-3 font-mono font-bold" style={{ color: brandTheme.secondaryColour }}>{item.sku}</td>
                       <td className="p-3 font-semibold text-gray-800">{item.name}</td>
                       <td className="p-3 text-center">
                         <span className="bg-amber-50 text-amber-900 border border-amber-200 px-3 py-1 rounded font-bold">
@@ -887,7 +887,7 @@ export const AdminPortal: React.FC<Props> = ({
             {/* Add New SKU Form */}
             <form onSubmit={handleAddSku} className="mt-6 p-4 bg-slate-50 rounded-xl border border-gray-200">
               <h4 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-1">
-                <Plus className="w-4 h-4" style={{ color: brandTheme.secondaryColor }} />
+                <Plus className="w-4 h-4" style={{ color: brandTheme.secondaryColour }} />
                 Add Product SKU & Dwell Time
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -925,7 +925,7 @@ export const AdminPortal: React.FC<Props> = ({
               <button
                 type="submit"
                 className="mt-3 px-4 py-2 text-white text-xs font-bold rounded-lg shadow"
-                style={{ backgroundColor: brandTheme.primaryColor }}
+                style={{ backgroundColor: brandTheme.primaryColour }}
               >
                 Save Product Dwell Time
               </button>
@@ -933,17 +933,17 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 5: WHITE-LABEL BRANDING & CUSTOMIZATION SETTINGS */}
+        {/* TAB 5: WHITE-LABEL BRANDING & CUSTOMISATION SETTINGS */}
         {activeTab === 'branding' && (
           <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
             <div className="pb-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <Palette className="w-5 h-5 text-indigo-600" />
-                  White-Label Branding & Company Customization
+                  White-Label Branding & Company Customisation
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Instantly rebrand the entire application for Kalsi Plastics or customize it to sell to other enterprise clients.
+                  Instantly rebrand the entire application for Kalsi Plastics or customise it to sell to other enterprise clients.
                 </p>
               </div>
             </div>
@@ -973,9 +973,9 @@ export const AdminPortal: React.FC<Props> = ({
                       </div>
 
                       <div className="flex gap-1.5 mt-3">
-                        <span className="w-4 h-4 rounded-full border shadow-2xs" style={{ backgroundColor: preset.primaryColor }}></span>
-                        <span className="w-4 h-4 rounded-full border shadow-2xs" style={{ backgroundColor: preset.secondaryColor }}></span>
-                        <span className="w-4 h-4 rounded-full border shadow-2xs" style={{ backgroundColor: preset.accentColor }}></span>
+                        <span className="w-4 h-4 rounded-full border shadow-2xs" style={{ backgroundColor: preset.primaryColour }}></span>
+                        <span className="w-4 h-4 rounded-full border shadow-2xs" style={{ backgroundColor: preset.secondaryColour }}></span>
+                        <span className="w-4 h-4 rounded-full border shadow-2xs" style={{ backgroundColor: preset.accentColour }}></span>
                       </div>
                     </button>
                   );
@@ -985,7 +985,7 @@ export const AdminPortal: React.FC<Props> = ({
 
             {/* Custom Branding Controls */}
             <div className="p-5 bg-slate-50 rounded-2xl border border-gray-200 space-y-4">
-              <h4 className="text-xs font-bold text-gray-700 uppercase">Custom Theme & Color Pickers:</h4>
+              <h4 className="text-xs font-bold text-gray-700 uppercase">Custom Theme & Colour Pickers:</h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
@@ -1019,36 +1019,36 @@ export const AdminPortal: React.FC<Props> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">Primary Header Color</label>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Primary Header Colour</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      value={brandTheme.primaryColor}
-                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, primaryColor: e.target.value })}
+                      value={brandTheme.primaryColour}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, primaryColour: e.target.value })}
                       className="w-8 h-8 rounded border cursor-pointer"
                     />
                     <input
                       type="text"
-                      value={brandTheme.primaryColor}
-                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, primaryColor: e.target.value })}
+                      value={brandTheme.primaryColour}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, primaryColour: e.target.value })}
                       className="flex-1 text-xs font-mono p-1.5 border rounded-lg bg-white"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">Brand Accent Color (Buttons & Badges)</label>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Brand Accent Colour (Buttons & Badges)</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      value={brandTheme.secondaryColor}
-                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, secondaryColor: e.target.value })}
+                      value={brandTheme.secondaryColour}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, secondaryColour: e.target.value })}
                       className="w-8 h-8 rounded border cursor-pointer"
                     />
                     <input
                       type="text"
-                      value={brandTheme.secondaryColor}
-                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, secondaryColor: e.target.value })}
+                      value={brandTheme.secondaryColour}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, secondaryColour: e.target.value })}
                       className="flex-1 text-xs font-mono p-1.5 border rounded-lg bg-white"
                     />
                   </div>
@@ -1059,14 +1059,14 @@ export const AdminPortal: React.FC<Props> = ({
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
-                      value={brandTheme.accentColor}
-                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, accentColor: e.target.value })}
+                      value={brandTheme.accentColour}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, accentColour: e.target.value })}
                       className="w-8 h-8 rounded border cursor-pointer"
                     />
                     <input
                       type="text"
-                      value={brandTheme.accentColor}
-                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, accentColor: e.target.value })}
+                      value={brandTheme.accentColour}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, accentColour: e.target.value })}
                       className="flex-1 text-xs font-mono p-1.5 border rounded-lg bg-white"
                     />
                   </div>
@@ -1221,7 +1221,7 @@ export const AdminPortal: React.FC<Props> = ({
               <button
                 type="submit"
                 className="w-full py-3 text-white font-bold text-xs rounded-xl shadow transition mt-3"
-                style={{ backgroundColor: brandTheme.secondaryColor }}
+                style={{ backgroundColor: brandTheme.secondaryColour }}
               >
                 Simulate Inbound Order Webhook
               </button>

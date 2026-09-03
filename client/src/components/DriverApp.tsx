@@ -171,7 +171,7 @@ export const DriverApp: React.FC<Props> = ({
         {/* Mobile Header with White-Label Theme */}
         <header
           className="text-white px-5 pt-6 pb-4 shadow transition-colors"
-          style={{ backgroundColor: brandTheme.primaryColor }}
+          style={{ backgroundColor: brandTheme.primaryColour }}
         >
           <div className="flex items-center justify-between">
             <button
@@ -183,7 +183,7 @@ export const DriverApp: React.FC<Props> = ({
             </button>
             <div
               className="text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold"
-              style={{ backgroundColor: brandTheme.secondaryColor }}
+              style={{ backgroundColor: brandTheme.secondaryColour }}
             >
               <span>{driver.vehicleReg}</span>
             </div>
@@ -196,7 +196,7 @@ export const DriverApp: React.FC<Props> = ({
             </div>
             <div
               className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center font-bold text-sm text-white"
-              style={{ backgroundColor: brandTheme.secondaryColor }}
+              style={{ backgroundColor: brandTheme.secondaryColour }}
             >
               {driver.name.charAt(0)}
             </div>
@@ -227,7 +227,7 @@ export const DriverApp: React.FC<Props> = ({
             <button
               onClick={onBackToAdmin}
               className="mt-4 px-4 py-2 text-white font-bold text-xs rounded-xl shadow"
-              style={{ backgroundColor: brandTheme.secondaryColor }}
+              style={{ backgroundColor: brandTheme.secondaryColour }}
             >
               Open Portal
             </button>
@@ -257,11 +257,11 @@ export const DriverApp: React.FC<Props> = ({
             {currentStop && (
               <div
                 className="bg-white rounded-2xl p-4 shadow-md border-2 relative overflow-hidden"
-                style={{ borderColor: brandTheme.secondaryColor }}
+                style={{ borderColor: brandTheme.secondaryColour }}
               >
                 <div
                   className="absolute top-0 right-0 text-white text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-wider"
-                  style={{ backgroundColor: brandTheme.secondaryColor }}
+                  style={{ backgroundColor: brandTheme.secondaryColour }}
                 >
                   Next Stop (#{currentStop.stopSequence || 1})
                 </div>
@@ -269,7 +269,7 @@ export const DriverApp: React.FC<Props> = ({
                 <div className="flex items-center gap-2 mb-1">
                   <span
                     className="font-mono text-xs font-black px-2 py-0.5 rounded border"
-                    style={{ color: brandTheme.secondaryColor, backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
+                    style={{ color: brandTheme.secondaryColour, backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
                   >
                     {currentStop.trackingNumber}
                   </span>
@@ -325,7 +325,7 @@ export const DriverApp: React.FC<Props> = ({
                   <button
                     onClick={() => openGoogleMaps(currentStop)}
                     className="py-2.5 bg-blue-50 hover:bg-blue-100 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 border border-blue-200"
-                    style={{ color: brandTheme.secondaryColor }}
+                    style={{ color: brandTheme.secondaryColour }}
                   >
                     <Navigation className="w-4 h-4" />
                     Google Maps
@@ -394,7 +394,7 @@ export const DriverApp: React.FC<Props> = ({
                         <button
                           onClick={() => handleOpenPod(ord)}
                           className="px-2.5 py-1 text-xs font-bold rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100"
-                          style={{ color: brandTheme.secondaryColor }}
+                          style={{ color: brandTheme.secondaryColour }}
                         >
                           POD
                         </button>
@@ -413,7 +413,7 @@ export const DriverApp: React.FC<Props> = ({
             <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 flex flex-col max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div>
-                  <span className="text-xs font-bold uppercase block" style={{ color: brandTheme.secondaryColor }}>
+                  <span className="text-xs font-bold uppercase block" style={{ color: brandTheme.secondaryColour }}>
                     Proof of Delivery (POD)
                   </span>
                   <h3 className="text-base font-black text-gray-900">{selectedStop.customerName}</h3>
@@ -456,7 +456,7 @@ export const DriverApp: React.FC<Props> = ({
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
-                      <PenTool className="w-3.5 h-3.5" style={{ color: brandTheme.secondaryColor }} />
+                      <PenTool className="w-3.5 h-3.5" style={{ color: brandTheme.secondaryColour }} />
                       Customer Signature (Draw Below)
                     </label>
                     <button
