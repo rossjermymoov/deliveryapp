@@ -1,4 +1,4 @@
-import { Order, Driver, DeliveryRoute, SkuDwellSetting, BrandTheme, Depot } from '../types';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting, BrandTheme, Depot, UserAccount } from '../types';
 
 export const KALSI_BRAND_THEME: BrandTheme = {
   companyName: 'Kalsi Plastics',
@@ -10,7 +10,7 @@ export const KALSI_BRAND_THEME: BrandTheme = {
   headerBgColour: '#0F1E36',
 };
 
-// Clean list of actual physical UK Depots
+// Physical UK Regional Depots
 export const UK_DEPOTS: Depot[] = [
   { 
     id: 'depot-bhm', 
@@ -24,7 +24,7 @@ export const UK_DEPOTS: Depot[] = [
     lng: -1.8687, 
     activeVansCount: 8,
     maxDeliveryRadiusMiles: 18,
-    maxOrdersPerVan: 6, // 6 drops max per van for 5m building lengths
+    maxOrdersPerVan: 6,
     maxDailyCapacityOrders: 48,
     trafficMultiplierOverride: 1.25,
     minOrdersPerRoute: 3,
@@ -194,6 +194,45 @@ export const UK_DEPOTS: Depot[] = [
   },
 ];
 
+// Initial Seed User Accounts with Role & Depot Assignment
+export const INITIAL_USERS: UserAccount[] = [
+  {
+    id: 'usr-1',
+    name: 'Ross Jermy',
+    email: 'admin@kalsiplastics.co.uk',
+    role: 'HEAD_OFFICE_ADMIN', // Can see and switch all depots & manage settings
+  },
+  {
+    id: 'usr-2',
+    name: 'Marcus Bell',
+    email: 'marcus.bell@kalsiplastics.co.uk',
+    role: 'DEPOT_CONTROLLER',
+    assignedDepotId: 'depot-lon-s', // STRICTLY LOCKED to London South (Croydon)
+  },
+  {
+    id: 'usr-3',
+    name: 'Steve Parker',
+    email: 'steve.parker@kalsiplastics.co.uk',
+    role: 'DEPOT_CONTROLLER',
+    assignedDepotId: 'depot-bhm', // STRICTLY LOCKED to Birmingham Central
+  },
+  {
+    id: 'usr-4',
+    name: 'Craig Foster',
+    email: 'craig.foster@kalsiplastics.co.uk',
+    role: 'DEPOT_CONTROLLER',
+    assignedDepotId: 'depot-ncl', // STRICTLY LOCKED to Newcastle
+  },
+  {
+    id: 'usr-5',
+    name: 'Dave Jenkins',
+    email: 'dave.jenkins@kalsi-fleet.co.uk',
+    role: 'DRIVER',
+    driverId: 'drv-1',
+    assignedDepotId: 'depot-bhm',
+  }
+];
+
 export const PRESET_THEMES: Record<string, BrandTheme> = {
   kalsi: {
     companyName: 'Kalsi Plastics',
@@ -254,12 +293,11 @@ export const INITIAL_DRIVERS: Driver[] = [
   { id: 'drv-6', name: 'Alan Armstrong', phone: '07700 900106', vehicleReg: 'KN24 NCL', depotId: 'depot-ncl', currentLat: 54.9350, currentLng: -1.6150, lastUpdated: '08:20 AM', status: 'IDLE' },
 ];
 
-// High-resolution realistic heavy trade / big parcel / building materials delivery photos
 const REALISTIC_POD_PHOTOS = [
-  'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80', // Heavy bundled parcel goods
-  'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=800&q=80', // Industrial packaged cargo on site
-  'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=800&q=80', // Palletized trade goods & large parcels
-  'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?auto=format&fit=crop&w=800&q=80', // Warehouse yard & building supplies
+  'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=800&q=80',
+  'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?auto=format&fit=crop&w=800&q=80',
 ];
 
 export function generateLargeOrderDataset(): Order[] {

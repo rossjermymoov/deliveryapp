@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SkuDwellSetting, ShiftParameters, BrandTheme, Depot } from '../types';
+import { SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount } from '../types';
 import { PRESET_THEMES } from '../data/initialData';
 import {
   Settings,
@@ -13,7 +13,10 @@ import {
   Check,
   Save,
   Compass,
-  Truck
+  Truck,
+  Users,
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 
 interface Props {
@@ -27,6 +30,9 @@ interface Props {
   onUpdateDepots: (depots: Depot[]) => void;
   shiftParams: ShiftParameters;
   onUpdateShiftParams: (params: ShiftParameters) => void;
+  users: UserAccount[];
+  onUpdateUsers: (users: UserAccount[]) => void;
+  currentUser: UserAccount;
 }
 
 export const SettingsModal: React.FC<Props> = ({
@@ -40,11 +46,26 @@ export const SettingsModal: React.FC<Props> = ({
   onUpdateDepots,
   shiftParams,
   onUpdateShiftParams,
+  users,
+  onUpdateUsers,
+  currentUser,
 }) => {
-  const [activeTab, setActiveTab] = useState<'dwell' | 'depots' | 'shift' | 'branding'>('depots');
+  const isHeadOffice = currentUser.role === 'HEAD_OFFICE_ADMIN';
+  const [activeTab, setActiveTab] = useState<'users' | 'depots' | 'dwell' | 'shift' | 'branding'>(
+    isHeadOffice ? 'users' : 'dwell'
+  );
+
   const [newSku, setNewSku] = useState({ sku: '', name: '', defaultDwellMins: 15 });
   const [localDepots, setLocalDepots] = useState<Depot[]>(depots);
   const [saveBanner, setSaveBanner] = useState('');
+
+  // New User Form State
+  const [newUser, setNewUser] = useState<Partial<UserAccount>>({
+    name: '',
+    email: '',
+    role: 'DEPOT_CONTROLLER',
+    assignedDepotId: depots[0]?.id || 'depot-lon-s',
+  });
 
   if (!isOpen) return null;
 
@@ -87,8 +108,38 @@ export const SettingsModal: React.FC<Props> = ({
     onUpdateDepots(updated);
   };
 
+  // Add User Handler
+  const handleAddUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUser.name || !newUser.email) return;
+
+    const createdUser: UserAccount = {
+      id: `usr-${Date.now()}`,
+      name: newUser.name,
+      email: newUser.email,
+      role: newUser.role || 'DEPOT_CONTROLLER',
+      assignedDepotId: newUser.role === 'DEPOT_CONTROLLER' ? newUser.assignedDepotId : undefined,
+    };
+
+    onUpdateUsers([...users, createdUser]);
+    setNewUser({
+      name: '',
+      email: '',
+      role: 'DEPOT_CONTROLLER',
+      assignedDepotId: depots[0]?.id,
+    });
+    setSaveBanner(`✓ Created user "${createdUser.name}" successfully!`);
+    setTimeout(() => setSaveBanner(''), 2500);
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    if (confirm('Delete this user account?')) {
+      onUpdateUsers(users.filter((u) => u.id !== userId));
+    }
+  };
+
   const handleSaveAll = () => {
-    setSaveBanner('✓ Depot capacities and parameters saved successfully!');
+    setSaveBanner('✓ Settings saved successfully!');
     setTimeout(() => {
       setSaveBanner('');
       onClose();
@@ -105,8 +156,10 @@ export const SettingsModal: React.FC<Props> = ({
               <Settings className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-black">Global Fleet & Operations Settings</h2>
-              <p className="text-xs text-slate-400">Manage van capacities, depot catchment radius, SKU dwell times, and shifts</p>
+              <h2 className="text-base font-black">System & Access Settings</h2>
+              <p className="text-xs text-slate-400">
+                {isHeadOffice ? 'Head Office Master Administration & Depot Permissions' : `Depot Settings • ${currentUser.name}`}
+              </p>
             </div>
           </div>
           <button
@@ -119,6 +172,19 @@ export const SettingsModal: React.FC<Props> = ({
 
         {/* Sub-tabs */}
         <div className="flex bg-slate-100 border-b border-gray-200 px-5 pt-3 gap-2 overflow-x-auto text-xs">
+          {/* USER ROLES TAB (HEAD OFFICE ADMIN ONLY) */}
+          {isHeadOffice && (
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`px-4 py-2 rounded-t-xl font-bold transition flex items-center gap-1.5 ${
+                activeTab === 'users' ? 'bg-white text-slate-900 shadow-xs border-t-2 border-blue-600' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-indigo-500" />
+              User Access & Depot Roles ({users.length})
+            </button>
+          )}
+
           <button
             onClick={() => setActiveTab('depots')}
             className={`px-4 py-2 rounded-t-xl font-bold transition flex items-center gap-1.5 ${
@@ -126,7 +192,7 @@ export const SettingsModal: React.FC<Props> = ({
             }`}
           >
             <Compass className="w-3.5 h-3.5 text-blue-500" />
-            Van Capacities & Depot Radius ({depots.filter(d => d.id !== 'depot-all').length})
+            Van Capacities & Depot Radius ({depots.length})
           </button>
 
           <button
@@ -149,22 +215,170 @@ export const SettingsModal: React.FC<Props> = ({
             Driver Shift & Traffic
           </button>
 
-          <button
-            onClick={() => setActiveTab('branding')}
-            className={`px-4 py-2 rounded-t-xl font-bold transition flex items-center gap-1.5 ${
-              activeTab === 'branding' ? 'bg-white text-slate-900 shadow-xs border-t-2 border-blue-600' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Palette className="w-3.5 h-3.5 text-indigo-500" />
-            White-Label & Branding
-          </button>
+          {isHeadOffice && (
+            <button
+              onClick={() => setActiveTab('branding')}
+              className={`px-4 py-2 rounded-t-xl font-bold transition flex items-center gap-1.5 ${
+                activeTab === 'branding' ? 'bg-white text-slate-900 shadow-xs border-t-2 border-blue-600' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Palette className="w-3.5 h-3.5 text-purple-500" />
+              White-Label & Branding
+            </button>
+          )}
         </div>
 
         {/* Tab Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {saveBanner && (
-            <div className="p-3 bg-emerald-50 text-emerald-900 text-xs font-bold rounded-xl border border-emerald-300">
+            <div className="p-3 bg-emerald-50 text-emerald-900 text-xs font-bold rounded-xl border border-emerald-300 animate-fadeIn">
               {saveBanner}
+            </div>
+          )}
+
+          {/* TAB 0: USER ACCESS & DEPOT ROLES */}
+          {activeTab === 'users' && isHeadOffice && (
+            <div className="space-y-5">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-blue-600" />
+                  User Accounts & Depot Access Control
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Controllers assigned to a depot (e.g. London South) are strictly isolated and cannot see or access orders/routes from other depots.
+                </p>
+              </div>
+
+              {/* Users Table */}
+              <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-600 font-bold uppercase border-b">
+                    <tr>
+                      <th className="p-3">User</th>
+                      <th className="p-3">Email</th>
+                      <th className="p-3">Role</th>
+                      <th className="p-3">Assigned Depot Boundary</th>
+                      <th className="p-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {users.map((usr) => {
+                      const assignedDepot = depots.find((d) => d.id === usr.assignedDepotId);
+                      const isHeadOfficeUser = usr.role === 'HEAD_OFFICE_ADMIN';
+
+                      return (
+                        <tr key={usr.id} className="hover:bg-slate-50">
+                          <td className="p-3 font-bold text-slate-900 flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-slate-800 text-white flex items-center justify-center font-black text-[10px]">
+                              {usr.name.charAt(0)}
+                            </div>
+                            {usr.name}
+                          </td>
+                          <td className="p-3 text-slate-600 font-mono text-[11px]">{usr.email}</td>
+                          <td className="p-3">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1 ${
+                                isHeadOfficeUser
+                                  ? 'bg-purple-100 text-purple-900 border border-purple-300'
+                                  : usr.role === 'DEPOT_CONTROLLER'
+                                  ? 'bg-blue-100 text-blue-900 border border-blue-300'
+                                  : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                              }`}
+                            >
+                              {isHeadOfficeUser ? <ShieldCheck className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                              {usr.role.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td className="p-3 font-bold text-slate-800">
+                            {isHeadOfficeUser ? (
+                              <span className="text-purple-700 font-black">All 22 UK Depots (Unrestricted)</span>
+                            ) : (
+                              <span className="text-slate-900 font-bold">
+                                🔒 Locked to: {assignedDepot?.name || usr.assignedDepotId}
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-right">
+                            {usr.id !== currentUser.id && (
+                              <button
+                                onClick={() => handleDeleteUser(usr.id)}
+                                className="text-rose-600 hover:text-rose-800 p-1"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Add New User Form */}
+              <form
+                onSubmit={handleAddUser}
+                className="p-4 bg-slate-50 rounded-2xl border border-gray-200 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end"
+              >
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. John Taylor"
+                    value={newUser.name}
+                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                    className="w-full text-xs font-bold p-2 border rounded-xl bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="j.taylor@kalsi.co.uk"
+                    value={newUser.email}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    className="w-full text-xs font-bold p-2 border rounded-xl bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">System Role</label>
+                  <select
+                    value={newUser.role}
+                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value as any })}
+                    className="w-full text-xs font-bold p-2 border rounded-xl bg-white"
+                  >
+                    <option value="DEPOT_CONTROLLER">Depot Controller (Locked)</option>
+                    <option value="HEAD_OFFICE_ADMIN">Head Office Master Admin</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Assign Depot Boundary</label>
+                  <select
+                    disabled={newUser.role === 'HEAD_OFFICE_ADMIN'}
+                    value={newUser.assignedDepotId}
+                    onChange={(e) => setNewUser({ ...newUser, assignedDepotId: e.target.value })}
+                    className="w-full text-xs font-bold p-2 border rounded-xl bg-white disabled:opacity-50"
+                  >
+                    {depots.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.code} - {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="py-2.5 bg-slate-900 text-white font-black text-xs rounded-xl shadow hover:bg-black flex items-center justify-center gap-1"
+                >
+                  <Plus className="w-4 h-4" /> Create User
+                </button>
+              </form>
             </div>
           )}
 
@@ -174,10 +388,10 @@ export const SettingsModal: React.FC<Props> = ({
               <div>
                 <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
                   <Truck className="w-4 h-4 text-blue-600" />
-                  Depot Catchment, Editable Max Van Capacity & Min Thresholds
+                  Depot Catchment, Max Van Capacity & Min Thresholds
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Set the physical maximum number of heavy/long orders that fit onto a single van (e.g. 5–8 drops for 5m fascias & drainage packs) and the minimum required before a van rolls out.
+                  Configure maximum order drops per vehicle and minimum order threshold required before a van rolls out.
                 </p>
               </div>
 
@@ -188,13 +402,13 @@ export const SettingsModal: React.FC<Props> = ({
                       <th className="p-3">Depot Hub</th>
                       <th className="p-3">Center Postcode</th>
                       <th className="p-3 text-center">Catchment Radius</th>
-                      <th className="p-3 text-center bg-blue-50/50 text-blue-900">Max Orders / Van (Editable)</th>
+                      <th className="p-3 text-center bg-blue-50/50 text-blue-900">Max Orders / Van</th>
                       <th className="p-3 text-center">Min Orders / Route</th>
                       <th className="p-3 text-right">Fleet Capacity</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {localDepots.filter(d => d.id !== 'depot-all').map((depot) => (
+                    {localDepots.map((depot) => (
                       <tr key={depot.id} className="hover:bg-slate-50">
                         <td className="p-3">
                           <span className="font-bold text-slate-900 block">{depot.name}</span>
@@ -224,7 +438,6 @@ export const SettingsModal: React.FC<Props> = ({
                           </div>
                         </td>
 
-                        {/* EDITABLE MAX ORDERS PER VAN */}
                         <td className="p-3 text-center bg-blue-50/30">
                           <div className="flex items-center justify-center gap-1.5">
                             <input
@@ -311,7 +524,6 @@ export const SettingsModal: React.FC<Props> = ({
                 </table>
               </div>
 
-              {/* Add New SKU Form */}
               <form onSubmit={handleAddSku} className="p-4 bg-slate-50 rounded-2xl border border-gray-200 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
                 <div>
                   <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">SKU</label>
@@ -415,7 +627,7 @@ export const SettingsModal: React.FC<Props> = ({
           )}
 
           {/* TAB 4: BRANDING */}
-          {activeTab === 'branding' && (
+          {activeTab === 'branding' && isHeadOffice && (
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-black text-slate-900">White-Label Branding Presets</h3>

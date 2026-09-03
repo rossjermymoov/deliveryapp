@@ -1,3 +1,14 @@
+export type UserRole = 'HEAD_OFFICE_ADMIN' | 'DEPOT_CONTROLLER' | 'DRIVER';
+
+export interface UserAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  assignedDepotId?: string; // If DEPOT_CONTROLLER, strictly locked to this depot ID
+  driverId?: string; // If DRIVER, linked to driver ID
+}
+
 export interface Depot {
   id: string;
   code: string;
@@ -10,13 +21,13 @@ export interface Depot {
   lng: number;
   activeVansCount: number;
   maxDeliveryRadiusMiles: number; // e.g. 10 miles for London, 30 miles for Newcastle
-  maxOrdersPerVan: number; // e.g. 6 to 8 large building product orders max per van
-  maxDailyCapacityOrders: number; // e.g. activeVansCount * maxOrdersPerVan
-  trafficMultiplierOverride?: number; // e.g. 1.45x for London urban congestion
+  maxOrdersPerVan: number; // e.g. 5-6 drops max per van for 5m building products
+  maxDailyCapacityOrders: number;
+  trafficMultiplierOverride?: number;
   
   // Route threshold feasibility parameters
-  minOrdersPerRoute: number; // e.g. minimum 3 orders to justify taking a van out
-  maxDistancePerDropMiles: number; // e.g. max 15-20 miles between stops before flagging as inefficient
+  minOrdersPerRoute: number;
+  maxDistancePerDropMiles: number;
 }
 
 export interface BrandTheme {
@@ -74,15 +85,6 @@ export interface ProofOfDelivery {
 
 export type OrderStatus = 'PENDING' | 'ROUTED' | 'LOADED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED_EXCEPTION';
 
-export interface CustomerNotificationLog {
-  id: string;
-  timestamp: string;
-  type: 'ORDER_CONFIRMED' | 'ROUTE_SCHEDULED' | 'OUT_FOR_DELIVERY' | 'NEXT_STOP' | 'DELIVERED';
-  channel: 'SMS' | 'EMAIL';
-  recipient: string;
-  messageText: string;
-}
-
 export interface Order {
   id: string;
   trackingNumber: string;
@@ -104,11 +106,8 @@ export interface Order {
   stopSequence?: number;
   estimatedDeliveryWindow?: string;
   proofOfDelivery?: ProofOfDelivery;
-  notifications?: CustomerNotificationLog[];
   createdAt: string;
   urgency?: 'STANDARD' | 'PRIORITY' | 'EXPRESS_AM';
-  
-  // Route eligibility flag
   belowRouteCriteria?: boolean;
   criteriaReason?: string;
 }

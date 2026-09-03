@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME, UK_DEPOTS } from './data/initialData';
-import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot } from './types';
+import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME, UK_DEPOTS, INITIAL_USERS } from './data/initialData';
+import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot, UserAccount } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
 
@@ -11,9 +11,15 @@ export const App: React.FC = () => {
   const [depots, setDepots] = useState<Depot[]>(UK_DEPOTS);
   const [skuCatalog, setSkuCatalog] = useState<SkuDwellSetting[]>(INITIAL_SKU_SETTINGS);
   const [brandTheme, setBrandTheme] = useState<BrandTheme>(KALSI_BRAND_THEME);
+  const [users, setUsers] = useState<UserAccount[]>(INITIAL_USERS);
+
+  // Active Signed-In User State (default to Head Office Admin, switchable to Depot Controllers)
+  const [currentUserId, setCurrentUserId] = useState<string>(INITIAL_USERS[0].id);
 
   const [viewMode, setViewMode] = useState<'admin' | 'driver'>('admin');
   const [activeDriverId, setActiveDriverId] = useState<string>(INITIAL_DRIVERS[0].id);
+
+  const currentUser = users.find((u) => u.id === currentUserId) || users[0];
 
   const handleCreateRoute = (newRoute: DeliveryRoute) => {
     setRoutes((prev) => [newRoute, ...prev]);
@@ -34,12 +40,10 @@ export const App: React.FC = () => {
     );
   };
 
-  // Cancel / Undo a Route and return all its orders back to Unassigned PENDING status
   const handleUnassignOrCancelRoute = (routeId: string) => {
     const targetRoute = routes.find((r) => r.id === routeId);
     if (!targetRoute) return;
 
-    // Reset all orders on this route back to PENDING status
     setOrders((prev) =>
       prev.map((o) =>
         o.routeId === routeId
@@ -48,10 +52,8 @@ export const App: React.FC = () => {
       )
     );
 
-    // Remove the route
     setRoutes((prev) => prev.filter((r) => r.id !== routeId));
 
-    // Reset assigned driver status to IDLE if any
     if (targetRoute.driverId) {
       setDrivers((prev) =>
         prev.map((d) => (d.id === targetRoute.driverId ? { ...d, status: 'IDLE' } : d))
@@ -59,7 +61,6 @@ export const App: React.FC = () => {
     }
   };
 
-  // Drag and Drop: Move an Order from one Route to another Route
   const handleMoveOrderBetweenRoutes = (orderId: string, sourceRouteId: string, targetRouteId: string) => {
     const sourceRoute = routes.find((r) => r.id === sourceRouteId);
     const targetRoute = routes.find((r) => r.id === targetRouteId);
@@ -67,13 +68,11 @@ export const App: React.FC = () => {
 
     if (!sourceRoute || !targetRoute || !movedOrder) return;
 
-    // Update order object
     const updatedMovedOrder = { ...movedOrder, routeId: targetRouteId };
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? updatedMovedOrder : o))
     );
 
-    // Update both routes
     setRoutes((prev) =>
       prev.map((r) => {
         if (r.id === sourceRouteId) {
@@ -273,6 +272,10 @@ export const App: React.FC = () => {
           depots={depots}
           skuCatalog={skuCatalog}
           brandTheme={brandTheme}
+          users={users}
+          currentUser={currentUser}
+          onSwitchUser={setCurrentUserId}
+          onUpdateUsers={setUsers}
           onUpdateBrandTheme={setBrandTheme}
           onUpdateDepots={setDepots}
           onCreateRoute={handleCreateRoute}

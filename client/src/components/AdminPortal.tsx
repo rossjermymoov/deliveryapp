@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme, Depot } from '../types';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount } from '../types';
 import { DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
 import { MorningDashboard } from './MorningDashboard';
@@ -14,7 +14,10 @@ import {
   Truck, 
   LayoutDashboard,
   Warehouse,
-  Settings
+  Settings,
+  ShieldCheck,
+  Lock,
+  UserCheck
 } from 'lucide-react';
 
 interface Props {
@@ -24,6 +27,10 @@ interface Props {
   depots: Depot[];
   skuCatalog: SkuDwellSetting[];
   brandTheme: BrandTheme;
+  users: UserAccount[];
+  currentUser: UserAccount;
+  onSwitchUser: (userId: string) => void;
+  onUpdateUsers: (users: UserAccount[]) => void;
   onUpdateBrandTheme: (theme: BrandTheme) => void;
   onUpdateDepots: (depots: Depot[]) => void;
   onCreateRoute: (route: DeliveryRoute) => void;
@@ -44,6 +51,10 @@ export const AdminPortal: React.FC<Props> = ({
   depots,
   skuCatalog,
   brandTheme,
+  users,
+  currentUser,
+  onSwitchUser,
+  onUpdateUsers,
   onUpdateBrandTheme,
   onUpdateDepots,
   onCreateRoute,
@@ -55,8 +66,18 @@ export const AdminPortal: React.FC<Props> = ({
   onSwitchToDriver,
   onConfirmRouteLoaded,
 }) => {
+  const isHeadOfficeAdmin = currentUser.role === 'HEAD_OFFICE_ADMIN';
+  
+  // If DEPOT_CONTROLLER, lock strictly to assigned depot; otherwise allow switching
+  const [selectedDepotId, setSelectedDepotId] = useState<string>(
+    currentUser.assignedDepotId || depots[0]?.id || 'depot-bhm'
+  );
+
+  const effectiveDepotId = isHeadOfficeAdmin
+    ? selectedDepotId
+    : (currentUser.assignedDepotId || depots[0]?.id || 'depot-bhm');
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map'>('dashboard');
-  const [selectedDepotId, setSelectedDepotId] = useState<string>(depots[0]?.id || 'depot-bhm');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Scan to Van modal state
@@ -65,13 +86,13 @@ export const AdminPortal: React.FC<Props> = ({
   // Shift & Traffic Parameters
   const [shiftParams, setShiftParams] = useState<ShiftParameters>(DEFAULT_SHIFT_PARAMS);
 
-  // Filtered lists strictly by selected local depot
-  const activeRoutes = routes.filter((r) => r.depotId === selectedDepotId);
-  const activeOrders = orders.filter((o) => o.depotId === selectedDepotId);
-  const activeDrivers = drivers.filter((d) => d.depotId === selectedDepotId);
+  // Filtered strictly to current user's authorized depot
+  const activeRoutes = routes.filter((r) => r.depotId === effectiveDepotId);
+  const activeOrders = orders.filter((o) => o.depotId === effectiveDepotId);
+  const activeDrivers = drivers.filter((d) => d.depotId === effectiveDepotId);
+  const currentDepot = depots.find((d) => d.id === effectiveDepotId) || depots[0];
 
   const handleAutoBatchDepot = () => {
-    const currentDepot = depots.find(d => d.id === selectedDepotId) || depots[0];
     const maxPerVan = currentDepot.maxOrdersPerVan || 6;
 
     // Filter to only qualifying unassigned orders for this depot
@@ -94,7 +115,7 @@ export const AdminPortal: React.FC<Props> = ({
       const newRoute: DeliveryRoute = {
         id: routeId,
         routeNumber: `Route ${routes.length + idx + 1} (${depotCity} Van ${idx + 1})`,
-        depotId: selectedDepotId,
+        depotId: effectiveDepotId,
         date: new Date().toISOString(),
         status: 'UNASSIGNED',
         totalDwellMins: totalDwell,
@@ -135,7 +156,7 @@ export const AdminPortal: React.FC<Props> = ({
         />
       )}
 
-      {/* Unified Settings Modal */}
+      {/* Unified Settings & User Access Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -147,14 +168,18 @@ export const AdminPortal: React.FC<Props> = ({
         onUpdateDepots={onUpdateDepots}
         shiftParams={shiftParams}
         onUpdateShiftParams={setShiftParams}
+        users={users}
+        onUpdateUsers={onUpdateUsers}
+        currentUser={currentUser}
       />
 
-      {/* Top Header */}
+      {/* Top Header with Role & User Switcher */}
       <header
         className="text-white px-6 py-4 shadow-sm border-b transition-colors duration-300 sticky top-0 z-40"
         style={{ backgroundColor: brandTheme.primaryColour, borderColor: 'rgba(255,255,255,0.1)' }}
       >
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
+          {/* Logo & Brand */}
           <div className="flex items-center space-x-3">
             <div
               className="text-white px-3 py-1.5 rounded-xl shadow font-black text-xl tracking-wider uppercase"
@@ -163,29 +188,76 @@ export const AdminPortal: React.FC<Props> = ({
               {brandTheme.logoText}
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tight">{brandTheme.companyName} Fleet Control</h1>
-              <p className="text-xs opacity-80">Order Management & Dispatch Operations</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-black tracking-tight">{brandTheme.companyName} Fleet Control</h1>
+                {isHeadOfficeAdmin ? (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-purple-500/30 text-purple-200 border border-purple-400/40 flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3" /> Head Office Master Admin
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500/30 text-blue-200 border border-blue-400/40 flex items-center gap-1">
+                    <Lock className="w-3 h-3" /> Controller ({currentDepot.city})
+                  </span>
+                )}
+              </div>
+              <p className="text-xs opacity-80">
+                {isHeadOfficeAdmin ? 'National Fleet Overview & Depot Administration' : `Locked strictly to ${currentDepot.name}`}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3">
-            {/* Depot Selector: Strictly Physical Regional Depots */}
+          {/* Right Top Controls: Role Switcher & Depot Selector */}
+          <div className="flex items-center space-x-3 flex-wrap">
+            
+            {/* Quick User Account Role Switcher */}
             <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/20 flex items-center gap-2 text-xs">
-              <Warehouse className="w-3.5 h-3.5 text-blue-200" />
-              <select
-                value={selectedDepotId}
-                onChange={(e) => setSelectedDepotId(e.target.value)}
-                className="bg-transparent text-white font-bold border-0 focus:ring-0 cursor-pointer text-xs"
-              >
-                {depots.map((d) => (
-                  <option key={d.id} value={d.id} className="text-slate-900">
-                    {d.code} - {d.name} ({d.postcode})
-                  </option>
-                ))}
-              </select>
+              <UserCheck className="w-3.5 h-3.5 text-amber-300" />
+              <div className="flex flex-col">
+                <span className="text-[9px] text-slate-300 font-bold uppercase leading-none">Signed in as:</span>
+                <select
+                  value={currentUser.id}
+                  onChange={(e) => onSwitchUser(e.target.value)}
+                  className="bg-transparent text-white font-bold border-0 focus:ring-0 cursor-pointer text-xs p-0 pr-4 mt-0.5"
+                >
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id} className="text-slate-900">
+                      {u.name} ({u.role === 'HEAD_OFFICE_ADMIN' ? 'Head Office Admin' : `${depots.find(d => d.id === u.assignedDepotId)?.city || 'Depot'} Controller`})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* TOP SETTINGS BUTTON */}
+            {/* Depot Selector: ONLY VISIBLE / SWITCHABLE FOR HEAD OFFICE ADMIN */}
+            {isHeadOfficeAdmin ? (
+              <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/20 flex items-center gap-2 text-xs">
+                <Warehouse className="w-3.5 h-3.5 text-blue-200" />
+                <select
+                  value={selectedDepotId}
+                  onChange={(e) => setSelectedDepotId(e.target.value)}
+                  className="bg-transparent text-white font-bold border-0 focus:ring-0 cursor-pointer text-xs"
+                >
+                  {depots.map((d) => (
+                    <option key={d.id} value={d.id} className="text-slate-900">
+                      {d.code} - {d.name} ({d.postcode})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              /* LOCKED DEPOT BADGE FOR REGIONAL CONTROLLER */
+              <div className="bg-blue-900/60 px-3.5 py-1.5 rounded-xl border border-blue-400/30 flex items-center gap-2 text-xs">
+                <Warehouse className="w-3.5 h-3.5 text-blue-300" />
+                <span className="font-bold text-white text-xs">
+                  {currentDepot.code} - {currentDepot.name}
+                </span>
+                <span className="text-[10px] bg-blue-500/40 text-blue-200 px-1.5 py-0.5 rounded font-black uppercase">
+                  Locked
+                </span>
+              </div>
+            )}
+
+            {/* Settings Button */}
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-2 transition"
@@ -200,7 +272,7 @@ export const AdminPortal: React.FC<Props> = ({
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full flex flex-col gap-6">
         
-        {/* Clean 4-Tab Navigation */}
+        {/* Navigation Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-3">
           <div className="flex space-x-2 flex-wrap gap-y-2">
             <button
@@ -281,7 +353,7 @@ export const AdminPortal: React.FC<Props> = ({
             routes={routes}
             drivers={drivers}
             depots={depots}
-            selectedDepotId={selectedDepotId}
+            selectedDepotId={effectiveDepotId}
             brandTheme={brandTheme}
             shiftParams={shiftParams}
             onSelectDepot={setSelectedDepotId}
@@ -300,7 +372,7 @@ export const AdminPortal: React.FC<Props> = ({
             drivers={drivers}
             depots={depots}
             brandTheme={brandTheme}
-            selectedDepotId={selectedDepotId}
+            selectedDepotId={effectiveDepotId}
             onUpdateOrderDwell={onUpdateOrderDwell}
           />
         )}
@@ -311,7 +383,7 @@ export const AdminPortal: React.FC<Props> = ({
             routes={routes}
             drivers={drivers}
             depots={depots}
-            selectedDepotId={selectedDepotId}
+            selectedDepotId={effectiveDepotId}
             brandTheme={brandTheme}
             onAssignDriverToRoute={onAssignDriverToRoute}
             onUnassignOrCancelRoute={onUnassignOrCancelRoute}
