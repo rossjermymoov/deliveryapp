@@ -115,7 +115,6 @@ export const DriverApp: React.FC<Props> = ({
           setIsCapturingGps(false);
         },
         () => {
-          // Fallback to customer's target coordinate with tiny jitter
           setCapturedGeo({ lat: stop.lat + 0.0001, lng: stop.lng + 0.0001 });
           setIsCapturingGps(false);
         },
@@ -160,7 +159,6 @@ export const DriverApp: React.FC<Props> = ({
     setSelectedStop(null);
   };
 
-  // Google Maps Universal Direct Link
   const openGoogleMaps = (stop: Shipment) => {
     const query = encodeURIComponent(`${stop.address}, ${stop.city} ${stop.postcode}`);
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${query}&travelmode=driving`, '_blank');
@@ -168,7 +166,6 @@ export const DriverApp: React.FC<Props> = ({
 
   return (
     <div className="min-h-screen bg-slate-900 flex justify-center py-0 sm:py-6">
-      {/* Mobile Device Mockup Container */}
       <div className="w-full max-w-md bg-slate-50 min-h-screen sm:min-h-[850px] sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative border-4 border-slate-800">
         
         {/* Mobile Header */}
@@ -179,7 +176,7 @@ export const DriverApp: React.FC<Props> = ({
               className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold flex items-center gap-1 text-blue-200"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Depot Admin
+              Depot Portal
             </button>
             <div className="flex items-center gap-1.5 bg-[#FF6B00] text-white px-2 py-0.5 rounded-full text-[11px] font-bold">
               <span>{driver.vehicleReg}</span>
@@ -201,22 +198,22 @@ export const DriverApp: React.FC<Props> = ({
         {activeRoute ? (
           <div className="bg-[#002244] text-white px-5 py-3 flex items-center justify-between text-xs border-b border-blue-900">
             <div>
-              <span className="text-blue-300 block text-[10px]">ROUTE MANIFEST</span>
+              <span className="text-blue-300 block text-[10px]">ASSIGNED WAVE</span>
               <span className="font-mono font-bold text-[#FFB800]">{activeRoute.routeNumber}</span>
             </div>
             <div className="text-right">
               <span className="text-blue-300 block text-[10px]">PROGRESS</span>
               <span className="font-bold">
-                {deliveredStops.length} / {activeRoute.shipments.length} Stops Done
+                {deliveredStops.length} / {activeRoute.shipments.length} Delivered
               </span>
             </div>
           </div>
         ) : (
           <div className="p-8 text-center bg-white m-4 rounded-2xl border border-gray-200">
             <Truck className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-            <h3 className="font-bold text-gray-800">No Active Route Assigned</h3>
+            <h3 className="font-bold text-gray-800">No Route Wave Assigned</h3>
             <p className="text-xs text-gray-500 mt-1">
-              Switch back to the Depot Management Portal to optimize orders and dispatch a route to {driver.name}.
+              Switch to the Depot Portal to select an unassigned route wave and assign {driver.name}.
             </p>
             <button
               onClick={onBackToAdmin}
@@ -227,8 +224,8 @@ export const DriverApp: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Route Inactive - Start Button */}
-        {activeRoute && activeRoute.status === 'ASSIGNED' && (
+        {/* Start Route Button */}
+        {activeRoute && (activeRoute.status === 'ASSIGNED' || (activeRoute.status as string) === 'UNASSIGNED') && (
           <div className="p-4 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
             <div>
               <h4 className="font-bold text-xs text-amber-900">Route Ready to Begin</h4>
@@ -247,7 +244,7 @@ export const DriverApp: React.FC<Props> = ({
         {/* Stops List */}
         {activeRoute && (
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-24">
-            {/* NEXT PRIORITY STOP CARD */}
+            {/* CURRENT STOP */}
             {currentStop && (
               <div className="bg-white rounded-2xl p-4 shadow-md border-2 border-[#005696] relative overflow-hidden">
                 <div className="absolute top-0 right-0 bg-[#005696] text-white text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-wider">
@@ -289,11 +286,10 @@ export const DriverApp: React.FC<Props> = ({
                   )}
                   <div className="mt-2 text-[10px] text-amber-900 font-bold flex items-center gap-1">
                     <Clock className="w-3 h-3 text-amber-600" />
-                    Allocated Dwell Time: {currentStop.dwellTimeMins} mins
+                    Allocated Dwell: {currentStop.manualDwellOverrideMins || currentStop.calculatedDwellMins} mins
                   </div>
                 </div>
 
-                {/* Primary Action Buttons */}
                 <div className="grid grid-cols-2 gap-2 mt-4">
                   <button
                     onClick={() => openGoogleMaps(currentStop)}
@@ -314,10 +310,10 @@ export const DriverApp: React.FC<Props> = ({
               </div>
             )}
 
-            {/* UPCOMING & COMPLETED STOPS LIST */}
+            {/* FULL ROUTE STOPS */}
             <div className="pt-2">
               <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 px-1">
-                Full Route Sequence
+                Full Wave Sequence
               </h4>
 
               <div className="space-y-2">
@@ -379,11 +375,10 @@ export const DriverApp: React.FC<Props> = ({
           </div>
         )}
 
-        {/* MODAL: PROOF OF DELIVERY (POD) CAPTURE */}
+        {/* POD MODAL */}
         {isPodModalOpen && selectedStop && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
             <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 flex flex-col max-h-[90vh] overflow-y-auto">
-              {/* Modal Header */}
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div>
                   <span className="text-xs font-bold text-[#005696] uppercase block">Proof of Delivery (POD)</span>
@@ -397,7 +392,6 @@ export const DriverApp: React.FC<Props> = ({
                 </button>
               </div>
 
-              {/* Stop Info Summary */}
               <div className="bg-slate-50 p-3 rounded-xl border border-gray-200 my-3 text-xs">
                 <p className="text-gray-700"><strong>Address:</strong> {selectedStop.address}, {selectedStop.postcode}</p>
                 <p className="text-amber-800 mt-1"><strong>Goods:</strong> {selectedStop.itemsDescription}</p>
@@ -411,7 +405,6 @@ export const DriverApp: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Form: Recipient Name */}
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
@@ -426,7 +419,6 @@ export const DriverApp: React.FC<Props> = ({
                   />
                 </div>
 
-                {/* Signature Pad */}
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
@@ -464,7 +456,6 @@ export const DriverApp: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* Camera / Photo Capture */}
                 <div>
                   <label className="text-xs font-bold text-gray-700 uppercase block mb-1 flex items-center gap-1">
                     <Camera className="w-3.5 h-3.5 text-[#FF6B00]" />
@@ -503,7 +494,6 @@ export const DriverApp: React.FC<Props> = ({
                   )}
                 </div>
 
-                {/* Notes */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                     Delivery Notes (Optional)
@@ -517,14 +507,13 @@ export const DriverApp: React.FC<Props> = ({
                   />
                 </div>
 
-                {/* Submit POD Button */}
                 <button
                   type="button"
                   onClick={handleSubmitPod}
                   className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-lg transition flex items-center justify-center gap-2 mt-2"
                 >
                   <CheckCircle2 className="w-5 h-5" />
-                  Confirm POD & Mark Job Complete
+                  Confirm POD & Complete Stop
                 </button>
               </div>
             </div>

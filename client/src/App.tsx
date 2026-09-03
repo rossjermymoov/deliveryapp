@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { INITIAL_DEPOTS, INITIAL_DRIVERS, INITIAL_SHIPMENTS, INITIAL_ROUTES } from './data/initialData';
-import { Depot, Driver, Shipment, DeliveryRoute, ProofOfDelivery } from './types';
+import { INITIAL_DEPOTS, INITIAL_DRIVERS, INITIAL_SHIPMENTS, INITIAL_ROUTES, INITIAL_SKU_RULES, DEFAULT_DEPOT_SETTINGS } from './data/initialData';
+import { Depot, Driver, Shipment, DeliveryRoute, ProofOfDelivery, SkuDwellRule, DepotSettings } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
 
@@ -9,6 +9,8 @@ export const App: React.FC = () => {
   const [drivers] = useState<Driver[]>(INITIAL_DRIVERS);
   const [shipments, setShipments] = useState<Shipment[]>(INITIAL_SHIPMENTS);
   const [routes, setRoutes] = useState<DeliveryRoute[]>(INITIAL_ROUTES);
+  const [skuRules, setSkuRules] = useState<SkuDwellRule[]>(INITIAL_SKU_RULES);
+  const [depotSettings, setDepotSettings] = useState<DepotSettings>(DEFAULT_DEPOT_SETTINGS);
 
   const [selectedDepotId, setSelectedDepotId] = useState<string>(INITIAL_DEPOTS[0].id);
   const [viewMode, setViewMode] = useState<'admin' | 'driver'>('admin');
@@ -18,7 +20,6 @@ export const App: React.FC = () => {
   const handleCreateRoute = (newRoute: DeliveryRoute) => {
     setRoutes((prev) => [newRoute, ...prev]);
 
-    // Update shipment statuses
     setShipments((prev) =>
       prev.map((s) => {
         const found = newRoute.shipments.find((ns) => ns.id === s.id);
@@ -32,6 +33,56 @@ export const App: React.FC = () => {
         }
         return s;
       })
+    );
+  };
+
+  const handleBatchCreateRoutes = (newRoutes: DeliveryRoute[]) => {
+    setRoutes((prev) => [...newRoutes, ...prev]);
+
+    const routedMap = new Map<string, { routeId: string; sequence: number }>();
+    newRoutes.forEach((r) => {
+      r.shipments.forEach((s) => {
+        routedMap.set(s.id, { routeId: r.id, sequence: s.stopSequence || 1 });
+      });
+    });
+
+    setShipments((prev) =>
+      prev.map((s) => {
+        if (routedMap.has(s.id)) {
+          const info = routedMap.get(s.id)!;
+          return {
+            ...s,
+            routeId: info.routeId,
+            status: 'ROUTED',
+            stopSequence: info.sequence,
+          };
+        }
+        return s;
+      })
+    );
+  };
+
+  const handleAssignDriverToRoute = (routeId: string, driverId: string) => {
+    const selectedDriver = drivers.find((d) => d.id === driverId);
+    setRoutes((prev) =>
+      prev.map((r) =>
+        r.id === routeId
+          ? {
+              ...r,
+              driverId: driverId || undefined,
+              driver: selectedDriver,
+              status: driverId ? 'ASSIGNED' : 'UNASSIGNED',
+            }
+          : r
+      )
+    );
+  };
+
+  const handleUpdateShipmentDwell = (shipmentId: string, manualDwell: number) => {
+    setShipments((prev) =>
+      prev.map((s) =>
+        s.id === shipmentId ? { ...s, manualDwellOverrideMins: manualDwell } : s
+      )
     );
   };
 
@@ -50,8 +101,11 @@ export const App: React.FC = () => {
       lat: newShipmentData.lat || 52.4862,
       lng: newShipmentData.lng || -1.8904,
       itemsDescription: newShipmentData.itemsDescription || '4x Plastic Fascia Boards',
+      itemsList: newShipmentData.itemsList || [],
       specialNotes: newShipmentData.specialNotes || undefined,
-      dwellTimeMins: newShipmentData.dwellTimeMins || 15,
+      calculatedDwellMins: newShipmentData.calculatedDwellMins || 15,
+      manualDwellOverrideMins: newShipmentData.manualDwellOverrideMins,
+      vanCapacityUnits: newShipmentData.vanCapacityUnits || 2,
       status: 'BUCKET_PENDING',
       depotId: newShipmentData.depotId || selectedDepotId,
       createdAt: new Date().toISOString(),
@@ -82,7 +136,6 @@ export const App: React.FC = () => {
       timestamp: podData.timestamp || new Date().toISOString(),
     };
 
-    // Update shipment
     setShipments((prev) =>
       prev.map((s) => {
         if (s.id === shipmentId) {
@@ -96,7 +149,6 @@ export const App: React.FC = () => {
       })
     );
 
-    // Update route state if attached
     setRoutes((prev) =>
       prev.map((r) => {
         const updatedShipments = r.shipments.map((s) =>
@@ -127,9 +179,16 @@ export const App: React.FC = () => {
           drivers={drivers}
           shipments={shipments}
           routes={routes}
+          skuRules={skuRules}
+          depotSettings={depotSettings}
           selectedDepotId={selectedDepotId}
           onSelectDepot={setSelectedDepotId}
           onCreateRoute={handleCreateRoute}
+          onBatchCreateRoutes={handleBatchCreateRoutes}
+          onAssignDriverToRoute={handleAssignDriverToRoute}
+          onUpdateShipmentDwell={handleUpdateShipmentDwell}
+          onUpdateSkuRules={setSkuRules}
+          onUpdateSettings={setDepotSettings}
           onSimulateWebhook={handleSimulateWebhook}
           onSwitchToDriver={(driverId) => {
             setActiveDriverId(driverId);

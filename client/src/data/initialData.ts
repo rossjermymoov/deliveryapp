@@ -1,4 +1,20 @@
-import { Depot, Driver, Shipment, DeliveryRoute } from '../types';
+import { Depot, Driver, Shipment, DeliveryRoute, SkuDwellRule, DepotSettings } from '../types';
+
+export const INITIAL_SKU_RULES: SkuDwellRule[] = [
+  { skuCode: 'FASCIA-5M', name: '5m Heavy Fascia Board (Anthracite/White)', dwellMins: 20, vanUnits: 4 },
+  { skuCode: 'GUTTER-4M', name: '4m Rainwater Gutter / Downpipe Pack', dwellMins: 12, vanUnits: 2 },
+  { skuCode: 'SOFFIT-3M', name: '3m Hollow Cladding & Soffit Pack', dwellMins: 10, vanUnits: 2 },
+  { skuCode: 'POLYCARB-SHEET', name: '4m Polycarbonate Roof Sheet (Bulky 2-man)', dwellMins: 25, vanUnits: 5 },
+  { skuCode: 'SILL-UPVC-3M', name: '3m Window Sills & Trims', dwellMins: 8, vanUnits: 1 },
+  { skuCode: 'JOINTS-FITTINGS', name: 'Box of Gutter Brackets & Joint Outlets', dwellMins: 5, vanUnits: 1 },
+];
+
+export const DEFAULT_DEPOT_SETTINGS: DepotSettings = {
+  maxVanCapacityUnits: 16, // Typical 3.5t LWB Sprinter can fit up to 16 capacity units of plastic lengths
+  maxStopsPerRun: 8,
+  dwellCalculationMode: 'MAX_PLUS_BUFFER', // Takes highest item dwell + 5 min per additional item
+  baseBufferMins: 5,
+};
 
 export const INITIAL_DEPOTS: Depot[] = [
   { id: 'depot-bhm', code: 'BHM', name: 'Birmingham Central Depot', address: 'Nechells Parkway, Birmingham', postcode: 'B7 5EX', lat: 52.4938, lng: -1.8687 },
@@ -28,6 +44,7 @@ export const INITIAL_DEPOTS: Depot[] = [
 export const INITIAL_DRIVERS: Driver[] = [
   { id: 'drv-bhm-1', username: 'dave_bhm', name: 'Dave Jenkins (Lead Driver)', phone: '+44 7700 900101', vehicleReg: 'KL24 BHM', depotId: 'depot-bhm' },
   { id: 'drv-bhm-2', username: 'sarah_bhm', name: 'Sarah Miller', phone: '+44 7700 900102', vehicleReg: 'KP23 BHM', depotId: 'depot-bhm' },
+  { id: 'drv-bhm-3', username: 'kieran_bhm', name: 'Kieran Scott', phone: '+44 7700 900103', vehicleReg: 'KV72 BHM', depotId: 'depot-bhm' },
   { id: 'drv-man-1', username: 'tom_man', name: 'Tom Higgins', phone: '+44 7700 900201', vehicleReg: 'KL24 MAN', depotId: 'depot-man' },
   { id: 'drv-brs-1', username: 'alex_brs', name: 'Alex Carter', phone: '+44 7700 900301', vehicleReg: 'KL24 BRS', depotId: 'depot-brs' },
   { id: 'drv-lone-1', username: 'marcus_lone', name: 'Marcus Campbell', phone: '+44 7700 900401', vehicleReg: 'KL24 LNE', depotId: 'depot-lone' },
@@ -48,9 +65,14 @@ export const INITIAL_SHIPMENTS: Shipment[] = [
     postcode: 'B15 3DZ',
     lat: 52.4688,
     lng: -1.9325,
-    itemsDescription: '4x 5m Anthracite Grey Fascia Boards, 3x Square Gutter 4m, 12x Joint Brackets',
+    itemsDescription: '4x 5m Anthracite Grey Fascia Boards (SKU: FASCIA-5M), 3x Square Gutter 4m (SKU: GUTTER-4M)',
+    itemsList: [
+      { sku: 'FASCIA-5M', name: '5m Heavy Fascia Board', quantity: 4, individualDwellMins: 20, unitSize: 4 },
+      { sku: 'GUTTER-4M', name: '4m Gutter Pack', quantity: 3, individualDwellMins: 12, unitSize: 2 },
+    ],
     specialNotes: 'Heavy 5m lengths. Site gate entry code 1984.',
-    dwellTimeMins: 20,
+    calculatedDwellMins: 25,
+    vanCapacityUnits: 6,
     status: 'BUCKET_PENDING',
     depotId: 'depot-bhm',
     createdAt: new Date().toISOString()
@@ -69,9 +91,13 @@ export const INITIAL_SHIPMENTS: Shipment[] = [
     postcode: 'B23 6QJ',
     lat: 52.5273,
     lng: -1.8411,
-    itemsDescription: '2x 3m Hollow Soffit White, 1x 110mm Soil Pipe 3m',
+    itemsDescription: '2x 3m Hollow Soffit White (SKU: SOFFIT-3M)',
+    itemsList: [
+      { sku: 'SOFFIT-3M', name: '3m Hollow Soffit', quantity: 2, individualDwellMins: 10, unitSize: 2 }
+    ],
     specialNotes: 'Leave on driveway if no answer.',
-    dwellTimeMins: 15,
+    calculatedDwellMins: 10,
+    vanCapacityUnits: 2,
     status: 'BUCKET_PENDING',
     depotId: 'depot-bhm',
     createdAt: new Date().toISOString()
@@ -90,9 +116,14 @@ export const INITIAL_SHIPMENTS: Shipment[] = [
     postcode: 'B11 2BE',
     lat: 52.4578,
     lng: -1.8415,
-    itemsDescription: '10x 5m Black Ash Shiplap Cladding, 4x Starter Trims',
+    itemsDescription: '10x 5m Black Ash Shiplap Cladding (SKU: FASCIA-5M)',
+    itemsList: [
+      { sku: 'FASCIA-5M', name: '5m Heavy Cladding', quantity: 10, individualDwellMins: 20, unitSize: 4 },
+      { sku: 'JOINTS-FITTINGS', name: 'Joint Outlets', quantity: 4, individualDwellMins: 5, unitSize: 1 }
+    ],
     specialNotes: 'Forklift available on site for offload.',
-    dwellTimeMins: 25,
+    calculatedDwellMins: 25,
+    vanCapacityUnits: 5,
     status: 'BUCKET_PENDING',
     depotId: 'depot-bhm',
     createdAt: new Date().toISOString()
@@ -110,9 +141,13 @@ export const INITIAL_SHIPMENTS: Shipment[] = [
     postcode: 'B90 3HG',
     lat: 52.4144,
     lng: -1.8211,
-    itemsDescription: '3x Deepflow Guttering 4m Black, 2x Running Outlets',
+    itemsDescription: '3x Deepflow Guttering 4m Black (SKU: GUTTER-4M)',
+    itemsList: [
+      { sku: 'GUTTER-4M', name: '4m Guttering', quantity: 3, individualDwellMins: 12, unitSize: 2 }
+    ],
     specialNotes: 'Please ring bell twice.',
-    dwellTimeMins: 15,
+    calculatedDwellMins: 12,
+    vanCapacityUnits: 2,
     status: 'BUCKET_PENDING',
     depotId: 'depot-bhm',
     createdAt: new Date().toISOString()
@@ -130,9 +165,13 @@ export const INITIAL_SHIPMENTS: Shipment[] = [
     postcode: 'B42 1SG',
     lat: 52.5204,
     lng: -1.9056,
-    itemsDescription: '6x UPVC Window Sills 3m White',
+    itemsDescription: '6x UPVC Window Sills 3m White (SKU: SILL-UPVC-3M)',
+    itemsList: [
+      { sku: 'SILL-UPVC-3M', name: '3m Window Sills', quantity: 6, individualDwellMins: 8, unitSize: 1 }
+    ],
     specialNotes: 'Fragile profile edges. Handle with care.',
-    dwellTimeMins: 15,
+    calculatedDwellMins: 10,
+    vanCapacityUnits: 2,
     status: 'BUCKET_PENDING',
     depotId: 'depot-bhm',
     createdAt: new Date().toISOString()
@@ -150,9 +189,13 @@ export const INITIAL_SHIPMENTS: Shipment[] = [
     postcode: 'B17 9NT',
     lat: 52.4590,
     lng: -1.9442,
-    itemsDescription: '5x 5m Anthracite Round Downpipes, 8x Clips',
+    itemsDescription: '5x 5m Anthracite Round Downpipes (SKU: GUTTER-4M)',
+    itemsList: [
+      { sku: 'GUTTER-4M', name: '4m Downpipes', quantity: 5, individualDwellMins: 12, unitSize: 2 }
+    ],
     specialNotes: 'Side driveway access.',
-    dwellTimeMins: 15,
+    calculatedDwellMins: 15,
+    vanCapacityUnits: 3,
     status: 'BUCKET_PENDING',
     depotId: 'depot-bhm',
     createdAt: new Date().toISOString()
@@ -170,9 +213,13 @@ export const INITIAL_SHIPMENTS: Shipment[] = [
     postcode: 'B30 3HB',
     lat: 52.4082,
     lng: -1.9288,
-    itemsDescription: '8x Polycarbonate Roofing Sheets 4m Clear, 6x Glazing Bars',
+    itemsDescription: '8x Polycarbonate Roofing Sheets 4m (SKU: POLYCARB-SHEET)',
+    itemsList: [
+      { sku: 'POLYCARB-SHEET', name: '4m Polycarbonate Roof Sheet', quantity: 8, individualDwellMins: 25, unitSize: 5 }
+    ],
     specialNotes: 'Extra long bulky sheets. Requires 2 person lift.',
-    dwellTimeMins: 25,
+    calculatedDwellMins: 30,
+    vanCapacityUnits: 5,
     status: 'BUCKET_PENDING',
     depotId: 'depot-bhm',
     createdAt: new Date().toISOString()
@@ -190,30 +237,64 @@ export const INITIAL_SHIPMENTS: Shipment[] = [
     postcode: 'B12 8AJ',
     lat: 52.4632,
     lng: -1.8741,
-    itemsDescription: '4x Hollow Soffit Oak 5m, 2x J-Trims',
+    itemsDescription: '4x Hollow Soffit Oak 5m (SKU: SOFFIT-3M), 2x J-Trims',
+    itemsList: [
+      { sku: 'SOFFIT-3M', name: '5m Soffit Oak', quantity: 4, individualDwellMins: 10, unitSize: 2 }
+    ],
     specialNotes: 'Call 10 mins before arrival.',
-    dwellTimeMins: 15,
+    calculatedDwellMins: 12,
+    vanCapacityUnits: 2,
     status: 'BUCKET_PENDING',
     depotId: 'depot-bhm',
     createdAt: new Date().toISOString()
   },
   {
-    id: 'shp-201',
-    trackingNumber: 'KAL-MAN-4001',
-    externalOrderId: 'BQ-882001',
+    id: 'shp-109',
+    trackingNumber: 'KAL-BHM-9019',
+    externalOrderId: 'BQ-882201',
     sourceChannel: 'B&Q',
-    customerName: 'David Miller Contracting',
-    customerPhone: '+44 7799 123456',
-    address: '22 Deansgate, City Centre',
-    city: 'Manchester',
-    postcode: 'M3 2FW',
-    lat: 53.4831,
-    lng: -2.2475,
-    itemsDescription: '8x 4m Fluted Soffit Boards, 5x Rainwater Pipes',
-    specialNotes: 'Delivery bay on left side.',
-    dwellTimeMins: 20,
+    labelApiRef: 'lbl_bq_5510',
+    customerName: 'Solihull Window & Fascia Co',
+    customerPhone: '+44 7899 221100',
+    address: '14 Warwick Road, Solihull',
+    city: 'Solihull',
+    postcode: 'B92 7HX',
+    lat: 52.4201,
+    lng: -1.7820,
+    itemsDescription: '6x 5m Anthracite Fascia (SKU: FASCIA-5M), 4x 4m Gutters (SKU: GUTTER-4M)',
+    itemsList: [
+      { sku: 'FASCIA-5M', name: '5m Anthracite Fascia', quantity: 6, individualDwellMins: 20, unitSize: 4 },
+      { sku: 'GUTTER-4M', name: '4m Gutters', quantity: 4, individualDwellMins: 12, unitSize: 2 }
+    ],
+    specialNotes: 'Trade counter delivery.',
+    calculatedDwellMins: 25,
+    vanCapacityUnits: 6,
     status: 'BUCKET_PENDING',
-    depotId: 'depot-man',
+    depotId: 'depot-bhm',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'shp-110',
+    trackingNumber: 'KAL-BHM-9020',
+    externalOrderId: 'EBAY-49330',
+    sourceChannel: 'eBay',
+    labelApiRef: 'lbl_eb_8801',
+    customerName: 'Apex Cladding Supplies',
+    customerPhone: '+44 7654 321987',
+    address: '8 Aston Cross, Birmingham',
+    city: 'Birmingham',
+    postcode: 'B6 5RQ',
+    lat: 52.4981,
+    lng: -1.8842,
+    itemsDescription: '12x UPVC Window Trims (SKU: SILL-UPVC-3M)',
+    itemsList: [
+      { sku: 'SILL-UPVC-3M', name: 'Window Trims', quantity: 12, individualDwellMins: 8, unitSize: 1 }
+    ],
+    specialNotes: 'Rear loading dock.',
+    calculatedDwellMins: 15,
+    vanCapacityUnits: 3,
+    status: 'BUCKET_PENDING',
+    depotId: 'depot-bhm',
     createdAt: new Date().toISOString()
   }
 ];
