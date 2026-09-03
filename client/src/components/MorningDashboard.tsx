@@ -24,7 +24,7 @@ interface Props {
   brandTheme: BrandTheme;
   shiftParams?: ShiftParameters;
   onSelectDepot: (depotId: string) => void;
-  onNavigateToTab: (tabName: 'dashboard' | 'orders' | 'routes' | 'map' | 'cs_lookup') => void;
+  onNavigateToTab: (tabName: 'dashboard' | 'orders' | 'routes' | 'map') => void;
   onSelectRoute: (routeId: string) => void;
   onAutoBatchDepot: () => void;
   onCreateRoute?: (route: DeliveryRoute) => void;
@@ -49,16 +49,10 @@ export const MorningDashboard: React.FC<Props> = ({
 
   // Active depot filtering
   const activeDepot = depots.find((d) => d.id === selectedDepotId) || depots[0];
-  const activeOrders = selectedDepotId === 'depot-all'
-    ? orders
-    : orders.filter((o) => o.depotId === selectedDepotId);
-
-  const activeRoutes = selectedDepotId === 'depot-all'
-    ? routes
-    : routes.filter((r) => r.depotId === selectedDepotId);
+  const activeOrders = orders.filter((o) => o.depotId === selectedDepotId);
+  const activeRoutes = routes.filter((r) => r.depotId === selectedDepotId);
 
   // Operational Pipeline Metrics
-  // Split unassigned orders into: ready for routing vs below criteria threshold
   const unassignedAll = activeOrders.filter((o) => o.status === 'PENDING');
   const unassignedReady = unassignedAll.filter((o) => !o.belowRouteCriteria);
   const belowCriteriaOrders = unassignedAll.filter((o) => o.belowRouteCriteria);
@@ -69,7 +63,7 @@ export const MorningDashboard: React.FC<Props> = ({
   const totalOrdersCount = activeOrders.length;
 
   const problemRoutes = activeRoutes.filter((r) => r.isProblemRoute || r.totalEstimatedMins > (shiftParams.shiftLengthHours * 60));
-  const activeDriversCount = drivers.filter((d) => selectedDepotId === 'depot-all' || d.depotId === selectedDepotId).length;
+  const activeDriversCount = drivers.filter((d) => d.depotId === selectedDepotId).length;
 
   const handleToggleSelectOrder = (id: string) => {
     setSelectedOrderIds((prev) =>
@@ -95,7 +89,7 @@ export const MorningDashboard: React.FC<Props> = ({
     const newRoute: DeliveryRoute = {
       id: `route-${Date.now()}`,
       routeNumber,
-      depotId: selectedDepotId === 'depot-all' ? 'depot-bhm' : selectedDepotId,
+      depotId: selectedDepotId,
       date: new Date().toISOString(),
       status: 'UNASSIGNED',
       totalDwellMins: routePreview.totalDwellMins,
@@ -144,7 +138,7 @@ export const MorningDashboard: React.FC<Props> = ({
           </p>
         </div>
 
-        {/* Depot Quick Switcher */}
+        {/* Depot Switcher */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="bg-slate-100 p-1.5 rounded-2xl border border-gray-200 flex items-center gap-2">
             <Warehouse className="w-4 h-4 text-slate-500 ml-2" />
@@ -173,7 +167,7 @@ export const MorningDashboard: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* 5-Metric Operations Pipeline Cards with Accurate Labels */}
+      {/* 5-Metric Operations Pipeline Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         {/* Unassigned Orders */}
         <div
@@ -250,7 +244,7 @@ export const MorningDashboard: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* Orders That Don't Meet Route Criteria Banner / Watchdog */}
+      {/* Orders That Don't Meet Route Criteria Watchdog */}
       {belowCriteriaOrders.length > 0 && (
         <div className="p-4 bg-amber-50 rounded-2xl border border-amber-300 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn">
           <div className="flex items-start gap-2.5">

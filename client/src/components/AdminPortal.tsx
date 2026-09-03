@@ -4,7 +4,6 @@ import { DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
 import { MorningDashboard } from './MorningDashboard';
 import { ScanToVanModal } from './ScanToVanModal';
-import { CustomerServiceLookup } from './CustomerServiceLookup';
 import { OrdersManager } from './OrdersManager';
 import { RoutesManager } from './RoutesManager';
 import { SettingsModal } from './SettingsModal';
@@ -15,7 +14,6 @@ import {
   Truck, 
   LayoutDashboard,
   Warehouse,
-  Headphones,
   Settings
 } from 'lucide-react';
 
@@ -57,8 +55,7 @@ export const AdminPortal: React.FC<Props> = ({
   onSwitchToDriver,
   onConfirmRouteLoaded,
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map' | 'cs_lookup'>('dashboard');
-  // Default to first physical regional depot (Birmingham Central)
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map'>('dashboard');
   const [selectedDepotId, setSelectedDepotId] = useState<string>(depots[0]?.id || 'depot-bhm');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -138,7 +135,7 @@ export const AdminPortal: React.FC<Props> = ({
         />
       )}
 
-      {/* Unified Settings Modal (Editable Van Capacities, Dwell Times, Radius, Shifts, Branding) */}
+      {/* Unified Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -167,7 +164,7 @@ export const AdminPortal: React.FC<Props> = ({
             </div>
             <div>
               <h1 className="text-xl font-black tracking-tight">{brandTheme.companyName} Fleet Control</h1>
-              <p className="text-xs opacity-80">Order Management, Routing Engine & Telematics</p>
+              <p className="text-xs opacity-80">Order Management & Dispatch Operations</p>
             </div>
           </div>
 
@@ -203,7 +200,7 @@ export const AdminPortal: React.FC<Props> = ({
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full flex flex-col gap-6">
         
-        {/* Navigation Tabs */}
+        {/* Clean 4-Tab Navigation */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-3">
           <div className="flex space-x-2 flex-wrap gap-y-2">
             <button
@@ -257,19 +254,6 @@ export const AdminPortal: React.FC<Props> = ({
               <Radio className="w-4 h-4 text-emerald-600 animate-pulse" />
               Live Telematics
             </button>
-
-            <button
-              onClick={() => setActiveTab('cs_lookup')}
-              className={`px-4 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-2 ${
-                activeTab === 'cs_lookup'
-                  ? 'text-white shadow-sm'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-              }`}
-              style={{ backgroundColor: activeTab === 'cs_lookup' ? brandTheme.secondaryColour : undefined }}
-            >
-              <Headphones className="w-4 h-4 text-emerald-500" />
-              Customer Service
-            </button>
           </div>
 
           {/* Launch Driver App Direct Workflow */}
@@ -308,7 +292,7 @@ export const AdminPortal: React.FC<Props> = ({
           />
         )}
 
-        {/* TAB 1: ORDER MANAGEMENT SYSTEM (UNASSIGNED & COMPLETED PODS) */}
+        {/* TAB 1: ORDER MANAGEMENT SYSTEM */}
         {activeTab === 'orders' && (
           <OrdersManager
             orders={orders}
@@ -321,7 +305,7 @@ export const AdminPortal: React.FC<Props> = ({
           />
         )}
 
-        {/* TAB 2: ROUTES & MANIFESTS WITH DRAG & DROP REBALANCING + CANCEL / UNDO */}
+        {/* TAB 2: ROUTES & MANIFESTS */}
         {activeTab === 'routes' && (
           <RoutesManager
             routes={routes}
@@ -343,16 +327,6 @@ export const AdminPortal: React.FC<Props> = ({
             drivers={drivers}
             routes={routes}
             onSelectDriverToView={onSwitchToDriver}
-          />
-        )}
-
-        {/* TAB 4: CUSTOMER SERVICE LOOKUP */}
-        {activeTab === 'cs_lookup' && (
-          <CustomerServiceLookup
-            orders={orders}
-            routes={routes}
-            drivers={drivers}
-            brandTheme={brandTheme}
           />
         )}
       </main>
