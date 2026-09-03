@@ -50,15 +50,19 @@ export const SettingsPage: React.FC<Props> = ({
   currentUser,
 }) => {
   const isHeadOffice = currentUser.role === 'HEAD_OFFICE_ADMIN';
-  const [activeTab, setActiveTab] = useState<'staff' | 'drivers' | 'depots' | 'dwell' | 'shift' | 'branding'>(
-    isHeadOffice ? 'staff' : 'drivers'
+  const assignedDepotId = currentUser.assignedDepotId || depots[0]?.id || 'depot-bhm';
+  const currentDepot = depots.find((d) => d.id === assignedDepotId) || depots[0];
+
+  // If Head Office: default to 'staff'; If Depot Controller: default to 'my_drivers'
+  const [activeTab, setActiveTab] = useState<'staff' | 'all_drivers' | 'my_drivers' | 'depots' | 'my_depot' | 'dwell' | 'shift' | 'branding'>(
+    isHeadOffice ? 'staff' : 'my_drivers'
   );
 
   const [newSku, setNewSku] = useState({ sku: '', name: '', defaultDwellMins: 15 });
   const [localDepots, setLocalDepots] = useState<Depot[]>(depots);
   const [saveBanner, setSaveBanner] = useState('');
 
-  // New Staff User Form State
+  // New Staff User Form State (Admin Only)
   const [newUser, setNewUser] = useState<Partial<UserAccount>>({
     name: '',
     email: '',
@@ -71,11 +75,17 @@ export const SettingsPage: React.FC<Props> = ({
     name: '',
     phone: '',
     vehicleReg: '',
-    depotId: depots[0]?.id || 'depot-bhm',
+    depotId: isHeadOffice ? (depots[0]?.id || 'depot-bhm') : assignedDepotId,
   });
 
-  // Transfer Staff Member between Depots
+  // Filtered lists for Depot Controller
+  const visibleDrivers = isHeadOffice
+    ? drivers
+    : drivers.filter((d) => d.depotId === assignedDepotId);
+
+  // Transfer Staff Member between Depots (Head Office Admin Only)
   const handleTransferStaff = (userId: string, targetDepotId: string) => {
+    if (!isHeadOffice) return;
     const updated = users.map((u) => (u.id === userId ? { ...u, assignedDepotId: targetDepotId } : u));
     onUpdateUsers(updated);
     const targetDepot = depots.find((d) => d.id === targetDepotId);
@@ -83,8 +93,9 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Transfer Driver & Vehicle between Depots
+  // Transfer Driver & Vehicle between Depots (Head Office Admin Only)
   const handleTransferDriver = (driverId: string, targetDepotId: string) => {
+    if (!isHeadOffice) return;
     const targetDepot = depots.find((d) => d.id === targetDepotId);
     const updated = drivers.map((d) =>
       d.id === driverId
@@ -101,10 +112,10 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Add Staff User Handler
+  // Add Staff User Handler (Admin Only)
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newUser.name || !newUser.email) return;
+    if (!isHeadOffice || !newUser.name || !newUser.email) return;
 
     const createdUser: UserAccount = {
       id: `usr-${Date.now()}`,
@@ -125,19 +136,20 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Add Driver Handler
+  // Add Driver Handler (Controller can add to their own depot; Admin can add to any)
   const handleAddDriver = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDriver.name || !newDriver.vehicleReg) return;
 
-    const assignedDepot = depots.find((d) => d.id === newDriver.depotId) || depots[0];
+    const targetDepotId = isHeadOffice ? (newDriver.depotId || 'depot-bhm') : assignedDepotId;
+    const assignedDepot = depots.find((d) => d.id === targetDepotId) || currentDepot;
 
     const createdDriver: Driver = {
       id: `drv-${Date.now()}`,
       name: newDriver.name,
       phone: newDriver.phone || '07700 900000',
       vehicleReg: newDriver.vehicleReg.toUpperCase(),
-      depotId: newDriver.depotId || 'depot-bhm',
+      depotId: targetDepotId,
       currentLat: assignedDepot.lat,
       currentLng: assignedDepot.lng,
       lastUpdated: 'Just now',
@@ -149,32 +161,34 @@ export const SettingsPage: React.FC<Props> = ({
       name: '',
       phone: '',
       vehicleReg: '',
-      depotId: depots[0]?.id,
+      depotId: isHeadOffice ? depots[0]?.id : assignedDepotId,
     });
     setSaveBanner(`✓ Registered driver "${createdDriver.name}" to ${assignedDepot.name}!`);
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
   const handleDeleteUser = (userId: string) => {
+    if (!isHeadOffice) return;
     if (confirm('Delete this staff account?')) {
       onUpdateUsers(users.filter((u) => u.id !== userId));
     }
   };
 
   const handleDeleteDriver = (driverId: string) => {
-    if (confirm('Remove this driver record from the fleet?')) {
+    if (confirm('Remove this driver record from the depot fleet?')) {
       onUpdateDrivers(drivers.filter((d) => d.id !== driverId));
     }
   };
 
   const handleAddSku = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSku.sku) return;
+    if (!isHeadOffice || !newSku.sku) return;
     onUpdateSkuCatalog([...skuCatalog, { ...newSku, sku: newSku.sku.toUpperCase() }]);
     setNewSku({ sku: '', name: '', defaultDwellMins: 15 });
   };
 
   const handleDeleteSku = (skuToDelete: string) => {
+    if (!isHeadOffice) return;
     onUpdateSkuCatalog(skuCatalog.filter((s) => s.sku !== skuToDelete));
   };
 
@@ -216,19 +230,19 @@ export const SettingsPage: React.FC<Props> = ({
               className="text-white text-xs px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider"
               style={{ backgroundColor: brandTheme.secondaryColour }}
             >
-              System & Fleet Configuration
+              {isHeadOffice ? 'Head Office Administration' : `${currentDepot.city} Depot Settings`}
             </span>
             <span className="text-xs text-slate-400 font-bold">
-              • Staff, Drivers, Depots & Routing Parameters
+              • {isHeadOffice ? 'Global Access & Fleet Management' : 'Local Depot Fleet & Driver Records'}
             </span>
           </div>
           <h2 className="text-xl font-black text-slate-900 mt-1">
-            Global Operations Settings
+            {isHeadOffice ? 'Global Operations Settings' : `${currentDepot.name} Configuration`}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {isHeadOffice
-              ? 'Head Office Administration • Manage staff transfers, driver allocations, depot capacities and branding.'
-              : `Depot Configuration • Viewing settings for ${currentUser.name}`}
+              ? 'Head Office Administration • Manage staff transfers, driver allocations, global depot capacities, SKUs and branding.'
+              : `Managing local drivers and vehicle registrations for ${currentDepot.name}.`}
           </p>
         </div>
       </div>
@@ -240,95 +254,118 @@ export const SettingsPage: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Settings Navigation Tabs */}
+      {/* Role-Based Navigation Tabs */}
       <div className="flex bg-white rounded-2xl border border-gray-200 p-1.5 gap-1.5 overflow-x-auto shadow-sm text-xs">
-        {/* TAB 1: STAFF MANAGEMENT (HEAD OFFICE ONLY) */}
-        {isHeadOffice && (
-          <button
-            onClick={() => setActiveTab('staff')}
-            className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
-              activeTab === 'staff'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Users className="w-4 h-4 text-indigo-400" />
-            Staff & Depot Transfers ({users.length})
-          </button>
-        )}
+        
+        {/* HEAD OFFICE ADMIN TABS */}
+        {isHeadOffice ? (
+          <>
+            <button
+              onClick={() => setActiveTab('staff')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'staff'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Users className="w-4 h-4 text-indigo-400" />
+              Staff & Depot Transfers ({users.length})
+            </button>
 
-        {/* TAB 2: DRIVERS & FLEET ASSIGNMENTS */}
-        <button
-          onClick={() => setActiveTab('drivers')}
-          className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
-            activeTab === 'drivers'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Truck className="w-4 h-4 text-emerald-400" />
-          Drivers & Van Transfers ({drivers.length})
-        </button>
+            <button
+              onClick={() => setActiveTab('all_drivers')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'all_drivers'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Truck className="w-4 h-4 text-emerald-400" />
+              All UK Drivers & Transfers ({drivers.length})
+            </button>
 
-        {/* TAB 3: DEPOTS & CAPACITIES */}
-        <button
-          onClick={() => setActiveTab('depots')}
-          className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
-            activeTab === 'depots'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Compass className="w-4 h-4 text-blue-400" />
-          Depots & Van Capacities ({depots.length})
-        </button>
+            <button
+              onClick={() => setActiveTab('depots')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'depots'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Compass className="w-4 h-4 text-blue-400" />
+              All 22 UK Depots ({depots.length})
+            </button>
 
-        {/* TAB 4: SKU DWELL TIMES */}
-        <button
-          onClick={() => setActiveTab('dwell')}
-          className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
-            activeTab === 'dwell'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Sliders className="w-4 h-4 text-amber-400" />
-          SKU Dwell Rules ({skuCatalog.length})
-        </button>
+            <button
+              onClick={() => setActiveTab('dwell')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'dwell'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Sliders className="w-4 h-4 text-amber-400" />
+              Global SKU Dwell Rules ({skuCatalog.length})
+            </button>
 
-        {/* TAB 5: DRIVER SHIFT & TRAFFIC */}
-        <button
-          onClick={() => setActiveTab('shift')}
-          className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
-            activeTab === 'shift'
-              ? 'bg-slate-900 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-          }`}
-        >
-          <Clock className="w-4 h-4 text-teal-400" />
-          Shift & Traffic Buffers
-        </button>
+            <button
+              onClick={() => setActiveTab('shift')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'shift'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Clock className="w-4 h-4 text-teal-400" />
+              Shift & Traffic Buffers
+            </button>
 
-        {/* TAB 6: BRANDING (HEAD OFFICE ONLY) */}
-        {isHeadOffice && (
-          <button
-            onClick={() => setActiveTab('branding')}
-            className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
-              activeTab === 'branding'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-            }`}
-          >
-            <Palette className="w-4 h-4 text-purple-400" />
-            White-Label Branding
-          </button>
+            <button
+              onClick={() => setActiveTab('branding')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'branding'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Palette className="w-4 h-4 text-purple-400" />
+              White-Label Branding
+            </button>
+          </>
+        ) : (
+          /* DEPOT CONTROLLER TABS (STRICTLY LOCAL) */
+          <>
+            <button
+              onClick={() => setActiveTab('my_drivers')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'my_drivers'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Truck className="w-4 h-4 text-emerald-400" />
+              {currentDepot.city} Drivers & Vans ({visibleDrivers.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('my_depot')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'my_depot'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Compass className="w-4 h-4 text-blue-400" />
+              {currentDepot.city} Depot Parameters
+            </button>
+          </>
         )}
       </div>
 
       {/* TAB CONTENT PANELS */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200">
         
-        {/* PANEL 1: STAFF & DEPOT TRANSFERS */}
+        {/* PANEL 1: STAFF & DEPOT TRANSFERS (HEAD OFFICE ADMIN ONLY) */}
         {activeTab === 'staff' && isHeadOffice && (
           <div className="space-y-6">
             <div>
@@ -337,7 +374,7 @@ export const SettingsPage: React.FC<Props> = ({
                 Staff Accounts & Inter-Depot Transfers
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Assign depot controllers to specific regional hubs or transfer staff between depots.
+                Head Office Admin control to assign depot controllers or transfer staff between UK distribution hubs.
               </p>
             </div>
 
@@ -499,20 +536,20 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 2: DRIVER RECORDS & INTER-DEPOT TRANSFERS */}
-        {activeTab === 'drivers' && (
+        {/* PANEL 2A: ALL UK DRIVERS & FLEET TRANSFERS (HEAD OFFICE ADMIN ONLY) */}
+        {activeTab === 'all_drivers' && isHeadOffice && (
           <div className="space-y-6">
             <div>
               <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                 <Truck className="w-5 h-5 text-emerald-600" />
-                Driver Records & Fleet Transfers
+                All UK Drivers & Inter-Depot Fleet Transfers
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Manage delivery drivers, vehicle registrations, telematics status, and transfer drivers and vans between depots.
+                Head Office Admin control to reallocate drivers and delivery vehicles across UK depots.
               </p>
             </div>
 
-            {/* Drivers Table */}
+            {/* All Drivers Table */}
             <div className="border border-gray-200 rounded-2xl overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
@@ -656,16 +693,141 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 3: DEPOTS & VAN CAPACITIES */}
-        {activeTab === 'depots' && (
+        {/* PANEL 2B: LOCAL DEPOT DRIVERS (FOR DEPOT CONTROLLER) */}
+        {activeTab === 'my_drivers' && !isHeadOffice && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Truck className="w-5 h-5 text-emerald-600" />
+                {currentDepot.city} Depot Drivers & Fleet
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Manage delivery drivers and vehicle registrations assigned to {currentDepot.name}.
+              </p>
+            </div>
+
+            {/* Local Drivers Table (No cross-depot transfer controls) */}
+            <div className="border border-gray-200 rounded-2xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
+                  <tr>
+                    <th className="p-3.5">Driver Name</th>
+                    <th className="p-3.5">Contact Phone</th>
+                    <th className="p-3.5">Vehicle Reg</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {visibleDrivers.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-slate-400 font-bold">
+                        No drivers registered yet for this depot. Add a driver below.
+                      </td>
+                    </tr>
+                  ) : (
+                    visibleDrivers.map((drv) => (
+                      <tr key={drv.id} className="hover:bg-slate-50">
+                        <td className="p-3.5 font-bold text-slate-900 flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xs">
+                            {drv.name.charAt(0)}
+                          </div>
+                          <div>
+                            <span className="font-black text-slate-900 block">{drv.name}</span>
+                            <span className="text-[10px] text-slate-400">ID: {drv.id}</span>
+                          </div>
+                        </td>
+
+                        <td className="p-3.5 font-mono text-slate-700 font-bold">{drv.phone}</td>
+
+                        <td className="p-3.5">
+                          <span className="font-mono font-black text-xs px-2.5 py-1 rounded bg-amber-100 text-amber-950 border border-amber-300">
+                            {drv.vehicleReg}
+                          </span>
+                        </td>
+
+                        <td className="p-3.5">
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-blue-50 text-blue-800 border border-blue-200">
+                            {drv.status}
+                          </span>
+                        </td>
+
+                        <td className="p-3.5 text-right">
+                          <button
+                            onClick={() => handleDeleteDriver(drv.id)}
+                            className="text-rose-600 hover:text-rose-800 p-1 font-bold text-xs"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Add Local Driver Form */}
+            <form
+              onSubmit={handleAddDriver}
+              className="p-5 bg-slate-50 rounded-2xl border border-gray-200 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end"
+            >
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Driver Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Liam Foster"
+                  value={newDriver.name}
+                  onChange={(e) => setNewDriver({ ...newDriver, name: e.target.value })}
+                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Mobile Phone</label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="07700 900222"
+                  value={newDriver.phone}
+                  onChange={(e) => setNewDriver({ ...newDriver, phone: e.target.value })}
+                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Vehicle Registration</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. KL73 BHM"
+                  value={newDriver.vehicleReg}
+                  onChange={(e) => setNewDriver({ ...newDriver, vehicleReg: e.target.value })}
+                  className="w-full text-xs font-black uppercase p-2.5 border rounded-xl bg-white"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Register Depot Driver
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* PANEL 3A: ALL UK DEPOTS & VAN CAPACITIES (HEAD OFFICE ADMIN ONLY) */}
+        {activeTab === 'depots' && isHeadOffice && (
           <div className="space-y-6">
             <div>
               <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                 <Compass className="w-5 h-5 text-blue-600" />
-                Depot Catchment, Van Capacities & Minimum Route Thresholds
+                All 22 UK Depots • Catchment & Van Capacities
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Configure maximum order drops per vehicle (default 5–6 drops for 5m building goods) and catchment radius per depot.
+                Head Office configuration for all distribution centres across the UK network.
               </p>
             </div>
 
@@ -756,16 +918,76 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 4: SKU DWELL TIMES */}
-        {activeTab === 'dwell' && (
+        {/* PANEL 3B: LOCAL DEPOT PARAMETERS (FOR DEPOT CONTROLLER) */}
+        {activeTab === 'my_depot' && !isHeadOffice && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Compass className="w-5 h-5 text-blue-600" />
+                {currentDepot.name} • Local Operating Parameters
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Adjust van capacity and local delivery radius for {currentDepot.city}.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="p-5 bg-slate-50 rounded-2xl border border-gray-200 space-y-2">
+                <label className="block text-xs font-black text-slate-800">
+                  Local Postcode Center
+                </label>
+                <input
+                  type="text"
+                  value={currentDepot.postcode}
+                  onChange={(e) => handleUpdatePostcode(currentDepot.id, e.target.value)}
+                  className="w-full font-mono font-bold text-sm p-2.5 border rounded-xl bg-white uppercase text-center"
+                />
+                <p className="text-[11px] text-slate-500">Center point for territory distance calculations.</p>
+              </div>
+
+              <div className="p-5 bg-slate-50 rounded-2xl border border-gray-200 space-y-2">
+                <label className="block text-xs font-black text-slate-800">
+                  Max Orders / Drops per Van
+                </label>
+                <input
+                  type="number"
+                  min="2"
+                  max="15"
+                  value={currentDepot.maxOrdersPerVan || 6}
+                  onChange={(e) => handleUpdateMaxPerVan(currentDepot.id, parseInt(e.target.value) || 6)}
+                  className="w-full font-black text-sm p-2.5 border-2 border-blue-500 rounded-xl bg-white text-center text-blue-900"
+                />
+                <p className="text-[11px] text-slate-500">Physical vehicle capacity (default 5–6 drops).</p>
+              </div>
+
+              <div className="p-5 bg-slate-50 rounded-2xl border border-gray-200 space-y-2">
+                <label className="block text-xs font-black text-slate-800">
+                  Delivery Radius ({currentDepot.maxDeliveryRadiusMiles} miles)
+                </label>
+                <input
+                  type="range"
+                  min="5"
+                  max="50"
+                  value={currentDepot.maxDeliveryRadiusMiles}
+                  onChange={(e) => handleUpdateRadius(currentDepot.id, parseInt(e.target.value) || 10)}
+                  className="w-full h-2 bg-gray-200 rounded cursor-pointer mt-2"
+                />
+                <p className="text-[11px] text-slate-500">Depot catchment boundary for customer order fulfillment.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PANEL 4: SKU DWELL TIMES (HEAD OFFICE ADMIN ONLY) */}
+        {activeTab === 'dwell' && isHeadOffice && (
           <div className="space-y-6">
             <div>
               <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                 <Sliders className="w-5 h-5 text-amber-600" />
-                Per-Product SKU Dwell Times
+                Global SKU Handling & Dwell Times (Admin Control)
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Offload times automatically added to route feasibility calculations based on item handling difficulty.
+                Centrally configured product offload durations applied to route feasibility algorithms across all depots.
               </p>
             </div>
 
@@ -845,8 +1067,8 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 5: SHIFT & TRAFFIC */}
-        {activeTab === 'shift' && (
+        {/* PANEL 5: SHIFT & TRAFFIC (HEAD OFFICE ADMIN ONLY) */}
+        {activeTab === 'shift' && isHeadOffice && (
           <div className="space-y-6">
             <div>
               <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
@@ -910,7 +1132,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 6: BRANDING (HEAD OFFICE ONLY) */}
+        {/* PANEL 6: BRANDING (HEAD OFFICE ADMIN ONLY) */}
         {activeTab === 'branding' && isHeadOffice && (
           <div className="space-y-6">
             <div>
