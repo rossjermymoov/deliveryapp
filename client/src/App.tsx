@@ -64,7 +64,7 @@ export const App: React.FC = () => {
 
     if (targetRoute.vanId) {
       setVans((prev) =>
-        prev.map((v) => (v.id === targetRoute.vanId ? { ...v, status: 'AVAILABLE' } : v))
+        prev.map((v) => (v.id === targetRoute.vanId && v.status === 'ON_ROUTE' ? { ...v, status: 'AVAILABLE' } : v))
       );
     }
   };
@@ -141,7 +141,7 @@ export const App: React.FC = () => {
 
     if (driverId) {
       setDrivers((prev) =>
-        prev.map((d) => (d.id === driverId ? { ...d, status: 'ON_ROUTE' } : d))
+        prev.map((d) => (d.id === driverId ? { ...d, status: 'IDLE' } : d))
       );
     }
   };
@@ -159,12 +159,6 @@ export const App: React.FC = () => {
           : r
       )
     );
-
-    if (vanId) {
-      setVans((prev) =>
-        prev.map((v) => (v.id === vanId ? { ...v, status: 'ON_ROUTE' } : v))
-      );
-    }
   };
 
   const handleConfirmRouteLoaded = (routeId: string) => {
@@ -211,32 +205,61 @@ export const App: React.FC = () => {
   const handleDriverSubmitFault = (newFault: VehicleFaultReport) => {
     setFaults((prev) => [newFault, ...prev]);
 
-    // If fault is critical, ground the vehicle
-    if (newFault.severity === 'CRITICAL_GROUND_VEHICLE') {
-      setVans((prev) =>
-        prev.map((v) =>
-          v.id === newFault.vanId ? { ...v, status: 'GROUNDED' } : v
-        )
-      );
-    }
+    // Set van status to FAULT_REPORTED or GROUNDED
+    setVans((prev) =>
+      prev.map((v) =>
+        v.id === newFault.vanId
+          ? {
+              ...v,
+              status: newFault.severity === 'CRITICAL_GROUND_VEHICLE' ? 'GROUNDED' : 'FAULT_REPORTED',
+            }
+          : v
+      )
+    );
   };
 
+  // Live Driver Starts Route Tour & Physical Movement Begins -> Van & Driver Dynamically Switch to ON_ROUTE
   const handleStartRoute = (routeId: string) => {
+    const targetRoute = routes.find((r) => r.id === routeId);
+
     setRoutes((prev) =>
       prev.map((r) => (r.id === routeId ? { ...r, status: 'IN_PROGRESS' } : r))
     );
     setOrders((prev) =>
       prev.map((o) => (o.routeId === routeId ? { ...o, status: 'OUT_FOR_DELIVERY' } : o))
     );
+
+    // Dynamic Van ON_ROUTE status
+    if (targetRoute?.vanId) {
+      setVans((prev) =>
+        prev.map((v) => (v.id === targetRoute.vanId ? { ...v, status: 'ON_ROUTE' } : v))
+      );
+    }
+
+    // Dynamic Driver ON_ROUTE status
+    if (targetRoute?.driverId) {
+      setDrivers((prev) =>
+        prev.map((d) => (d.id === targetRoute.driverId ? { ...d, status: 'ON_ROUTE' } : d))
+      );
+    }
   };
 
+  // Route Tour Concluded -> Return Van & Driver to AVAILABLE / IDLE
   const handleCompleteRoute = (routeId: string) => {
+    const targetRoute = routes.find((r) => r.id === routeId);
+
     setRoutes((prev) =>
       prev.map((r) => (r.id === routeId ? { ...r, status: 'COMPLETED' } : r))
     );
     setDrivers((prev) =>
       prev.map((d) => (d.id === activeDriverId ? { ...d, status: 'IDLE' } : d))
     );
+
+    if (targetRoute?.vanId) {
+      setVans((prev) =>
+        prev.map((v) => (v.id === targetRoute.vanId ? { ...v, status: 'AVAILABLE' } : v))
+      );
+    }
   };
 
   const handleCompletePod = (orderId: string, podData: Partial<ProofOfDelivery>) => {

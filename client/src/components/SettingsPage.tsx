@@ -154,7 +154,8 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Change Van Operational / Fleet Status
+  // Change Van Operational / Fleet Status manually (AVAILABLE, FAULT_REPORTED, MAINTENANCE, GROUNDED)
+  // Note: ON_ROUTE is dynamic and set automatically by driver movement / route start
   const handleUpdateVanStatus = (vanId: string, newStatus: VanStatus) => {
     const updated = vans.map((v) => (v.id === vanId ? { ...v, status: newStatus } : v));
     onUpdateVans(updated);
@@ -362,7 +363,7 @@ export const SettingsPage: React.FC<Props> = ({
             {isHeadOffice ? 'Global Operations & Fleet Compliance' : `${currentDepot.name} Fleet & Workshop`}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Track statutory MOT dates, periodic service intervals, and interactive fleet statuses (`AVAILABLE`, `ON_ROUTE`, `FAULT_REPORTED`, `MAINTENANCE`, `GROUNDED`).
+            Track statutory MOT dates, periodic service intervals, and operational fleet statuses (`AVAILABLE`, `FAULT_REPORTED`, `MAINTENANCE`, `GROUNDED`). <em>Note: "ON ROUTE" is triggered dynamically by live driver GPS movement.</em>
           </p>
         </div>
 
@@ -384,7 +385,7 @@ export const SettingsPage: React.FC<Props> = ({
       {/* Navigation Tabs */}
       <div className="flex bg-white rounded-2xl border border-gray-200 p-1.5 gap-1.5 overflow-x-auto shadow-sm text-xs">
         
-        {/* FAULT REPORTS TAB (HIGHEST VISIBILITY FOR WORKSHOP) */}
+        {/* FAULT REPORTS TAB */}
         <button
           onClick={() => setActiveTab('faults')}
           className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
@@ -635,7 +636,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 1: VAN FLEET, MOTS & INTERACTIVE STATUS CONTROLS */}
+        {/* PANEL 1: VAN FLEET, MOTS & OPERATIONAL STATUS CONTROLS */}
         {(activeTab === 'all_vans' || activeTab === 'my_vans') && (
           <div className="space-y-6">
             <div>
@@ -644,7 +645,7 @@ export const SettingsPage: React.FC<Props> = ({
                 {isHeadOffice ? 'All UK Van Fleet • MOT & Vehicle Status Manager' : `${currentDepot.city} Van Fleet • MOT & Vehicle Status Manager`}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Manage vehicle compliance dates, statutory MOT expiries, service due dates, and dynamically change operational status (`AVAILABLE`, `ON_ROUTE`, `FAULT_REPORTED`, `MAINTENANCE`, `GROUNDED`).
+                Manage vehicle compliance dates, statutory MOT expiries, service due dates, and operational status (`AVAILABLE`, `FAULT_REPORTED`, `MAINTENANCE`, `GROUNDED`). <em>"ON ROUTE" is automatically set dynamically when the driver starts their tour and GPS movement begins.</em>
               </p>
             </div>
 
@@ -716,25 +717,32 @@ export const SettingsPage: React.FC<Props> = ({
                           <span className="text-[10px] text-slate-400 ml-1">mi</span>
                         </td>
 
-                        {/* INTERACTIVE OPERATIONAL STATUS SELECTOR */}
+                        {/* OPERATIONAL STATUS (ON_ROUTE IS DYNAMIC AND DISPLAYED AS LIVE BADGE IF ACTIVE) */}
                         <td className="p-3.5 text-center">
-                          <select
-                            value={v.status}
-                            onChange={(e) => handleUpdateVanStatus(v.id, e.target.value as VanStatus)}
-                            className={`text-xs font-black p-1.5 rounded-xl border focus:ring-2 cursor-pointer ${
-                              v.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-900 border-emerald-300 focus:ring-emerald-500' :
-                              v.status === 'ON_ROUTE' ? 'bg-blue-50 text-blue-900 border-blue-300 focus:ring-blue-500' :
-                              v.status === 'FAULT_REPORTED' ? 'bg-amber-100 text-amber-950 border-amber-400 focus:ring-amber-500' :
-                              v.status === 'MAINTENANCE' ? 'bg-purple-50 text-purple-900 border-purple-300 focus:ring-purple-500' :
-                              'bg-rose-100 text-rose-950 border-rose-400 focus:ring-rose-500'
-                            }`}
-                          >
-                            <option value="AVAILABLE">✓ AVAILABLE</option>
-                            <option value="ON_ROUTE">🚚 ON ROUTE</option>
-                            <option value="FAULT_REPORTED">⚠️ FAULT REPORTED</option>
-                            <option value="MAINTENANCE">🔧 MAINTENANCE</option>
-                            <option value="GROUNDED">⛔ GROUNDED</option>
-                          </select>
+                          {v.status === 'ON_ROUTE' ? (
+                            <div className="inline-flex flex-col items-center">
+                              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-blue-100 text-blue-900 border border-blue-300 animate-pulse flex items-center gap-1">
+                                <Truck className="w-3 h-3 text-blue-600" /> 🚚 ON ROUTE (LIVE)
+                              </span>
+                              <span className="text-[9px] text-slate-400 mt-0.5">Dynamic GPS Detected</span>
+                            </div>
+                          ) : (
+                            <select
+                              value={v.status}
+                              onChange={(e) => handleUpdateVanStatus(v.id, e.target.value as VanStatus)}
+                              className={`text-xs font-black p-1.5 rounded-xl border focus:ring-2 cursor-pointer ${
+                                v.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-900 border-emerald-300 focus:ring-emerald-500' :
+                                v.status === 'FAULT_REPORTED' ? 'bg-amber-100 text-amber-950 border-amber-400 focus:ring-amber-500' :
+                                v.status === 'MAINTENANCE' ? 'bg-purple-50 text-purple-900 border-purple-300 focus:ring-purple-500' :
+                                'bg-rose-100 text-rose-950 border-rose-400 focus:ring-rose-500'
+                              }`}
+                            >
+                              <option value="AVAILABLE">✓ AVAILABLE</option>
+                              <option value="FAULT_REPORTED">⚠️ FAULT REPORTED</option>
+                              <option value="MAINTENANCE">🔧 MAINTENANCE</option>
+                              <option value="GROUNDED">⛔ GROUNDED</option>
+                            </select>
+                          )}
                         </td>
 
                         {isHeadOffice && (
