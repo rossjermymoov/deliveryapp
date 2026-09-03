@@ -46,7 +46,7 @@ export interface Order {
   lat: number;
   lng: number;
   items: OrderItem[];
-  totalDwellMins: number; // Sum of per-product dwell times
+  totalDwellMins: number;
   manualDwellOverrideMins?: number;
   specialNotes?: string;
   status: 'PENDING' | 'ROUTED' | 'OUT_FOR_DELIVERY' | 'DELIVERED';
@@ -56,14 +56,33 @@ export interface Order {
   createdAt: string;
 }
 
+export interface ShiftParameters {
+  shiftLengthHours: number; // e.g. 8.0 hours max working shift
+  mandatoryBreakMins: number; // e.g. 45 mins statutory driver break
+  trafficBufferMultiplier: number; // e.g. 1.25x for peak UK urban traffic
+}
+
+export interface RouteShiftAnalysis {
+  drivingTimeMins: number;
+  dwellTimeMins: number;
+  breakTimeMins: number;
+  totalShiftMins: number;
+  maxShiftMins: number;
+  fitsInShift: boolean;
+  utilizationPct: number;
+}
+
 export interface DeliveryRoute {
   id: string;
   routeNumber: string; // e.g. "Route 1"
   date: string;
   status: 'UNASSIGNED' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED';
   totalDwellMins: number;
+  totalDrivingMins: number;
+  breakTimeMins: number;
   totalEstimatedMins: number;
   totalDistanceKm: number;
+  shiftUtilizationPct: number;
   driverId?: string;
   driver?: Driver;
   orders: Order[];

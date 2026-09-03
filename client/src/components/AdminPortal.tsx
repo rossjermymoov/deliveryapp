@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Order, Driver, DeliveryRoute, SkuDwellSetting } from '../types';
-import { optimizeRouteStops } from '../utils/routing';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters } from '../types';
+import { optimizeRouteStops, DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
 import { 
   Package, 
@@ -16,11 +16,15 @@ import {
   Edit3, 
   Plus, 
   Search, 
-  Radio,
-  Truck,
-  Phone,
-  Mail,
-  ListOrdered
+  Radio, 
+  Truck, 
+  Phone, 
+  Mail, 
+  ListOrdered, 
+  Coffee, 
+  Car, 
+  AlertTriangle,
+  Clock
 } from 'lucide-react';
 
 interface Props {
@@ -53,6 +57,9 @@ export const AdminPortal: React.FC<Props> = ({
   const [editingDwellId, setEditingDwellId] = useState<string | null>(null);
   const [tempDwellVal, setTempDwellVal] = useState<number>(15);
   const [searchFilter, setSearchFilter] = useState('');
+
+  // Shift & Traffic Parameters
+  const [shiftParams, setShiftParams] = useState<ShiftParameters>(DEFAULT_SHIFT_PARAMS);
 
   // Route Preview
   const [routePreview, setRoutePreview] = useState<any>(null);
@@ -95,7 +102,7 @@ export const AdminPortal: React.FC<Props> = ({
     const selected = pendingOrders.filter((o) => selectedOrderIds.includes(o.id));
     if (selected.length === 0) return;
 
-    const opt = optimizeRouteStops(selected);
+    const opt = optimizeRouteStops(selected, shiftParams);
     setRoutePreview(opt);
   };
 
@@ -109,8 +116,11 @@ export const AdminPortal: React.FC<Props> = ({
       date: new Date().toISOString(),
       status: 'UNASSIGNED',
       totalDwellMins: routePreview.totalDwellMins,
+      totalDrivingMins: routePreview.totalDrivingMins,
+      breakTimeMins: routePreview.breakTimeMins,
       totalEstimatedMins: routePreview.totalDurationMins,
       totalDistanceKm: routePreview.totalDistanceKm,
+      shiftUtilizationPct: routePreview.shiftAnalysis.utilizationPct,
       driverId: undefined,
       orders: routePreview.orderedStops.map((o: Order) => ({
         ...o,
@@ -190,8 +200,8 @@ export const AdminPortal: React.FC<Props> = ({
               KALSI
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">Kalsi Plastics Delivery System</h1>
-              <p className="text-xs text-blue-200">Order Management • Routing • Live Fleet Map</p>
+              <h1 className="text-xl font-bold tracking-tight">Kalsi Plastics Delivery & Fleet Management</h1>
+              <p className="text-xs text-blue-200">Order Management • Traffic & Dwell Routing • Live Fleet Map</p>
             </div>
           </div>
 
@@ -307,7 +317,7 @@ export const AdminPortal: React.FC<Props> = ({
         {/* TAB 1: ORDER MANAGEMENT SYSTEM */}
         {activeTab === 'orders' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Clean Order List */}
+            {/* Orders with Distinct High-Contrast Left Borders */}
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col">
               <div className="flex flex-wrap items-center justify-between pb-4 border-b border-gray-100 gap-3">
                 <div>
@@ -316,7 +326,7 @@ export const AdminPortal: React.FC<Props> = ({
                     Orders ({pendingOrders.length})
                   </h2>
                   <p className="text-xs text-gray-500">
-                    Select orders to optimize into a delivery route.
+                    Select orders to calculate optimal route based on dwell times, live traffic & breaks.
                   </p>
                 </div>
 
@@ -346,25 +356,36 @@ export const AdminPortal: React.FC<Props> = ({
                   <p className="font-semibold text-gray-600">No pending orders</p>
                 </div>
               ) : (
-                <div className="divide-y divide-gray-100 overflow-y-auto max-h-[620px] mt-2">
-                  {filteredOrders.map((order) => {
+                <div className="space-y-3.5 overflow-y-auto max-h-[640px] mt-3 pr-1">
+                  {filteredOrders.map((order, idx) => {
                     const isSelected = selectedOrderIds.includes(order.id);
                     const effectiveDwell = order.manualDwellOverrideMins !== undefined
                       ? order.manualDwellOverrideMins
                       : order.totalDwellMins;
                     const isOverridden = order.manualDwellOverrideMins !== undefined;
 
+                    // Alternating distinctive high-contrast border colors
+                    const borderColors = [
+                      'border-l-[#005696]', // Kalsi Deep Blue
+                      'border-l-[#FF6B00]', // Kalsi Safety Orange
+                      'border-l-emerald-600', // Emerald Green
+                      'border-l-indigo-600', // Royal Indigo
+                      'border-l-amber-500', // Amber
+                      'border-l-purple-600', // Purple
+                    ];
+                    const activeBorderColor = borderColors[idx % borderColors.length];
+
                     return (
                       <div
                         key={order.id}
-                        className={`p-4 rounded-xl transition my-1 border ${
+                        className={`p-4 rounded-xl transition border border-gray-200 border-l-[6px] shadow-sm ${activeBorderColor} ${
                           isSelected
-                            ? 'bg-blue-50/70 border-[#005696]/40 shadow-sm'
-                            : 'hover:bg-slate-50 border-gray-100'
+                            ? 'bg-blue-50/60 ring-2 ring-[#005696]'
+                            : 'bg-white hover:bg-slate-50/80'
                         }`}
                       >
-                        {/* Order Header & Contact Info */}
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-gray-100">
+                        {/* Order Header & Contact Details */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2.5 border-b border-gray-100">
                           <div className="flex items-start gap-3">
                             <input
                               type="checkbox"
@@ -381,23 +402,23 @@ export const AdminPortal: React.FC<Props> = ({
                               </div>
                               <p className="text-xs text-gray-600 flex items-center gap-1 mt-1">
                                 <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                                {order.address}, {order.city} <strong>{order.postcode}</strong>
+                                {order.address}, {order.city} <strong className="text-gray-900">{order.postcode}</strong>
                               </p>
                             </div>
                           </div>
 
-                          {/* Contact Details & Dwell Time */}
+                          {/* Contact Info & Dwell Time */}
                           <div className="flex sm:flex-col items-end gap-1.5 shrink-0 self-end sm:self-center">
-                            <div className="text-[11px] text-gray-500 flex items-center gap-3">
-                              <span className="flex items-center gap-1">
-                                <Phone className="w-3 h-3 text-blue-600" /> {order.customerPhone}
+                            <div className="text-[11px] text-gray-600 flex items-center gap-3">
+                              <span className="flex items-center gap-1 font-medium">
+                                <Phone className="w-3 h-3 text-[#005696]" /> {order.customerPhone}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Mail className="w-3 h-3 text-gray-400" /> {order.customerEmail}
                               </span>
                             </div>
 
-                            {/* Dwell Time Pill */}
+                            {/* Dwell Time Badge / Override */}
                             {editingDwellId === order.id ? (
                               <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-[#005696] shadow-sm mt-1">
                                 <input
@@ -427,14 +448,14 @@ export const AdminPortal: React.FC<Props> = ({
                                   setEditingDwellId(order.id);
                                   setTempDwellVal(effectiveDwell);
                                 }}
-                                className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full transition border mt-1 ${
+                                className={`inline-flex items-center text-xs px-3 py-1 rounded-full transition border mt-1 ${
                                   isOverridden
                                     ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200'
+                                    : 'bg-slate-100 text-slate-800 font-bold hover:bg-slate-200 border-gray-300'
                                 }`}
                                 title="Click to override dwell time"
                               >
-                                <Timer className="w-3.5 h-3.5 mr-1 text-gray-500" />
+                                <Timer className="w-3.5 h-3.5 mr-1 text-gray-600" />
                                 {effectiveDwell}m dwell {isOverridden && '(Override)'}
                                 <Edit3 className="w-3 h-3 ml-1.5 opacity-60" />
                               </button>
@@ -449,19 +470,19 @@ export const AdminPortal: React.FC<Props> = ({
                             Order Items:
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {order.items.map((item, idx) => (
+                            {order.items.map((item, i) => (
                               <div
-                                key={idx}
-                                className="bg-white p-2.5 rounded-lg border border-gray-200 text-xs flex items-center justify-between"
+                                key={i}
+                                className="bg-slate-50 p-2.5 rounded-lg border border-gray-200 text-xs flex items-center justify-between"
                               >
                                 <div>
-                                  <span className="font-mono font-bold text-[#005696] text-[11px] block">
+                                  <span className="font-mono font-black text-[#005696] text-[11px] block">
                                     {item.sku}
                                   </span>
                                   <span className="font-medium text-gray-800">{item.name}</span>
                                 </div>
                                 <div className="text-right">
-                                  <span className="font-bold text-sm bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-gray-300">
+                                  <span className="font-black text-xs bg-white text-slate-900 px-2.5 py-1 rounded-md border border-gray-300 shadow-2xs">
                                     Qty: {item.quantity}
                                   </span>
                                 </div>
@@ -476,16 +497,74 @@ export const AdminPortal: React.FC<Props> = ({
               )}
             </div>
 
-            {/* Route Optimizer Box */}
+            {/* Right: Traffic, Dwell & Driver Break Shift Feasibility Engine */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
                   <Sparkles className="w-5 h-5 text-[#FF6B00]" />
-                  <h3 className="font-bold text-gray-900">Route Creator</h3>
+                  <h3 className="font-bold text-gray-900">Shift & Route Optimizer</h3>
                 </div>
 
+                {/* Shift & Traffic Settings */}
+                <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-gray-200 space-y-3">
+                  <div className="text-xs font-bold text-gray-700 uppercase flex items-center justify-between">
+                    <span>Driver Shift Parameters</span>
+                    <span className="text-[#005696] font-black">{shiftParams.shiftLengthHours}h Max Shift</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="block text-[11px] text-gray-500 font-bold mb-1 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-[#005696]" /> Max Shift (Hours)
+                      </label>
+                      <input
+                        type="number"
+                        min="4"
+                        max="12"
+                        step="0.5"
+                        value={shiftParams.shiftLengthHours}
+                        onChange={(e) => setShiftParams({ ...shiftParams, shiftLengthHours: parseFloat(e.target.value) || 8 })}
+                        className="w-full text-xs font-bold p-1.5 border rounded-lg bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] text-gray-500 font-bold mb-1 flex items-center gap-1">
+                        <Coffee className="w-3 h-3 text-amber-600" /> Break Time (Mins)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="90"
+                        step="15"
+                        value={shiftParams.mandatoryBreakMins}
+                        onChange={(e) => setShiftParams({ ...shiftParams, mandatoryBreakMins: parseInt(e.target.value) || 45 })}
+                        className="w-full text-xs font-bold p-1.5 border rounded-lg bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] text-gray-500 font-bold mb-1 flex items-center justify-between">
+                      <span className="flex items-center gap-1">
+                        <Car className="w-3 h-3 text-blue-600" /> Google Maps Traffic Buffer
+                      </span>
+                      <span className="font-black text-[#005696]">+{Math.round((shiftParams.trafficBufferMultiplier - 1) * 100)}% Traffic</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="1.0"
+                      max="1.6"
+                      step="0.05"
+                      value={shiftParams.trafficBufferMultiplier}
+                      onChange={(e) => setShiftParams({ ...shiftParams, trafficBufferMultiplier: parseFloat(e.target.value) })}
+                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#005696]"
+                    />
+                  </div>
+                </div>
+
+                {/* Calculate Route Trigger */}
                 <div className="mt-4 space-y-4">
-                  <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-gray-200">
+                  <div className="flex items-center justify-between bg-blue-50 p-3 rounded-xl border border-blue-200">
                     <span className="text-xs font-bold text-gray-700 uppercase">Selected Orders</span>
                     <span className="text-sm font-black text-[#005696]">
                       {selectedOrderIds.length} orders
@@ -498,27 +577,61 @@ export const AdminPortal: React.FC<Props> = ({
                     className="w-full py-3 bg-[#005696] hover:bg-[#004070] text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <Sparkles className="w-4 h-4 text-[#FFB800]" />
-                    Calculate Route for Selected Orders
+                    Calculate Route & Evaluate Feasibility
                   </button>
                 </div>
 
+                {/* Optimized Route & Shift Breakdown Preview */}
                 {routePreview && (
-                  <div className="mt-5 p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 animate-fadeIn">
-                    <h5 className="text-xs font-bold text-emerald-800 uppercase mb-2 flex items-center gap-1">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      Optimized Route Preview
-                    </h5>
-                    <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-                      <div className="bg-white p-2.5 rounded shadow-xs">
-                        <span className="text-gray-400 block text-[10px]">TOTAL TIME</span>
-                        <span className="font-bold text-gray-900">
-                          {Math.floor(routePreview.totalDurationMins / 60)}h {routePreview.totalDurationMins % 60}m
+                  <div className={`mt-5 p-4 rounded-xl border animate-fadeIn ${
+                    routePreview.shiftAnalysis.fitsInShift
+                      ? 'bg-emerald-50/70 border-emerald-300'
+                      : 'bg-rose-50/70 border-rose-300'
+                  }`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h5 className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-gray-900">
+                        {routePreview.shiftAnalysis.fitsInShift ? (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            Feasible ({routePreview.shiftAnalysis.utilizationPct}% of {shiftParams.shiftLengthHours}h Shift)
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="w-4 h-4 text-rose-600" />
+                            Exceeds {shiftParams.shiftLengthHours}h Shift Limit!
+                          </>
+                        )}
+                      </h5>
+                    </div>
+
+                    {/* Detailed Duration Breakdown */}
+                    <div className="grid grid-cols-3 gap-2 text-xs mb-3">
+                      <div className="bg-white p-2 rounded shadow-2xs text-center border border-gray-100">
+                        <span className="text-gray-400 block text-[10px] font-bold">DRIVING TIME</span>
+                        <span className="font-black text-gray-800">
+                          {Math.floor(routePreview.totalDrivingMins / 60)}h {routePreview.totalDrivingMins % 60}m
                         </span>
                       </div>
-                      <div className="bg-white p-2.5 rounded shadow-xs">
-                        <span className="text-gray-400 block text-[10px]">TOTAL DISTANCE</span>
-                        <span className="font-bold text-gray-900">{routePreview.totalDistanceKm} km</span>
+                      <div className="bg-white p-2 rounded shadow-2xs text-center border border-gray-100">
+                        <span className="text-gray-400 block text-[10px] font-bold">DWELL TIME</span>
+                        <span className="font-black text-[#FF6B00]">
+                          {Math.floor(routePreview.totalDwellMins / 60)}h {routePreview.totalDwellMins % 60}m
+                        </span>
                       </div>
+                      <div className="bg-white p-2 rounded shadow-2xs text-center border border-gray-100">
+                        <span className="text-gray-400 block text-[10px] font-bold">MANDATORY BREAK</span>
+                        <span className="font-black text-amber-700">
+                          {routePreview.breakTimeMins} mins
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-lg border border-gray-200 text-xs mb-3 flex items-center justify-between">
+                      <span className="font-bold text-gray-700">Total Shift Duration:</span>
+                      <span className="font-black text-base text-[#005696]">
+                        {Math.floor(routePreview.totalDurationMins / 60)}h {routePreview.totalDurationMins % 60}m
+                        <span className="text-xs text-gray-400 font-normal ml-1">({routePreview.totalDistanceKm} km)</span>
+                      </span>
                     </div>
 
                     <button
@@ -532,8 +645,8 @@ export const AdminPortal: React.FC<Props> = ({
                 )}
               </div>
 
-              <div className="text-[11px] text-gray-400 mt-4 bg-slate-50 p-2.5 rounded-lg">
-                💡 <strong>Route Workflow:</strong> Create Route 1, Route 2... first. Assign drivers when loading the vehicles.
+              <div className="text-[11px] text-gray-400 mt-4 bg-slate-50 p-2.5 rounded-lg border border-gray-200">
+                💡 <strong>Shift Calculation:</strong> Total Shift = Live Traffic Driving Time + Total Customer Dwells + Mandatory 45m Rest Break.
               </div>
             </div>
           </div>
@@ -585,18 +698,23 @@ export const AdminPortal: React.FC<Props> = ({
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2 my-3 text-center text-xs">
-                          <div className="bg-slate-50 p-2 rounded-lg">
-                            <span className="text-gray-400 block text-[10px]">STOPS</span>
-                            <span className="font-bold text-gray-800">{route.orders.length}</span>
+                        {/* Shift Breakdown Pills */}
+                        <div className="grid grid-cols-4 gap-2 my-3 text-center text-xs">
+                          <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
+                            <span className="text-gray-400 block text-[10px] font-bold">STOPS</span>
+                            <span className="font-black text-gray-800">{route.orders.length}</span>
                           </div>
-                          <div className="bg-slate-50 p-2 rounded-lg">
-                            <span className="text-gray-400 block text-[10px]">DISTANCE</span>
-                            <span className="font-bold text-gray-800">{route.totalDistanceKm} km</span>
+                          <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
+                            <span className="text-gray-400 block text-[10px] font-bold">DRIVE TIME</span>
+                            <span className="font-black text-gray-800">{Math.floor(route.totalDrivingMins / 60)}h {route.totalDrivingMins % 60}m</span>
                           </div>
-                          <div className="bg-slate-50 p-2 rounded-lg">
-                            <span className="text-gray-400 block text-[10px]">EST. TIME</span>
-                            <span className="font-bold text-gray-800">{Math.floor(route.totalEstimatedMins / 60)}h {route.totalEstimatedMins % 60}m</span>
+                          <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
+                            <span className="text-gray-400 block text-[10px] font-bold">DWELL TIME</span>
+                            <span className="font-black text-[#FF6B00]">{Math.floor(route.totalDwellMins / 60)}h {route.totalDwellMins % 60}m</span>
+                          </div>
+                          <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
+                            <span className="text-gray-400 block text-[10px] font-bold">TOTAL SHIFT</span>
+                            <span className="font-black text-[#005696]">{Math.floor(route.totalEstimatedMins / 60)}h {route.totalEstimatedMins % 60}m</span>
                           </div>
                         </div>
 
