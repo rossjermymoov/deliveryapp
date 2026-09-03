@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme } from '../types';
 import { optimizeRouteStops, DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
-import { PRESET_THEMES } from '../data/initialData';
+import { MorningDashboard } from './MorningDashboard';
+import { PRESET_THEMES, UK_DEPOTS } from '../data/initialData';
 import { 
   Package, 
   MapPin, 
@@ -27,7 +28,9 @@ import {
   AlertTriangle,
   Clock,
   Palette,
-  Check
+  Check,
+  LayoutDashboard,
+  Warehouse
 } from 'lucide-react';
 
 interface Props {
@@ -56,10 +59,10 @@ export const AdminPortal: React.FC<Props> = ({
   onAssignDriverToRoute,
   onUpdateOrderDwell,
   onUpdateSkuCatalog,
-  onSimulateNewOrder,
   onSwitchToDriver,
 }) => {
-  const [activeTab, setActiveTab] = useState<'orders' | 'routes' | 'map' | 'sku_dwell' | 'pods' | 'branding' | 'new_order_sim'>('orders');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map' | 'sku_dwell' | 'pods' | 'branding'>('dashboard');
+  const [selectedDepotId, setSelectedDepotId] = useState<string>('depot-all');
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [editingDwellId, setEditingDwellId] = useState<string | null>(null);
   const [tempDwellVal, setTempDwellVal] = useState<number>(15);
@@ -76,19 +79,17 @@ export const AdminPortal: React.FC<Props> = ({
   const [newSkuName, setNewSkuName] = useState('');
   const [newSkuDwell, setNewSkuDwell] = useState(15);
 
-  // New Inbound Order Simulator Form State
-  const [simName, setSimName] = useState('Mark Richardson (Apex Roofing)');
-  const [simPhone, setSimPhone] = useState('07711 998877');
-  const [simEmail, setSimEmail] = useState('mark@apexroof.co.uk');
-  const [simAddress, setSimAddress] = useState('24 Aston Expressway, Birmingham');
-  const [simPostcode, setSimPostcode] = useState('B6 4DD');
-  const [simSku, setSimSku] = useState(skuCatalog[0]?.sku || 'FAS-5M-WHT');
-  const [simQty, setSimQty] = useState(4);
-  const [simNotes, setSimNotes] = useState('Deliver to front trade gate');
-  const [simSuccess, setSimSuccess] = useState('');
+  // Filtered lists by selected depot
+  const activeOrders = selectedDepotId === 'depot-all'
+    ? orders
+    : orders.filter((o) => o.depotId === selectedDepotId);
 
-  const pendingOrders = orders.filter((o) => o.status === 'PENDING');
-  const completedOrders = orders.filter((o) => o.status === 'DELIVERED' && o.proofOfDelivery);
+  const activeRoutes = selectedDepotId === 'depot-all'
+    ? routes
+    : routes.filter((r) => r.depotId === selectedDepotId);
+
+  const pendingOrders = activeOrders.filter((o) => o.status === 'PENDING');
+  const completedOrders = activeOrders.filter((o) => o.status === 'DELIVERED' && o.proofOfDelivery);
 
   const filteredOrders = pendingOrders.filter(
     (o) =>
@@ -116,10 +117,13 @@ export const AdminPortal: React.FC<Props> = ({
   const handleConfirmRoute = () => {
     if (!routePreview) return;
 
-    const routeNumber = `Route ${routes.length + 1}`;
+    const isProblem = !routePreview.shiftAnalysis.fitsInShift;
+    const routeNumber = `Route ${routes.length + 1} (${selectedDepotId === 'depot-all' ? 'Midlands Hub' : UK_DEPOTS.find(d => d.id === selectedDepotId)?.city || 'Regional'})`;
+    
     const newRoute: DeliveryRoute = {
       id: `route-${Date.now()}`,
       routeNumber,
+      depotId: selectedDepotId === 'depot-all' ? 'depot-bhm' : selectedDepotId,
       date: new Date().toISOString(),
       status: 'UNASSIGNED',
       totalDwellMins: routePreview.totalDwellMins,
@@ -128,6 +132,10 @@ export const AdminPortal: React.FC<Props> = ({
       totalEstimatedMins: routePreview.totalDurationMins,
       totalDistanceKm: routePreview.totalDistanceKm,
       shiftUtilisationPct: routePreview.shiftAnalysis.utilisationPct,
+      isProblemRoute: isProblem,
+      problemReason: isProblem
+        ? `Exceeds ${shiftParams.shiftLengthHours}h Shift Limit (${Math.floor(routePreview.totalDurationMins / 60)}h ${routePreview.totalDurationMins % 60}m total). Split stops across vans.`
+        : undefined,
       driverId: undefined,
       orders: routePreview.orderedStops.map((o: Order) => ({
         ...o,
@@ -139,6 +147,51 @@ export const AdminPortal: React.FC<Props> = ({
     onCreateRoute(newRoute);
     setSelectedOrderIds([]);
     setRoutePreview(null);
+    setActiveTab('routes');
+  };
+
+  const handleAutoBatchDepot = () => {
+    if (pendingOrders.length === 0) return;
+
+    // Group pending orders into chunks of 4-6 stops
+    const chunkSize = 4;
+    const batches: Order[][] = [];
+    for (let i = 0; i < pendingOrders.length; i += chunkSize) {
+      batches.push(pendingOrders.slice(i, i + chunkSize));
+    }
+
+    batches.forEach((batch, idx) => {
+      const opt = optimizeRouteStops(batch, shiftParams);
+      const isProblem = !opt.shiftAnalysis.fitsInShift;
+      const routeId = `route-auto-${Date.now()}-${idx + 1}`;
+      const depotName = UK_DEPOTS.find(d => d.id === selectedDepotId)?.city || 'Depot';
+
+      const newRoute: DeliveryRoute = {
+        id: routeId,
+        routeNumber: `Route ${routes.length + idx + 1} (${depotName} Wave ${idx + 1})`,
+        depotId: selectedDepotId === 'depot-all' ? 'depot-bhm' : selectedDepotId,
+        date: new Date().toISOString(),
+        status: 'UNASSIGNED',
+        totalDwellMins: opt.totalDwellMins,
+        totalDrivingMins: opt.totalDrivingMins,
+        breakTimeMins: opt.breakTimeMins,
+        totalEstimatedMins: opt.totalDurationMins,
+        totalDistanceKm: opt.totalDistanceKm,
+        shiftUtilisationPct: opt.shiftAnalysis.utilisationPct,
+        isProblemRoute: isProblem,
+        problemReason: isProblem ? `Exceeds ${shiftParams.shiftLengthHours}h limit.` : undefined,
+        driverId: undefined,
+        orders: opt.orderedStops.map((o) => ({
+          ...o,
+          routeId,
+          status: 'ROUTED' as const,
+        })),
+      };
+
+      onCreateRoute(newRoute);
+    });
+
+    setSelectedOrderIds([]);
     setActiveTab('routes');
   };
 
@@ -158,43 +211,6 @@ export const AdminPortal: React.FC<Props> = ({
     onUpdateSkuCatalog([...skuCatalog, newSku]);
     setNewSkuCode('');
     setNewSkuName('');
-  };
-
-  const handleCreateSimulatedOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    const tracking = `KAL-${Math.floor(880000 + Math.random() * 90000)}`;
-    const matchedProduct = skuCatalog.find((s) => s.sku === simSku) || skuCatalog[0];
-
-    const orderItems = [
-      {
-        sku: matchedProduct.sku,
-        name: matchedProduct.name,
-        quantity: simQty,
-        dwellMinsPerUnit: matchedProduct.defaultDwellMins,
-      },
-    ];
-
-    const newOrder: Partial<Order> = {
-      id: `ord-${Date.now()}`,
-      trackingNumber: tracking,
-      customerName: simName,
-      customerPhone: simPhone,
-      customerEmail: simEmail,
-      address: simAddress,
-      city: 'Birmingham',
-      postcode: simPostcode,
-      lat: 52.4862 + (Math.random() - 0.5) * 0.08,
-      lng: -1.8904 + (Math.random() - 0.5) * 0.08,
-      items: orderItems,
-      totalDwellMins: matchedProduct.defaultDwellMins,
-      specialNotes: simNotes,
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-    };
-
-    onSimulateNewOrder(newOrder);
-    setSimSuccess(`⚡ Order created! Tracking #${tracking} loaded.`);
-    setTimeout(() => setSimSuccess(''), 4000);
   };
 
   return (
@@ -219,6 +235,22 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
 
           <div className="flex items-center space-x-3">
+            {/* Quick Depot Selector Pill in Header */}
+            <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/20 flex items-center gap-2 text-xs">
+              <Warehouse className="w-3.5 h-3.5 text-blue-200" />
+              <select
+                value={selectedDepotId}
+                onChange={(e) => setSelectedDepotId(e.target.value)}
+                className="bg-transparent text-white font-bold border-0 focus:ring-0 cursor-pointer text-xs"
+              >
+                {UK_DEPOTS.map((d) => (
+                  <option key={d.id} value={d.id} className="text-slate-900">
+                    {d.code} - {d.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <button
               onClick={() => setActiveTab('branding')}
               className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-2 transition"
@@ -240,9 +272,22 @@ export const AdminPortal: React.FC<Props> = ({
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full flex flex-col gap-6">
         
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs with Morning Dashboard at Front */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-3">
           <div className="flex space-x-2 flex-wrap gap-y-2">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
+                activeTab === 'dashboard'
+                  ? 'text-white shadow-sm'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+              style={{ backgroundColor: activeTab === 'dashboard' ? brandTheme.secondaryColour : undefined }}
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Morning Dispatch Dashboard
+            </button>
+
             <button
               onClick={() => setActiveTab('orders')}
               className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
@@ -253,7 +298,7 @@ export const AdminPortal: React.FC<Props> = ({
               style={{ backgroundColor: activeTab === 'orders' ? brandTheme.secondaryColour : undefined }}
             >
               <Package className="w-4 h-4" />
-              Orders ({pendingOrders.length})
+              Unassigned Orders ({pendingOrders.length})
             </button>
 
             <button
@@ -266,7 +311,7 @@ export const AdminPortal: React.FC<Props> = ({
               style={{ backgroundColor: activeTab === 'routes' ? brandTheme.secondaryColour : undefined }}
             >
               <RouteIcon className="w-4 h-4" />
-              Routes ({routes.length})
+              Routes & Manifests ({activeRoutes.length})
             </button>
 
             <button
@@ -292,7 +337,7 @@ export const AdminPortal: React.FC<Props> = ({
               style={{ backgroundColor: activeTab === 'sku_dwell' ? brandTheme.secondaryColour : undefined }}
             >
               <Sliders className="w-4 h-4 text-amber-500" />
-              Dwell Times per Product
+              Dwell Times
             </button>
 
             <button
@@ -318,19 +363,7 @@ export const AdminPortal: React.FC<Props> = ({
               style={{ backgroundColor: activeTab === 'branding' ? brandTheme.secondaryColour : undefined }}
             >
               <Palette className="w-4 h-4 text-indigo-500" />
-              White-Label Branding
-            </button>
-
-            <button
-              onClick={() => setActiveTab('new_order_sim')}
-              className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
-                activeTab === 'new_order_sim'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200'
-              }`}
-            >
-              <Sparkles className="w-4 h-4" />
-              Simulate Inbound Webhook
+              White-Label Settings
             </button>
           </div>
 
@@ -339,7 +372,7 @@ export const AdminPortal: React.FC<Props> = ({
             <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
               <Truck className="w-4 h-4" style={{ color: brandTheme.secondaryColour }} />
               <span className="text-xs font-semibold text-slate-700">Driver View:</span>
-              {drivers.map((drv) => (
+              {drivers.slice(0, 3).map((drv) => (
                 <button
                   key={drv.id}
                   onClick={() => onSwitchToDriver(drv.id)}
@@ -352,6 +385,22 @@ export const AdminPortal: React.FC<Props> = ({
           )}
         </div>
 
+        {/* TAB 0: MORNING LIVE DISPATCH DASHBOARD */}
+        {activeTab === 'dashboard' && (
+          <MorningDashboard
+            orders={orders}
+            routes={routes}
+            drivers={drivers}
+            depots={UK_DEPOTS}
+            selectedDepotId={selectedDepotId}
+            brandTheme={brandTheme}
+            onSelectDepot={setSelectedDepotId}
+            onNavigateToTab={setActiveTab}
+            onSelectRoute={() => setActiveTab('routes')}
+            onAutoBatchDepot={handleAutoBatchDepot}
+          />
+        )}
+
         {/* TAB 1: ORDER MANAGEMENT SYSTEM */}
         {activeTab === 'orders' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -360,7 +409,7 @@ export const AdminPortal: React.FC<Props> = ({
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                     <Package className="w-5 h-5" style={{ color: brandTheme.secondaryColour }} />
-                    Orders ({pendingOrders.length})
+                    Unassigned Orders ({pendingOrders.length})
                   </h2>
                   <p className="text-xs text-gray-500">
                     Select orders to calculate optimal route based on dwell times, live traffic & breaks.
@@ -390,7 +439,7 @@ export const AdminPortal: React.FC<Props> = ({
               {filteredOrders.length === 0 ? (
                 <div className="py-16 text-center text-gray-400 flex flex-col items-center">
                   <Package className="w-12 h-12 mb-3 text-gray-300" />
-                  <p className="font-semibold text-gray-600">No pending orders</p>
+                  <p className="font-semibold text-gray-600">No unassigned orders found for this depot</p>
                 </div>
               ) : (
                 <div className="space-y-3.5 overflow-y-auto max-h-[640px] mt-3 pr-1">
@@ -403,11 +452,11 @@ export const AdminPortal: React.FC<Props> = ({
 
                     // Alternating distinctive high-contrast border colours
                     const borderColours = [
-                      'border-l-[#0072CE]', // Secondary Accent
-                      'border-l-[#16A34A]', // Green
-                      'border-l-[#D97706]', // Amber
-                      'border-l-[#6366F1]', // Indigo
-                      'border-l-[#0F1E36]', // Navy
+                      'border-l-[#0072CE]',
+                      'border-l-[#16A34A]',
+                      'border-l-[#D97706]',
+                      'border-l-[#6366F1]',
+                      'border-l-[#0F1E36]',
                     ];
                     const activeBorderColour = borderColours[idx % borderColours.length];
 
@@ -466,7 +515,7 @@ export const AdminPortal: React.FC<Props> = ({
                                   max="90"
                                   value={tempDwellVal}
                                   onChange={(e) => setTempDwellVal(parseInt(e.target.value))}
-                                  className="w-14 text-xs font-bold p-1 border rounded text-center"
+                                  className="w-14 text-xs font-bold p-1 border rounded-center"
                                 />
                                 <button
                                   onClick={() => handleSaveManualDwell(order.id)}
@@ -705,7 +754,7 @@ export const AdminPortal: React.FC<Props> = ({
               <div>
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <RouteIcon className="w-5 h-5" style={{ color: brandTheme.secondaryColour }} />
-                  Delivery Routes ({routes.length})
+                  Delivery Routes ({activeRoutes.length})
                 </h2>
                 <p className="text-xs text-gray-500">
                   Assign any available driver to a route when ready for departure.
@@ -713,21 +762,27 @@ export const AdminPortal: React.FC<Props> = ({
               </div>
             </div>
 
-            {routes.length === 0 ? (
+            {activeRoutes.length === 0 ? (
               <div className="bg-white rounded-2xl p-12 text-center text-gray-400 border border-gray-200">
                 <RouteIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p className="font-semibold text-gray-700">No delivery routes created yet</p>
+                <p className="font-semibold text-gray-700">No delivery routes created yet for this depot</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Select orders in the Orders tab and click "Calculate Route".
+                  Go to the Morning Dashboard or Orders tab and click "Auto-Batch".
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {routes.map((route) => {
+                {activeRoutes.map((route) => {
                   const isAssigned = !!route.driverId;
+                  const isProblem = route.isProblemRoute || route.totalEstimatedMins > 480;
 
                   return (
-                    <div key={route.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-200 flex flex-col justify-between">
+                    <div
+                      key={route.id}
+                      className={`bg-white rounded-2xl p-5 shadow-sm border flex flex-col justify-between ${
+                        isProblem ? 'border-rose-300 ring-1 ring-rose-200' : 'border-gray-200'
+                      }`}
+                    >
                       <div>
                         <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                           <div>
@@ -737,15 +792,17 @@ export const AdminPortal: React.FC<Props> = ({
                             <h3 className="font-bold text-gray-900 text-sm">Delivery Manifest</h3>
                           </div>
                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                            isProblem ? 'bg-rose-100 text-rose-800' :
                             route.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
                             route.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800 animate-pulse' :
                             isAssigned ? 'bg-indigo-100 text-indigo-800' :
                             'bg-amber-100 text-amber-800'
                           }`}>
-                            {isAssigned ? `Driver: ${route.driver?.name}` : 'UNASSIGNED'}
+                            {isProblem ? '⚠️ Problem: Over 8h Shift' : isAssigned ? `Driver: ${route.driver?.name}` : 'UNASSIGNED'}
                           </span>
                         </div>
 
+                        {/* Shift Breakdown Pills */}
                         <div className="grid grid-cols-4 gap-2 my-3 text-center text-xs">
                           <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
                             <span className="text-gray-400 block text-[10px] font-bold">STOPS</span>
@@ -761,9 +818,17 @@ export const AdminPortal: React.FC<Props> = ({
                           </div>
                           <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
                             <span className="text-gray-400 block text-[10px] font-bold">TOTAL SHIFT</span>
-                            <span className="font-black text-emerald-700">{Math.floor(route.totalEstimatedMins / 60)}h {route.totalEstimatedMins % 60}m</span>
+                            <span className={`font-black ${isProblem ? 'text-rose-700' : 'text-emerald-700'}`}>
+                              {Math.floor(route.totalEstimatedMins / 60)}h {route.totalEstimatedMins % 60}m
+                            </span>
                           </div>
                         </div>
+
+                        {isProblem && route.problemReason && (
+                          <div className="p-2.5 bg-rose-50 rounded-lg border border-rose-200 text-xs text-rose-800 font-bold mb-2">
+                            🚨 {route.problemReason}
+                          </div>
+                        )}
 
                         {/* Route Stops */}
                         <div className="space-y-2 mt-3 max-h-44 overflow-y-auto pr-1">
@@ -1105,127 +1170,6 @@ export const AdminPortal: React.FC<Props> = ({
                 ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* TAB 7: WEBHOOK SIMULATOR */}
-        {activeTab === 'new_order_sim' && (
-          <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 p-6 w-full">
-            <h2 className="text-lg font-bold text-gray-900 pb-3 border-b border-gray-100 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-500" />
-              Inbound Webhook Simulator
-            </h2>
-
-            {simSuccess && (
-              <div className="mt-4 p-3 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200">
-                {simSuccess}
-              </div>
-            )}
-
-            <form onSubmit={handleCreateSimulatedOrder} className="space-y-4 mt-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Customer / Trade Name</label>
-                <input
-                  type="text"
-                  required
-                  value={simName}
-                  onChange={(e) => setSimName(e.target.value)}
-                  className="w-full text-sm p-2 border rounded-lg"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Phone Number</label>
-                  <input
-                    type="text"
-                    required
-                    value={simPhone}
-                    onChange={(e) => setSimPhone(e.target.value)}
-                    className="w-full text-sm p-2 border rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    required
-                    value={simEmail}
-                    onChange={(e) => setSimEmail(e.target.value)}
-                    className="w-full text-sm p-2 border rounded-lg"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Delivery Address</label>
-                  <input
-                    type="text"
-                    required
-                    value={simAddress}
-                    onChange={(e) => setSimAddress(e.target.value)}
-                    className="w-full text-sm p-2 border rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Postcode</label>
-                  <input
-                    type="text"
-                    required
-                    value={simPostcode}
-                    onChange={(e) => setSimPostcode(e.target.value)}
-                    className="w-full text-sm p-2 border rounded-lg"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Product SKU</label>
-                  <select
-                    value={simSku}
-                    onChange={(e) => setSimSku(e.target.value)}
-                    className="w-full text-sm p-2 border rounded-lg"
-                  >
-                    {skuCatalog.map((s) => (
-                      <option key={s.sku} value={s.sku}>
-                        {s.sku} - {s.name} ({s.defaultDwellMins}m dwell)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={simQty}
-                    onChange={(e) => setSimQty(parseInt(e.target.value))}
-                    className="w-full text-sm p-2 border rounded-lg"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Driver Notes</label>
-                <input
-                  type="text"
-                  value={simNotes}
-                  onChange={(e) => setSimNotes(e.target.value)}
-                  className="w-full text-sm p-2 border rounded-lg"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 text-white font-bold text-xs rounded-xl shadow transition mt-3"
-                style={{ backgroundColor: brandTheme.secondaryColour }}
-              >
-                Simulate Inbound Order Webhook
-              </button>
-            </form>
           </div>
         )}
       </main>

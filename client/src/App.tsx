@@ -67,6 +67,7 @@ export const App: React.FC = () => {
     const fullOrder: Order = {
       id: newOrderData.id || `ord-${Date.now()}`,
       trackingNumber: newOrderData.trackingNumber || `KAL-${Math.floor(880000 + Math.random() * 90000)}`,
+      depotId: newOrderData.depotId || 'depot-bhm',
       customerName: newOrderData.customerName || 'Customer',
       customerPhone: newOrderData.customerPhone || '07700 900000',
       customerEmail: newOrderData.customerEmail || 'customer@example.co.uk',

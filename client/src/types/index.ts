@@ -1,10 +1,22 @@
+export interface Depot {
+  id: string;
+  code: string;
+  name: string;
+  region: string;
+  city: string;
+  address: string;
+  lat: number;
+  lng: number;
+  activeVansCount: number;
+}
+
 export interface BrandTheme {
   companyName: string;
   tagline: string;
   logoText: string;
-  primaryColour: string;    // e.g. Navy '#0B2545'
-  secondaryColour: string;  // e.g. Kalsi Blue '#0072CE'
-  accentColour: string;     // e.g. Kalsi Green '#22C55E' or Orange '#FF6B00'
+  primaryColour: string;
+  secondaryColour: string;
+  accentColour: string;
   headerBgColour: string;
   fontFamily?: string;
 }
@@ -27,6 +39,7 @@ export interface Driver {
   name: string;
   phone: string;
   vehicleReg: string;
+  depotId: string;
   currentLat: number;
   currentLng: number;
   lastUpdated: string;
@@ -45,9 +58,12 @@ export interface ProofOfDelivery {
   timestamp: string;
 }
 
+export type OrderStatus = 'PENDING' | 'ROUTED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED_EXCEPTION';
+
 export interface Order {
   id: string;
   trackingNumber: string;
+  depotId: string;
   customerName: string;
   customerPhone: string;
   customerEmail: string;
@@ -60,11 +76,12 @@ export interface Order {
   totalDwellMins: number;
   manualDwellOverrideMins?: number;
   specialNotes?: string;
-  status: 'PENDING' | 'ROUTED' | 'OUT_FOR_DELIVERY' | 'DELIVERED';
+  status: OrderStatus;
   routeId?: string;
   stopSequence?: number;
   proofOfDelivery?: ProofOfDelivery;
   createdAt: string;
+  urgency?: 'STANDARD' | 'PRIORITY' | 'EXPRESS_AM';
 }
 
 export interface ShiftParameters {
@@ -85,7 +102,8 @@ export interface RouteShiftAnalysis {
 
 export interface DeliveryRoute {
   id: string;
-  routeNumber: string; // e.g. "Route 1"
+  routeNumber: string; // e.g. "Route 1 (North Birmingham)"
+  depotId: string;
   date: string;
   status: 'UNASSIGNED' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED';
   totalDwellMins: number;
@@ -94,6 +112,8 @@ export interface DeliveryRoute {
   totalEstimatedMins: number;
   totalDistanceKm: number;
   shiftUtilisationPct: number;
+  isProblemRoute?: boolean;
+  problemReason?: string;
   driverId?: string;
   driver?: Driver;
   orders: Order[];
