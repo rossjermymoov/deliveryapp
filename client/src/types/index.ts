@@ -5,9 +5,13 @@ export interface Depot {
   region: string;
   city: string;
   address: string;
+  postcode: string;
   lat: number;
   lng: number;
   activeVansCount: number;
+  maxDeliveryRadiusMiles: number; // e.g. 10 miles for London, 30 miles for Newcastle/Scotland
+  maxDailyCapacityOrders: number; // e.g. 60 orders max throughput
+  trafficMultiplierOverride?: number; // e.g. 1.45x for London urban congestion
 }
 
 export interface BrandTheme {
@@ -93,7 +97,7 @@ export interface Order {
   status: OrderStatus;
   routeId?: string;
   stopSequence?: number;
-  estimatedDeliveryWindow?: string; // e.g. "09:30 - 10:30 AM"
+  estimatedDeliveryWindow?: string;
   proofOfDelivery?: ProofOfDelivery;
   notifications?: CustomerNotificationLog[];
   createdAt: string;
@@ -101,9 +105,9 @@ export interface Order {
 }
 
 export interface ShiftParameters {
-  shiftLengthHours: number; // e.g. 8.0 hours max working shift
-  mandatoryBreakMins: number; // e.g. 45 mins statutory driver break
-  trafficBufferMultiplier: number; // e.g. 1.25x for peak UK urban traffic
+  shiftLengthHours: number;
+  mandatoryBreakMins: number;
+  trafficBufferMultiplier: number;
 }
 
 export interface RouteShiftAnalysis {
@@ -118,7 +122,7 @@ export interface RouteShiftAnalysis {
 
 export interface DeliveryRoute {
   id: string;
-  routeNumber: string; // e.g. "Route 1 (North Birmingham)"
+  routeNumber: string;
   depotId: string;
   date: string;
   status: 'UNASSIGNED' | 'ASSIGNED' | 'LOADING' | 'IN_PROGRESS' | 'COMPLETED';

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME } from './data/initialData';
-import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme } from './types';
+import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME, UK_DEPOTS } from './data/initialData';
+import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
 import { CustomerTrackingPortal } from './components/CustomerTrackingPortal';
@@ -9,6 +9,7 @@ export const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
   const [drivers, setDrivers] = useState<Driver[]>(INITIAL_DRIVERS);
   const [routes, setRoutes] = useState<DeliveryRoute[]>(INITIAL_ROUTES);
+  const [depots, setDepots] = useState<Depot[]>(UK_DEPOTS);
   const [skuCatalog, setSkuCatalog] = useState<SkuDwellSetting[]>(INITIAL_SKU_SETTINGS);
   const [brandTheme, setBrandTheme] = useState<BrandTheme>(KALSI_BRAND_THEME);
 
@@ -188,9 +189,11 @@ export const App: React.FC = () => {
           orders={orders}
           drivers={drivers}
           routes={routes}
+          depots={depots}
           skuCatalog={skuCatalog}
           brandTheme={brandTheme}
           onUpdateBrandTheme={setBrandTheme}
+          onUpdateDepots={setDepots}
           onCreateRoute={handleCreateRoute}
           onAssignDriverToRoute={handleAssignDriverToRoute}
           onUpdateOrderDwell={handleUpdateOrderDwell}

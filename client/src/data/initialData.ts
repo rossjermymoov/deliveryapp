@@ -11,16 +11,170 @@ export const KALSI_BRAND_THEME: BrandTheme = {
 };
 
 export const UK_DEPOTS: Depot[] = [
-  { id: 'depot-all', code: 'ALL', name: 'All 22 UK Depots (National Overview)', region: 'UK Nationwide', city: 'National', address: '22 Distribution Hubs', lat: 52.4862, lng: -1.8904, activeVansCount: 48 },
-  { id: 'depot-bhm', code: 'BHM', name: 'Birmingham Central (Kalsi Main Works)', region: 'Midlands', city: 'Birmingham', address: 'Nechells Parkway, B7 5EX', lat: 52.4938, lng: -1.8687, activeVansCount: 8 },
-  { id: 'depot-cov', code: 'COV', name: 'Coventry & Warwickshire Depot', region: 'Midlands', city: 'Coventry', address: 'Foleshill Road, CV6 5HN', lat: 52.4200, lng: -1.5000, activeVansCount: 4 },
-  { id: 'depot-not', code: 'NOT', name: 'Nottingham & East Midlands Hub', region: 'East Midlands', city: 'Nottingham', address: 'Queens Drive, NG2 1AL', lat: 52.9548, lng: -1.1581, activeVansCount: 4 },
-  { id: 'depot-man', code: 'MAN', name: 'Manchester North West Depot', region: 'North West', city: 'Manchester', address: 'Trafford Park, M17 1EH', lat: 53.4680, lng: -2.3120, activeVansCount: 6 },
-  { id: 'depot-lee', code: 'LEE', name: 'Leeds & Yorkshire Works', region: 'Yorkshire', city: 'Leeds', address: 'Hunslet Trading Park, LS10 1BD', lat: 53.7850, lng: -1.5300, activeVansCount: 5 },
-  { id: 'depot-lon-n', code: 'LON-N', name: 'London North (Enfield Hub)', region: 'Greater London', city: 'London', address: 'Innova Park, EN3 7FL', lat: 51.6680, lng: -0.0350, activeVansCount: 7 },
-  { id: 'depot-lon-s', code: 'LON-S', name: 'London South (Croydon Depot)', region: 'Greater London', city: 'Croydon', address: 'Purley Way, CR0 4XJ', lat: 51.3780, lng: -0.1190, activeVansCount: 6 },
-  { id: 'depot-bri', code: 'BRI', name: 'Bristol & South West Works', region: 'South West', city: 'Bristol', address: 'Avonmouth Industrial Estate, BS11 9HS', lat: 51.5000, lng: -2.6900, activeVansCount: 4 },
-  { id: 'depot-sou', code: 'SOU', name: 'Southampton & Coast Depot', region: 'South Coast', city: 'Southampton', address: 'Western Docks, SO15 0HH', lat: 50.9000, lng: -1.4200, activeVansCount: 4 },
+  { 
+    id: 'depot-all', 
+    code: 'ALL', 
+    name: 'All 22 UK Depots (National Network Overview)', 
+    region: 'UK Nationwide', 
+    city: 'National', 
+    address: '22 Distribution Hubs', 
+    postcode: 'UK-WIDE', 
+    lat: 52.4862, 
+    lng: -1.8904, 
+    activeVansCount: 48,
+    maxDeliveryRadiusMiles: 25,
+    maxDailyCapacityOrders: 800
+  },
+  { 
+    id: 'depot-bhm', 
+    code: 'BHM', 
+    name: 'Birmingham Central (Kalsi Main Works)', 
+    region: 'Midlands', 
+    city: 'Birmingham', 
+    address: 'Nechells Parkway', 
+    postcode: 'B7 5EX', 
+    lat: 52.4938, 
+    lng: -1.8687, 
+    activeVansCount: 8,
+    maxDeliveryRadiusMiles: 18,
+    maxDailyCapacityOrders: 85,
+    trafficMultiplierOverride: 1.25
+  },
+  { 
+    id: 'depot-lon-n', 
+    code: 'LON-N', 
+    name: 'London North (Enfield Hub)', 
+    region: 'Greater London', 
+    city: 'London', 
+    address: 'Innova Park, Enfield', 
+    postcode: 'EN3 7FL', 
+    lat: 51.6680, 
+    lng: -0.0350, 
+    activeVansCount: 7,
+    maxDeliveryRadiusMiles: 10, // 10 miles in London due to traffic density & low speeds
+    maxDailyCapacityOrders: 65,
+    trafficMultiplierOverride: 1.45
+  },
+  { 
+    id: 'depot-lon-s', 
+    code: 'LON-S', 
+    name: 'London South (Croydon Depot)', 
+    region: 'Greater London', 
+    city: 'Croydon', 
+    address: 'Purley Way', 
+    postcode: 'CR0 4XJ', 
+    lat: 51.3780, 
+    lng: -0.1190, 
+    activeVansCount: 6,
+    maxDeliveryRadiusMiles: 10,
+    maxDailyCapacityOrders: 55,
+    trafficMultiplierOverride: 1.40
+  },
+  { 
+    id: 'depot-ncl', 
+    code: 'NCL', 
+    name: 'Newcastle & North East Distribution Depot', 
+    region: 'North East', 
+    city: 'Newcastle', 
+    address: 'Team Valley Trading Estate, Gateshead', 
+    postcode: 'NE11 0QA', 
+    lat: 54.9350, 
+    lng: -1.6150, 
+    activeVansCount: 5,
+    maxDeliveryRadiusMiles: 30, // 30 miles in Newcastle/North East due to dispersed territory
+    maxDailyCapacityOrders: 45,
+    trafficMultiplierOverride: 1.15
+  },
+  { 
+    id: 'depot-man', 
+    code: 'MAN', 
+    name: 'Manchester North West Works', 
+    region: 'North West', 
+    city: 'Manchester', 
+    address: 'Trafford Park Way', 
+    postcode: 'M17 1EH', 
+    lat: 53.4680, 
+    lng: -2.3120, 
+    activeVansCount: 6,
+    maxDeliveryRadiusMiles: 16,
+    maxDailyCapacityOrders: 70,
+    trafficMultiplierOverride: 1.30
+  },
+  { 
+    id: 'depot-lee', 
+    code: 'LEE', 
+    name: 'Leeds & Yorkshire Works', 
+    region: 'Yorkshire', 
+    city: 'Leeds', 
+    address: 'Hunslet Trading Park', 
+    postcode: 'LS10 1BD', 
+    lat: 53.7850, 
+    lng: -1.5300, 
+    activeVansCount: 5,
+    maxDeliveryRadiusMiles: 22,
+    maxDailyCapacityOrders: 50,
+    trafficMultiplierOverride: 1.20
+  },
+  { 
+    id: 'depot-cov', 
+    code: 'COV', 
+    name: 'Coventry & Warwickshire Hub', 
+    region: 'Midlands', 
+    city: 'Coventry', 
+    address: 'Foleshill Road', 
+    postcode: 'CV6 5HN', 
+    lat: 52.4200, 
+    lng: -1.5000, 
+    activeVansCount: 4,
+    maxDeliveryRadiusMiles: 20,
+    maxDailyCapacityOrders: 40,
+    trafficMultiplierOverride: 1.20
+  },
+  { 
+    id: 'depot-not', 
+    code: 'NOT', 
+    name: 'Nottingham & East Midlands Works', 
+    region: 'East Midlands', 
+    city: 'Nottingham', 
+    address: 'Queens Drive', 
+    postcode: 'NG2 1AL', 
+    lat: 52.9548, 
+    lng: -1.1581, 
+    activeVansCount: 4,
+    maxDeliveryRadiusMiles: 22,
+    maxDailyCapacityOrders: 40,
+    trafficMultiplierOverride: 1.20
+  },
+  { 
+    id: 'depot-bri', 
+    code: 'BRI', 
+    name: 'Bristol & South West Works', 
+    region: 'South West', 
+    city: 'Bristol', 
+    address: 'Avonmouth Industrial Estate', 
+    postcode: 'BS11 9HS', 
+    lat: 51.5000, 
+    lng: -2.6900, 
+    activeVansCount: 4,
+    maxDeliveryRadiusMiles: 25,
+    maxDailyCapacityOrders: 45,
+    trafficMultiplierOverride: 1.25
+  },
+  { 
+    id: 'depot-sou', 
+    code: 'SOU', 
+    name: 'Southampton & South Coast Depot', 
+    region: 'South Coast', 
+    city: 'Southampton', 
+    address: 'Western Docks', 
+    postcode: 'SO15 0HH', 
+    lat: 50.9000, 
+    lng: -1.4200, 
+    activeVansCount: 4,
+    maxDeliveryRadiusMiles: 24,
+    maxDailyCapacityOrders: 40,
+    trafficMultiplierOverride: 1.20
+  },
 ];
 
 export const PRESET_THEMES: Record<string, BrandTheme> = {
@@ -28,18 +182,18 @@ export const PRESET_THEMES: Record<string, BrandTheme> = {
     companyName: 'Kalsi Plastics',
     tagline: 'Advanced Building Product Manufacturing & Fleet Logistics',
     logoText: 'KALSI',
-    primaryColour: '#0F1E36', // Kalsi Navy
-    secondaryColour: '#0072CE', // Kalsi Blue
-    accentColour: '#16A34A', // Kalsi Green
+    primaryColour: '#0F1E36',
+    secondaryColour: '#0072CE',
+    accentColour: '#16A34A',
     headerBgColour: '#0F1E36',
   },
   moov: {
     companyName: 'Moov Logistics',
     tagline: 'Next-Generation Delivery & Route Optimisation Engine',
     logoText: 'MOOV',
-    primaryColour: '#18181B', // Dark Zinc
-    secondaryColour: '#6366F1', // Indigo
-    accentColour: '#EC4899', // Pink Accent
+    primaryColour: '#18181B',
+    secondaryColour: '#6366F1',
+    accentColour: '#EC4899',
     headerBgColour: '#18181B',
   },
   timber: {
@@ -47,17 +201,17 @@ export const PRESET_THEMES: Record<string, BrandTheme> = {
     tagline: 'Nationwide Heavy Goods & Trade Delivery Network',
     logoText: 'PREMIER',
     primaryColour: '#27272A',
-    secondaryColour: '#D97706', // Amber Gold
-    accentColour: '#059669', // Emerald
+    secondaryColour: '#D97706',
+    accentColour: '#059669',
     headerBgColour: '#1C1917',
   },
   generic: {
     companyName: 'Enterprise Delivery OS',
     tagline: 'Multi-Depot Routing & Fleet Management Platform',
     logoText: 'FLEET',
-    primaryColour: '#0F172A', // Slate 900
-    secondaryColour: '#2563EB', // Blue 600
-    accentColour: '#10B981', // Emerald 500
+    primaryColour: '#0F172A',
+    secondaryColour: '#2563EB',
+    accentColour: '#10B981',
     headerBgColour: '#0F172A',
   },
 };
@@ -130,9 +284,19 @@ export const INITIAL_DRIVERS: Driver[] = [
     lastUpdated: '08:25 AM',
     status: 'IDLE',
   },
+  {
+    id: 'drv-6',
+    name: 'Alan Armstrong',
+    phone: '07700 900106',
+    vehicleReg: 'KN24 NCL',
+    depotId: 'depot-ncl',
+    currentLat: 54.9350,
+    currentLng: -1.6150,
+    lastUpdated: '08:20 AM',
+    status: 'IDLE',
+  },
 ];
 
-// Helper to generate a batch of realistic UK orders for morning dashboard presentation
 export function generateMorningOrders(): Order[] {
   const seedNames = [
     { name: 'Marcus Evans (Apex Builders)', phone: '07711 223344', email: 'm.evans@apex.co.uk', addr: '42 Highfield Rd, Edgbaston', city: 'Birmingham', pc: 'B15 3DZ', lat: 52.4688, lng: -1.9325, depot: 'depot-bhm' },
@@ -147,6 +311,7 @@ export function generateMorningOrders(): Order[] {
     { name: 'Martin Green (Salford Developments)', phone: '07700 887766', email: 'martin@salforddev.co.uk', addr: '22 Chapel St', city: 'Salford', pc: 'M3 5BZ', lat: 53.4830, lng: -2.2590, depot: 'depot-man' },
     { name: 'Graham Walker (Enfield Drainage)', phone: '07700 556677', email: 'graham@enfielddrain.co.uk', addr: '10 Innova Way, Enfield', city: 'London', pc: 'EN3 7FL', lat: 51.6680, lng: -0.0350, depot: 'depot-lon-n' },
     { name: 'Steven Clark (Croydon Roofing)', phone: '07700 443322', email: 'steven@croydonroof.co.uk', addr: '94 Purley Way', city: 'Croydon', pc: 'CR0 4XJ', lat: 51.3780, lng: -0.1190, depot: 'depot-lon-s' },
+    { name: 'Ian Robson (Tyne Valley Plastics)', phone: '07700 665544', email: 'ian@tyneplastics.co.uk', addr: '34 Team Valley Way', city: 'Gateshead', pc: 'NE11 0QA', lat: 54.9350, lng: -1.6150, depot: 'depot-ncl' },
   ];
 
   const skuList = INITIAL_SKU_SETTINGS;
@@ -218,10 +383,10 @@ export const INITIAL_ROUTES: DeliveryRoute[] = [
     depotId: 'depot-bhm',
     date: new Date().toISOString(),
     status: 'UNASSIGNED',
-    totalDwellMins: 290, // Heavy dwell
-    totalDrivingMins: 280, // Heavy traffic
+    totalDwellMins: 290,
+    totalDrivingMins: 280,
     breakTimeMins: 45,
-    totalEstimatedMins: 615, // 10.25 Hours -> OVER 8H SHIFT!
+    totalEstimatedMins: 615,
     totalDistanceKm: 148.0,
     shiftUtilisationPct: 128,
     isProblemRoute: true,

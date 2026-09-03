@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme } from '../types';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme, Depot } from '../types';
 import { optimizeRouteStops, DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
 import { MorningDashboard } from './MorningDashboard';
 import { ScanToVanModal } from './ScanToVanModal';
 import { CustomerServiceLookup } from './CustomerServiceLookup';
-import { PRESET_THEMES, UK_DEPOTS } from '../data/initialData';
+import { DepotRadiusManager } from './DepotRadiusManager';
+import { PRESET_THEMES } from '../data/initialData';
 import { 
   Package, 
   MapPin,
@@ -35,16 +36,19 @@ import {
   Warehouse,
   Barcode,
   ExternalLink,
-  Headphones
+  Headphones,
+  Compass
 } from 'lucide-react';
 
 interface Props {
   orders: Order[];
   drivers: Driver[];
   routes: DeliveryRoute[];
+  depots: Depot[];
   skuCatalog: SkuDwellSetting[];
   brandTheme: BrandTheme;
   onUpdateBrandTheme: (theme: BrandTheme) => void;
+  onUpdateDepots: (depots: Depot[]) => void;
   onCreateRoute: (route: DeliveryRoute) => void;
   onAssignDriverToRoute: (routeId: string, driverId: string) => void;
   onUpdateOrderDwell: (orderId: string, manualDwell: number) => void;
@@ -59,9 +63,11 @@ export const AdminPortal: React.FC<Props> = ({
   orders,
   drivers,
   routes,
+  depots,
   skuCatalog,
   brandTheme,
   onUpdateBrandTheme,
+  onUpdateDepots,
   onCreateRoute,
   onAssignDriverToRoute,
   onUpdateOrderDwell,
@@ -70,7 +76,7 @@ export const AdminPortal: React.FC<Props> = ({
   onOpenCustomerTracker,
   onConfirmRouteLoaded,
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map' | 'cs_lookup' | 'sku_dwell' | 'pods' | 'branding'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'depots' | 'map' | 'cs_lookup' | 'sku_dwell' | 'pods' | 'branding'>('dashboard');
   const [selectedDepotId, setSelectedDepotId] = useState<string>('depot-all');
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [editingDwellId, setEditingDwellId] = useState<string | null>(null);
@@ -130,7 +136,8 @@ export const AdminPortal: React.FC<Props> = ({
     if (!routePreview) return;
 
     const isProblem = !routePreview.shiftAnalysis.fitsInShift;
-    const routeNumber = `Route ${routes.length + 1} (${selectedDepotId === 'depot-all' ? 'Midlands Hub' : UK_DEPOTS.find(d => d.id === selectedDepotId)?.city || 'Regional'})`;
+    const currentDepot = depots.find(d => d.id === selectedDepotId);
+    const routeNumber = `Route ${routes.length + 1} (${selectedDepotId === 'depot-all' ? 'Midlands Hub' : currentDepot?.city || 'Regional'})`;
     
     const newRoute: DeliveryRoute = {
       id: `route-${Date.now()}`,
@@ -175,7 +182,7 @@ export const AdminPortal: React.FC<Props> = ({
       const opt = optimizeRouteStops(batch, shiftParams);
       const isProblem = !opt.shiftAnalysis.fitsInShift;
       const routeId = `route-auto-${Date.now()}-${idx + 1}`;
-      const depotName = UK_DEPOTS.find(d => d.id === selectedDepotId)?.city || 'Depot';
+      const depotName = depots.find(d => d.id === selectedDepotId)?.city || 'Depot';
 
       const newRoute: DeliveryRoute = {
         id: routeId,
@@ -255,7 +262,7 @@ export const AdminPortal: React.FC<Props> = ({
             </div>
             <div>
               <h1 className="text-xl font-bold tracking-tight">{brandTheme.companyName} Operations Hub</h1>
-              <p className="text-xs opacity-80">Planning, Telematics & Customer Service Backend</p>
+              <p className="text-xs opacity-80">Planning, Depots, Telematics & Customer Service Backend</p>
             </div>
           </div>
 
@@ -268,9 +275,9 @@ export const AdminPortal: React.FC<Props> = ({
                 onChange={(e) => setSelectedDepotId(e.target.value)}
                 className="bg-transparent text-white font-bold border-0 focus:ring-0 cursor-pointer text-xs"
               >
-                {UK_DEPOTS.map((d) => (
+                {depots.map((d) => (
                   <option key={d.id} value={d.id} className="text-slate-900">
-                    {d.code} - {d.name}
+                    {d.code} - {d.name} ({d.postcode})
                   </option>
                 ))}
               </select>
@@ -318,7 +325,20 @@ export const AdminPortal: React.FC<Props> = ({
               style={{ backgroundColor: activeTab === 'dashboard' ? brandTheme.secondaryColour : undefined }}
             >
               <LayoutDashboard className="w-4 h-4" />
-              Morning Dispatch Dashboard
+              Morning Dashboard
+            </button>
+
+            <button
+              onClick={() => setActiveTab('depots')}
+              className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
+                activeTab === 'depots'
+                  ? 'text-white shadow-sm'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+              style={{ backgroundColor: activeTab === 'depots' ? brandTheme.secondaryColour : undefined }}
+            >
+              <Compass className="w-4 h-4 text-blue-500" />
+              Depots & Radius ({depots.filter(d => d.id !== 'depot-all').length})
             </button>
 
             <button
@@ -437,7 +457,7 @@ export const AdminPortal: React.FC<Props> = ({
             orders={orders}
             routes={routes}
             drivers={drivers}
-            depots={UK_DEPOTS}
+            depots={depots}
             selectedDepotId={selectedDepotId}
             brandTheme={brandTheme}
             onSelectDepot={setSelectedDepotId}
@@ -447,7 +467,16 @@ export const AdminPortal: React.FC<Props> = ({
           />
         )}
 
-        {/* TAB 1: CUSTOMER SERVICE & TELEMATICS LOOKUP */}
+        {/* TAB 1: DEPOT RADIUS & CATCHMENT CONFIGURATION */}
+        {activeTab === 'depots' && (
+          <DepotRadiusManager
+            depots={depots}
+            brandTheme={brandTheme}
+            onUpdateDepots={onUpdateDepots}
+          />
+        )}
+
+        {/* TAB 2: CUSTOMER SERVICE & TELEMATICS LOOKUP */}
         {activeTab === 'cs_lookup' && (
           <CustomerServiceLookup
             orders={orders}
@@ -458,7 +487,7 @@ export const AdminPortal: React.FC<Props> = ({
           />
         )}
 
-        {/* TAB 2: ORDER MANAGEMENT SYSTEM */}
+        {/* TAB 3: ORDER MANAGEMENT SYSTEM */}
         {activeTab === 'orders' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col">
@@ -806,7 +835,7 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 3: ROUTES & MANIFESTS */}
+        {/* TAB 4: ROUTES & MANIFESTS */}
         {activeTab === 'routes' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -968,7 +997,7 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 4: REAL MAP */}
+        {/* TAB 5: REAL MAP */}
         {activeTab === 'map' && (
           <DriverLiveMap
             drivers={drivers}
@@ -977,7 +1006,7 @@ export const AdminPortal: React.FC<Props> = ({
           />
         )}
 
-        {/* TAB 5: DWELL TIMES PER PRODUCT */}
+        {/* TAB 6: DWELL TIMES PER PRODUCT */}
         {activeTab === 'sku_dwell' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
             <div className="pb-4 border-b border-gray-100">
@@ -1076,7 +1105,7 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 6: WHITE-LABEL BRANDING & CUSTOMISATION SETTINGS */}
+        {/* TAB 7: WHITE-LABEL BRANDING & CUSTOMISATION SETTINGS */}
         {activeTab === 'branding' && (
           <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
             <div className="pb-4 border-b border-gray-100 flex items-center justify-between">
@@ -1219,7 +1248,7 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 7: POD RECORDS */}
+        {/* TAB 8: POD RECORDS */}
         {activeTab === 'pods' && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
