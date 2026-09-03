@@ -10,7 +10,8 @@ export interface Depot {
   lng: number;
   activeVansCount: number;
   maxDeliveryRadiusMiles: number; // e.g. 10 miles for London, 30 miles for Newcastle
-  maxDailyCapacityOrders: number; // e.g. 60 orders max throughput
+  maxOrdersPerVan: number; // e.g. 6 to 8 large building product orders max per van
+  maxDailyCapacityOrders: number; // e.g. activeVansCount * maxOrdersPerVan
   trafficMultiplierOverride?: number; // e.g. 1.45x for London urban congestion
   
   // Route threshold feasibility parameters

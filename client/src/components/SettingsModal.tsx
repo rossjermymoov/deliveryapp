@@ -12,7 +12,8 @@ import {
   Trash2,
   Check,
   Save,
-  Compass
+  Compass,
+  Truck
 } from 'lucide-react';
 
 interface Props {
@@ -40,7 +41,7 @@ export const SettingsModal: React.FC<Props> = ({
   shiftParams,
   onUpdateShiftParams,
 }) => {
-  const [activeTab, setActiveTab] = useState<'dwell' | 'depots' | 'shift' | 'branding'>('dwell');
+  const [activeTab, setActiveTab] = useState<'dwell' | 'depots' | 'shift' | 'branding'>('depots');
   const [newSku, setNewSku] = useState({ sku: '', name: '', defaultDwellMins: 15 });
   const [localDepots, setLocalDepots] = useState<Depot[]>(depots);
   const [saveBanner, setSaveBanner] = useState('');
@@ -64,6 +65,16 @@ export const SettingsModal: React.FC<Props> = ({
     onUpdateDepots(updated);
   };
 
+  const handleUpdateMaxPerVan = (depotId: string, maxOrders: number) => {
+    const updated = localDepots.map((d) => (d.id === depotId ? {
+      ...d,
+      maxOrdersPerVan: maxOrders,
+      maxDailyCapacityOrders: maxOrders * d.activeVansCount
+    } : d));
+    setLocalDepots(updated);
+    onUpdateDepots(updated);
+  };
+
   const handleUpdateMinOrders = (depotId: string, minOrders: number) => {
     const updated = localDepots.map((d) => (d.id === depotId ? { ...d, minOrdersPerRoute: minOrders } : d));
     setLocalDepots(updated);
@@ -77,7 +88,7 @@ export const SettingsModal: React.FC<Props> = ({
   };
 
   const handleSaveAll = () => {
-    setSaveBanner('✓ System settings updated successfully!');
+    setSaveBanner('✓ Depot capacities and parameters saved successfully!');
     setTimeout(() => {
       setSaveBanner('');
       onClose();
@@ -94,8 +105,8 @@ export const SettingsModal: React.FC<Props> = ({
               <Settings className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-black">Global System Settings & Parameters</h2>
-              <p className="text-xs text-slate-400">Manage SKU dwell times, depot radius, minimum route thresholds and branding</p>
+              <h2 className="text-base font-black">Global Fleet & Operations Settings</h2>
+              <p className="text-xs text-slate-400">Manage van capacities, depot catchment radius, SKU dwell times, and shifts</p>
             </div>
           </div>
           <button
@@ -109,6 +120,16 @@ export const SettingsModal: React.FC<Props> = ({
         {/* Sub-tabs */}
         <div className="flex bg-slate-100 border-b border-gray-200 px-5 pt-3 gap-2 overflow-x-auto text-xs">
           <button
+            onClick={() => setActiveTab('depots')}
+            className={`px-4 py-2 rounded-t-xl font-bold transition flex items-center gap-1.5 ${
+              activeTab === 'depots' ? 'bg-white text-slate-900 shadow-xs border-t-2 border-blue-600' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Compass className="w-3.5 h-3.5 text-blue-500" />
+            Van Capacities & Depot Radius ({depots.filter(d => d.id !== 'depot-all').length})
+          </button>
+
+          <button
             onClick={() => setActiveTab('dwell')}
             className={`px-4 py-2 rounded-t-xl font-bold transition flex items-center gap-1.5 ${
               activeTab === 'dwell' ? 'bg-white text-slate-900 shadow-xs border-t-2 border-blue-600' : 'text-slate-600 hover:text-slate-900'
@@ -116,16 +137,6 @@ export const SettingsModal: React.FC<Props> = ({
           >
             <Sliders className="w-3.5 h-3.5 text-amber-500" />
             SKU Dwell Times ({skuCatalog.length})
-          </button>
-
-          <button
-            onClick={() => setActiveTab('depots')}
-            className={`px-4 py-2 rounded-t-xl font-bold transition flex items-center gap-1.5 ${
-              activeTab === 'depots' ? 'bg-white text-slate-900 shadow-xs border-t-2 border-blue-600' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Compass className="w-3.5 h-3.5 text-blue-500" />
-            Depots, Radius & Min Orders ({depots.filter(d => d.id !== 'depot-all').length})
           </button>
 
           <button
@@ -157,7 +168,108 @@ export const SettingsModal: React.FC<Props> = ({
             </div>
           )}
 
-          {/* TAB 1: SKU DWELL TIMES */}
+          {/* TAB 1: DEPOTS, EDITABLE MAX VAN CAPACITIES & RADIUS */}
+          {activeTab === 'depots' && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                  <Truck className="w-4 h-4 text-blue-600" />
+                  Depot Catchment, Editable Max Van Capacity & Min Thresholds
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Set the physical maximum number of heavy/long orders that fit onto a single van (e.g. 5–8 drops for 5m fascias & drainage packs) and the minimum required before a van rolls out.
+                </p>
+              </div>
+
+              <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-600 font-bold uppercase border-b">
+                    <tr>
+                      <th className="p-3">Depot Hub</th>
+                      <th className="p-3">Center Postcode</th>
+                      <th className="p-3 text-center">Catchment Radius</th>
+                      <th className="p-3 text-center bg-blue-50/50 text-blue-900">Max Orders / Van (Editable)</th>
+                      <th className="p-3 text-center">Min Orders / Route</th>
+                      <th className="p-3 text-right">Fleet Capacity</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {localDepots.filter(d => d.id !== 'depot-all').map((depot) => (
+                      <tr key={depot.id} className="hover:bg-slate-50">
+                        <td className="p-3">
+                          <span className="font-bold text-slate-900 block">{depot.name}</span>
+                          <span className="text-[10px] text-slate-400">{depot.region}</span>
+                        </td>
+                        <td className="p-3">
+                          <input
+                            type="text"
+                            value={depot.postcode}
+                            onChange={(e) => handleUpdatePostcode(depot.id, e.target.value)}
+                            className="w-20 font-mono font-bold text-xs p-1 border rounded bg-white uppercase text-center"
+                          />
+                        </td>
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <input
+                              type="range"
+                              min="5"
+                              max="50"
+                              value={depot.maxDeliveryRadiusMiles}
+                              onChange={(e) => handleUpdateRadius(depot.id, parseInt(e.target.value) || 10)}
+                              className="w-16 h-1.5 bg-gray-200 rounded cursor-pointer"
+                            />
+                            <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-slate-100 border min-w-[50px] inline-block text-center">
+                              {depot.maxDeliveryRadiusMiles} mi
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* EDITABLE MAX ORDERS PER VAN */}
+                        <td className="p-3 text-center bg-blue-50/30">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <input
+                              type="number"
+                              min="2"
+                              max="15"
+                              value={depot.maxOrdersPerVan || 6}
+                              onChange={(e) => handleUpdateMaxPerVan(depot.id, parseInt(e.target.value) || 6)}
+                              className="w-14 font-black text-xs p-1.5 border-2 border-blue-500 rounded-lg bg-white text-center text-blue-900 shadow-2xs"
+                            />
+                            <span className="text-[10px] font-bold text-slate-500">drops/van</span>
+                          </div>
+                        </td>
+
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={depot.minOrdersPerRoute || 3}
+                              onChange={(e) => handleUpdateMinOrders(depot.id, parseInt(e.target.value) || 3)}
+                              className="w-14 font-bold text-xs p-1 border rounded bg-white text-center"
+                            />
+                            <span className="text-[10px] text-slate-400">min</span>
+                          </div>
+                        </td>
+
+                        <td className="p-3 text-right">
+                          <span className="font-black text-slate-900 block text-xs">
+                            {(depot.maxOrdersPerVan || 6) * depot.activeVansCount} total
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            {depot.activeVansCount} vans @ {depot.maxOrdersPerVan || 6}/van
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: SKU DWELL TIMES */}
           {activeTab === 'dwell' && (
             <div className="space-y-4">
               <div>
@@ -239,79 +351,6 @@ export const SettingsModal: React.FC<Props> = ({
                   <Plus className="w-4 h-4" /> Add SKU
                 </button>
               </form>
-            </div>
-          )}
-
-          {/* TAB 2: DEPOTS, RADIUS & MIN ORDERS */}
-          {activeTab === 'depots' && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-black text-slate-900">Depot Hub Catchment & Minimum Route Thresholds</h3>
-                <p className="text-xs text-slate-500">Configure radius and the minimum order threshold required before a van is dispatched.</p>
-              </div>
-
-              <div className="border border-gray-200 rounded-2xl overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-600 font-bold uppercase border-b">
-                    <tr>
-                      <th className="p-3">Depot Hub</th>
-                      <th className="p-3">Center Postcode</th>
-                      <th className="p-3 text-center">Catchment Radius</th>
-                      <th className="p-3 text-center">Min Orders to Route</th>
-                      <th className="p-3 text-center">Max Van Capacity</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {localDepots.filter(d => d.id !== 'depot-all').map((depot) => (
-                      <tr key={depot.id} className="hover:bg-slate-50">
-                        <td className="p-3">
-                          <span className="font-bold text-slate-900 block">{depot.name}</span>
-                          <span className="text-[10px] text-slate-400">{depot.region}</span>
-                        </td>
-                        <td className="p-3">
-                          <input
-                            type="text"
-                            value={depot.postcode}
-                            onChange={(e) => handleUpdatePostcode(depot.id, e.target.value)}
-                            className="w-20 font-mono font-bold text-xs p-1 border rounded bg-white uppercase text-center"
-                          />
-                        </td>
-                        <td className="p-3 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <input
-                              type="range"
-                              min="5"
-                              max="50"
-                              value={depot.maxDeliveryRadiusMiles}
-                              onChange={(e) => handleUpdateRadius(depot.id, parseInt(e.target.value) || 10)}
-                              className="w-16 h-1.5 bg-gray-200 rounded cursor-pointer"
-                            />
-                            <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-slate-100 border min-w-[50px] inline-block text-center">
-                              {depot.maxDeliveryRadiusMiles} mi
-                            </span>
-                          </div>
-                        </td>
-                        <td className="p-3 text-center">
-                          <div className="flex items-center justify-center gap-1">
-                            <input
-                              type="number"
-                              min="1"
-                              max="10"
-                              value={depot.minOrdersPerRoute || 3}
-                              onChange={(e) => handleUpdateMinOrders(depot.id, parseInt(e.target.value) || 3)}
-                              className="w-14 font-bold text-xs p-1 border rounded bg-white text-center"
-                            />
-                            <span className="text-[10px] text-slate-400">orders</span>
-                          </div>
-                        </td>
-                        <td className="p-3 text-center font-bold text-slate-800">
-                          {depot.maxDailyCapacityOrders} orders
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </div>
           )}
 

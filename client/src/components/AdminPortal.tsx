@@ -78,21 +78,24 @@ export const AdminPortal: React.FC<Props> = ({
     : orders.filter((o) => o.depotId === selectedDepotId);
 
   const handleAutoBatchDepot = () => {
-    const pendingOrders = activeOrders.filter((o) => o.status === 'PENDING');
+    const currentDepot = depots.find(d => d.id === selectedDepotId) || depots[0];
+    const maxPerVan = currentDepot.maxOrdersPerVan || 6;
+
+    // Filter to only qualifying unassigned orders
+    const pendingOrders = activeOrders.filter((o) => o.status === 'PENDING' && !o.belowRouteCriteria);
     if (pendingOrders.length === 0) return;
 
-    const chunkSize = 4;
     const batches: Order[][] = [];
-    for (let i = 0; i < pendingOrders.length; i += chunkSize) {
-      batches.push(pendingOrders.slice(i, i + chunkSize));
+    for (let i = 0; i < pendingOrders.length; i += maxPerVan) {
+      batches.push(pendingOrders.slice(i, i + maxPerVan));
     }
 
     batches.forEach((batch, idx) => {
       const routeId = `route-auto-${Date.now()}-${idx + 1}`;
-      const depotName = depots.find(d => d.id === selectedDepotId)?.city || 'Depot';
+      const depotName = currentDepot.city || 'Depot';
 
       const totalDwell = batch.reduce((acc, o) => acc + (o.manualDwellOverrideMins ?? o.totalDwellMins), 0);
-      const totalDrive = 90 + (batch.length * 15);
+      const totalDrive = 75 + (batch.length * 15);
       const totalEstimated = totalDwell + totalDrive + 45;
 
       const newRoute: DeliveryRoute = {
@@ -105,10 +108,10 @@ export const AdminPortal: React.FC<Props> = ({
         totalDrivingMins: totalDrive,
         breakTimeMins: 45,
         totalEstimatedMins: totalEstimated,
-        totalDistanceKm: 35 + (batch.length * 8),
-        shiftUtilisationPct: Math.round((totalEstimated / 480) * 100),
-        isProblemRoute: totalEstimated > 480,
-        problemReason: totalEstimated > 480 ? `Exceeds 8h shift limit.` : undefined,
+        totalDistanceKm: 28 + (batch.length * 7),
+        shiftUtilisationPct: Math.round((totalEstimated / (shiftParams.shiftLengthHours * 60)) * 100),
+        isProblemRoute: totalEstimated > (shiftParams.shiftLengthHours * 60),
+        problemReason: totalEstimated > (shiftParams.shiftLengthHours * 60) ? `Exceeds ${shiftParams.shiftLengthHours}h limit.` : undefined,
         driverId: undefined,
         orders: batch.map((o) => ({
           ...o,
@@ -139,7 +142,7 @@ export const AdminPortal: React.FC<Props> = ({
         />
       )}
 
-      {/* Unified Settings Modal (Dwell Times, Radius, Shifts, Branding) */}
+      {/* Unified Settings Modal (Editable Van Capacities, Dwell Times, Radius, Shifts, Branding) */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
