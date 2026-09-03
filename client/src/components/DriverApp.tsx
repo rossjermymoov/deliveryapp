@@ -12,7 +12,11 @@ import {
   ShieldCheck,
   PackageCheck,
   ArrowLeft,
-  RotateCcw
+  RotateCcw,
+  AlertTriangle,
+  Send,
+  MessageSquare,
+  ExternalLink
 } from 'lucide-react';
 
 interface Props {
@@ -22,6 +26,7 @@ interface Props {
   onCompletePod: (orderId: string, pod: Partial<ProofOfDelivery>) => void;
   onStartRoute: (routeId: string) => void;
   onBackToAdmin: () => void;
+  onOpenCustomerTracker?: (trackingNumber: string) => void;
 }
 
 export const DriverApp: React.FC<Props> = ({
@@ -31,6 +36,7 @@ export const DriverApp: React.FC<Props> = ({
   onCompletePod,
   onStartRoute,
   onBackToAdmin,
+  onOpenCustomerTracker,
 }) => {
   const [selectedStop, setSelectedStop] = useState<Order | null>(null);
   const [isPodModalOpen, setIsPodModalOpen] = useState(false);
@@ -43,6 +49,13 @@ export const DriverApp: React.FC<Props> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [capturedGeo, setCapturedGeo] = useState<{ lat: number; lng: number } | null>(null);
   const [isCapturingGps, setIsCapturingGps] = useState(false);
+
+  // Line-Item Damage / Exception Handling
+  const [damagedItemMap, setDamagedItemMap] = useState<Record<string, { damagedQty: number; reason: string }>>({});
+  const [hasExceptions, setHasExceptions] = useState(false);
+
+  // Simulated Customer SMS Notification Trigger
+  const [notificationSentMsg, setNotificationSentMsg] = useState('');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -105,6 +118,8 @@ export const DriverApp: React.FC<Props> = ({
     setPodNotes('');
     setCapturedPhoto(null);
     setHasSignature(false);
+    setDamagedItemMap({});
+    setHasExceptions(false);
     setIsPodModalOpen(true);
 
     setIsCapturingGps(true);
@@ -137,6 +152,18 @@ export const DriverApp: React.FC<Props> = ({
     }
   };
 
+  const handleSetDamagedQty = (sku: string, qty: number, reason: string) => {
+    setDamagedItemMap((prev) => ({
+      ...prev,
+      [sku]: { damagedQty: qty, reason },
+    }));
+  };
+
+  const handleSendEtaSms = (stop: Order) => {
+    setNotificationSentMsg(`📱 SMS sent to ${stop.customerPhone}: "Your ${brandTheme.companyName} delivery is next! Driver ${driver.name.split(' ')[0]} is arriving in approx 15 mins."`);
+    setTimeout(() => setNotificationSentMsg(''), 4500);
+  };
+
   const handleSubmitPod = () => {
     if (!selectedStop) return;
 
@@ -145,6 +172,11 @@ export const DriverApp: React.FC<Props> = ({
       signatureDataUrl = canvasRef.current.toDataURL('image/png');
     }
 
+    const exceptionNotes = Object.entries(damagedItemMap)
+      .filter(([_, v]) => v.damagedQty > 0)
+      .map(([sku, v]) => `${sku}: ${v.damagedQty} damaged/short (${v.reason})`)
+      .join('; ');
+
     onCompletePod(selectedStop.id, {
       recipientName: recipientName || selectedStop.customerName,
       signatureData: signatureDataUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="30"><text y="20">Verified On-Site</text></svg>',
@@ -152,7 +184,9 @@ export const DriverApp: React.FC<Props> = ({
       notes: podNotes,
       deliveredLat: capturedGeo?.lat,
       deliveredLng: capturedGeo?.lng,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      hasItemExceptions: hasExceptions && !!exceptionNotes,
+      itemExceptionNotes: exceptionNotes || undefined,
     });
 
     setIsPodModalOpen(false);
@@ -165,10 +199,10 @@ export const DriverApp: React.FC<Props> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex justify-center py-0 sm:py-6">
+    <div className="min-h-screen bg-slate-900 flex justify-center py-0 sm:py-6 font-sans">
       <div className="w-full max-w-md bg-slate-50 min-h-screen sm:min-h-[850px] sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative border-4 border-slate-800">
         
-        {/* Mobile Header with White-Label Theme */}
+        {/* Mobile Header */}
         <header
           className="text-white px-5 pt-6 pb-4 shadow transition-colors"
           style={{ backgroundColor: brandTheme.primaryColour }}
@@ -192,7 +226,7 @@ export const DriverApp: React.FC<Props> = ({
           <div className="mt-3 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-black tracking-tight">{driver.name}</h2>
-              <p className="text-xs opacity-80">{brandTheme.companyName} Driver • {driver.phone}</p>
+              <p className="text-xs opacity-80">{brandTheme.companyName} Fleet Driver • {driver.phone}</p>
             </div>
             <div
               className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center font-bold text-sm text-white"
@@ -238,8 +272,8 @@ export const DriverApp: React.FC<Props> = ({
         {activeRoute && (activeRoute.status === 'ASSIGNED' || (activeRoute.status as string) === 'UNASSIGNED') && (
           <div className="p-4 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
             <div>
-              <h4 className="font-bold text-xs text-amber-900">Route Ready</h4>
-              <p className="text-[11px] text-amber-700">{activeRoute.orders.length} orders loaded</p>
+              <h4 className="font-bold text-xs text-amber-900">Route Ready to Depart</h4>
+              <p className="text-[11px] text-amber-700">{activeRoute.orders.length} orders staged & loaded</p>
             </div>
             <button
               onClick={() => onStartRoute(activeRoute.id)}
@@ -248,6 +282,14 @@ export const DriverApp: React.FC<Props> = ({
               <Truck className="w-3.5 h-3.5" />
               Start Driving
             </button>
+          </div>
+        )}
+
+        {/* SMS Notification Banner Alert */}
+        {notificationSentMsg && (
+          <div className="p-3 bg-blue-50 text-blue-900 text-xs font-bold border-b border-blue-200 animate-fadeIn flex items-center gap-1.5">
+            <MessageSquare className="w-4 h-4 text-blue-600 shrink-0" />
+            <span>{notificationSentMsg}</span>
           </div>
         )}
 
@@ -260,10 +302,19 @@ export const DriverApp: React.FC<Props> = ({
                 style={{ borderColor: brandTheme.secondaryColour }}
               >
                 <div
-                  className="absolute top-0 right-0 text-white text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-wider"
+                  className="absolute top-0 right-0 text-white text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-wider flex items-center gap-1.5"
                   style={{ backgroundColor: brandTheme.secondaryColour }}
                 >
-                  Next Stop (#{currentStop.stopSequence || 1})
+                  <span>Next Stop (#{currentStop.stopSequence || 1})</span>
+                  {onOpenCustomerTracker && (
+                    <button
+                      onClick={() => onOpenCustomerTracker(currentStop.trackingNumber)}
+                      className="text-white hover:underline text-[9px] flex items-center gap-0.5"
+                      title="View Customer Tracking Link"
+                    >
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 mb-1">
@@ -285,18 +336,28 @@ export const DriverApp: React.FC<Props> = ({
                 </p>
 
                 {currentStop.customerPhone && (
-                  <p className="text-xs text-gray-500 flex items-center gap-1.5 mt-1">
-                    <Phone className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                    <a href={`tel:${currentStop.customerPhone}`} className="text-blue-600 font-semibold underline">
-                      {currentStop.customerPhone}
-                    </a>
-                  </p>
+                  <div className="flex items-center justify-between mt-2 pt-1 border-t border-gray-100">
+                    <p className="text-xs text-gray-500 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <a href={`tel:${currentStop.customerPhone}`} className="text-blue-600 font-semibold underline">
+                        {currentStop.customerPhone}
+                      </a>
+                    </p>
+
+                    <button
+                      onClick={() => handleSendEtaSms(currentStop)}
+                      className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0072CE] font-bold text-[10px] flex items-center gap-1 transition"
+                    >
+                      <Send className="w-3 h-3" />
+                      Send "Arriving Next" SMS
+                    </button>
+                  </div>
                 )}
 
                 {/* Items to deliver */}
                 <div className="bg-amber-50 p-2.5 rounded-xl border border-amber-200 mt-3 text-xs">
                   <span className="font-bold text-amber-900 block text-[11px] mb-1">
-                    📦 ITEMS TO DELIVER:
+                    📦 PRODUCTS TO UNLOAD:
                   </span>
                   <div className="space-y-1">
                     {currentStop.items.map((item, idx) => (
@@ -407,7 +468,7 @@ export const DriverApp: React.FC<Props> = ({
           </div>
         )}
 
-        {/* POD MODAL */}
+        {/* PROOF OF DELIVERY (POD) MODAL WITH EXCEPTION / SHORT DAMAGE REPORTING */}
         {isPodModalOpen && selectedStop && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
             <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 flex flex-col max-h-[90vh] overflow-y-auto">
@@ -428,7 +489,6 @@ export const DriverApp: React.FC<Props> = ({
 
               <div className="bg-slate-50 p-3 rounded-xl border border-gray-200 my-3 text-xs">
                 <p className="text-gray-700"><strong>Address:</strong> {selectedStop.address}, {selectedStop.postcode}</p>
-                <p className="text-amber-800 mt-1"><strong>Goods:</strong> {selectedStop.items.map((i) => `${i.quantity}x ${i.name} (${i.sku})`).join(', ')}</p>
                 <div className="flex items-center gap-1.5 mt-2 text-emerald-700 font-bold text-[11px]">
                   <ShieldCheck className="w-3.5 h-3.5" />
                   {isCapturingGps ? (
@@ -437,6 +497,56 @@ export const DriverApp: React.FC<Props> = ({
                     <span>GPS Presence Verified ({capturedGeo?.lat.toFixed(4)}, {capturedGeo?.lng.toFixed(4)})</span>
                   )}
                 </div>
+              </div>
+
+              {/* LINE ITEM EXCEPTION HANDLING (DAMAGED / SHORT GOODS) */}
+              <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200 mb-2 text-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-bold text-amber-900 flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                    Item Exceptions / Transit Damage
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setHasExceptions(!hasExceptions)}
+                    className="text-[11px] font-black underline text-amber-800"
+                  >
+                    {hasExceptions ? 'Cancel Exception' : '+ Report Damaged / Short'}
+                  </button>
+                </div>
+
+                {hasExceptions && (
+                  <div className="space-y-2 mt-2 pt-2 border-t border-amber-200">
+                    {selectedStop.items.map((item, idx) => (
+                      <div key={idx} className="bg-white p-2.5 rounded-xl border border-amber-300 space-y-1">
+                        <div className="flex justify-between font-bold text-slate-800">
+                          <span>{item.name} ({item.sku})</span>
+                          <span>Total: {item.quantity}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            type="number"
+                            placeholder="Damaged Qty"
+                            min="0"
+                            max={item.quantity}
+                            value={damagedItemMap[item.sku]?.damagedQty || ''}
+                            onChange={(e) => handleSetDamagedQty(item.sku, parseInt(e.target.value) || 0, damagedItemMap[item.sku]?.reason || 'Transit Scratch')}
+                            className="p-1 border rounded text-xs"
+                          />
+                          <select
+                            value={damagedItemMap[item.sku]?.reason || 'Transit Scratch'}
+                            onChange={(e) => handleSetDamagedQty(item.sku, damagedItemMap[item.sku]?.damagedQty || 1, e.target.value)}
+                            className="p-1 border rounded text-xs"
+                          >
+                            <option value="Transit Scratch">Transit Scratch</option>
+                            <option value="Broken / Cracked Length">Broken / Cracked</option>
+                            <option value="Short Shipped (Missing)">Short Shipped</option>
+                          </select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">
@@ -493,7 +603,7 @@ export const DriverApp: React.FC<Props> = ({
                 <div>
                   <label className="text-xs font-bold text-gray-700 uppercase block mb-1 flex items-center gap-1">
                     <Camera className="w-3.5 h-3.5 text-amber-500" />
-                    Proof Photo (Goods on Site)
+                    Proof Photo (Goods on Site / Damage Evidence)
                   </label>
 
                   <input

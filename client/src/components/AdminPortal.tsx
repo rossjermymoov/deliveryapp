@@ -3,6 +3,7 @@ import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTh
 import { optimizeRouteStops, DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
 import { MorningDashboard } from './MorningDashboard';
+import { ScanToVanModal } from './ScanToVanModal';
 import { PRESET_THEMES, UK_DEPOTS } from '../data/initialData';
 import { 
   Package, 
@@ -30,7 +31,9 @@ import {
   Palette,
   Check,
   LayoutDashboard,
-  Warehouse
+  Warehouse,
+  Barcode,
+  ExternalLink
 } from 'lucide-react';
 
 interface Props {
@@ -46,6 +49,8 @@ interface Props {
   onUpdateSkuCatalog: (catalog: SkuDwellSetting[]) => void;
   onSimulateNewOrder: (order: Partial<Order>) => void;
   onSwitchToDriver: (driverId: string) => void;
+  onOpenCustomerTracker: (trackingNumber: string) => void;
+  onConfirmRouteLoaded: (routeId: string) => void;
 }
 
 export const AdminPortal: React.FC<Props> = ({
@@ -60,6 +65,8 @@ export const AdminPortal: React.FC<Props> = ({
   onUpdateOrderDwell,
   onUpdateSkuCatalog,
   onSwitchToDriver,
+  onOpenCustomerTracker,
+  onConfirmRouteLoaded,
 }) => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map' | 'sku_dwell' | 'pods' | 'branding'>('dashboard');
   const [selectedDepotId, setSelectedDepotId] = useState<string>('depot-all');
@@ -67,6 +74,9 @@ export const AdminPortal: React.FC<Props> = ({
   const [editingDwellId, setEditingDwellId] = useState<string | null>(null);
   const [tempDwellVal, setTempDwellVal] = useState<number>(15);
   const [searchFilter, setSearchFilter] = useState('');
+
+  // Scan to Van modal state
+  const [loadingRoute, setLoadingRoute] = useState<DeliveryRoute | null>(null);
 
   // Shift & Traffic Parameters
   const [shiftParams, setShiftParams] = useState<ShiftParameters>(DEFAULT_SHIFT_PARAMS);
@@ -153,7 +163,6 @@ export const AdminPortal: React.FC<Props> = ({
   const handleAutoBatchDepot = () => {
     if (pendingOrders.length === 0) return;
 
-    // Group pending orders into chunks of 4-6 stops
     const chunkSize = 4;
     const batches: Order[][] = [];
     for (let i = 0; i < pendingOrders.length; i += chunkSize) {
@@ -215,6 +224,20 @@ export const AdminPortal: React.FC<Props> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      {/* Scan to Van Loading Modal */}
+      {loadingRoute && (
+        <ScanToVanModal
+          route={loadingRoute}
+          brandTheme={brandTheme}
+          isOpen={!!loadingRoute}
+          onClose={() => setLoadingRoute(null)}
+          onConfirmLoaded={(rId) => {
+            onConfirmRouteLoaded(rId);
+            setLoadingRoute(null);
+          }}
+        />
+      )}
+
       {/* Top Header - White Label Theme Enabled */}
       <header
         className="text-white px-6 py-4 shadow-sm border-b transition-colors duration-300"
@@ -250,6 +273,14 @@ export const AdminPortal: React.FC<Props> = ({
                 ))}
               </select>
             </div>
+
+            <button
+              onClick={() => onOpenCustomerTracker(orders[0]?.trackingNumber || 'KAL-889101')}
+              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-2 transition"
+            >
+              <ExternalLink className="w-4 h-4 text-amber-300" />
+              Customer Tracker 🌐
+            </button>
 
             <button
               onClick={() => setActiveTab('branding')}
@@ -480,12 +511,15 @@ export const AdminPortal: React.FC<Props> = ({
                             />
                             <div>
                               <div className="flex items-center gap-2">
-                                <span
-                                  className="font-mono text-xs font-black px-2 py-0.5 rounded border"
+                                <button
+                                  onClick={() => onOpenCustomerTracker(order.trackingNumber)}
+                                  className="font-mono text-xs font-black px-2 py-0.5 rounded border hover:underline flex items-center gap-1"
                                   style={{ color: brandTheme.secondaryColour, backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
+                                  title="Open live customer tracking portal"
                                 >
                                   {order.trackingNumber}
-                                </span>
+                                  <ExternalLink className="w-3 h-3" />
+                                </button>
                                 <span className="font-bold text-gray-900 text-sm">{order.customerName}</span>
                               </div>
                               <p className="text-xs text-gray-600 flex items-center gap-1 mt-1">
@@ -754,10 +788,10 @@ export const AdminPortal: React.FC<Props> = ({
               <div>
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <RouteIcon className="w-5 h-5" style={{ color: brandTheme.secondaryColour }} />
-                  Delivery Routes ({activeRoutes.length})
+                  Delivery Routes & Manifests ({activeRoutes.length})
                 </h2>
                 <p className="text-xs text-gray-500">
-                  Assign any available driver to a route when ready for departure.
+                  Verify scan-to-van loading, check shift feasibility, and assign fleet drivers.
                 </p>
               </div>
             </div>
@@ -791,15 +825,23 @@ export const AdminPortal: React.FC<Props> = ({
                             </span>
                             <h3 className="font-bold text-gray-900 text-sm">Delivery Manifest</h3>
                           </div>
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                            isProblem ? 'bg-rose-100 text-rose-800' :
-                            route.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
-                            route.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800 animate-pulse' :
-                            isAssigned ? 'bg-indigo-100 text-indigo-800' :
-                            'bg-amber-100 text-amber-800'
-                          }`}>
-                            {isProblem ? '⚠️ Problem: Over 8h Shift' : isAssigned ? `Driver: ${route.driver?.name}` : 'UNASSIGNED'}
-                          </span>
+                          
+                          <div className="flex items-center gap-1.5">
+                            {route.allLoaded && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 flex items-center gap-0.5">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Van Loaded
+                              </span>
+                            )}
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                              isProblem ? 'bg-rose-100 text-rose-800' :
+                              route.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-800' :
+                              route.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800 animate-pulse' :
+                              isAssigned ? 'bg-indigo-100 text-indigo-800' :
+                              'bg-amber-100 text-amber-800'
+                            }`}>
+                              {isProblem ? '⚠️ Problem: Over 8h Shift' : isAssigned ? `Driver: ${route.driver?.name}` : 'UNASSIGNED'}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Shift Breakdown Pills */}
@@ -830,8 +872,19 @@ export const AdminPortal: React.FC<Props> = ({
                           </div>
                         )}
 
+                        {/* Staging Scan-to-Van Button */}
+                        <div className="my-2">
+                          <button
+                            onClick={() => setLoadingRoute(route)}
+                            className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 border border-gray-200"
+                          >
+                            <Barcode className="w-4 h-4 text-blue-600" />
+                            {route.allLoaded ? 'Review Loaded Van Items' : 'Scan-to-Van Loading Verification (LIFO)'}
+                          </button>
+                        </div>
+
                         {/* Route Stops */}
-                        <div className="space-y-2 mt-3 max-h-44 overflow-y-auto pr-1">
+                        <div className="space-y-2 mt-2 max-h-40 overflow-y-auto pr-1">
                           {route.orders.map((ord, idx) => (
                             <div key={ord.id} className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 text-xs flex items-center justify-between">
                               <div className="flex items-center gap-2">
@@ -1146,7 +1199,7 @@ export const AdminPortal: React.FC<Props> = ({
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <FileCheck2 className="w-5 h-5 text-emerald-600" />
-              Completed Proof of Delivery Records
+              Completed Proof of Delivery Records ({completedOrders.length})
             </h2>
             {completedOrders.length === 0 ? (
               <div className="bg-white rounded-2xl p-12 text-center text-gray-400 border border-gray-200">
@@ -1156,15 +1209,28 @@ export const AdminPortal: React.FC<Props> = ({
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {completedOrders.map((ord) => (
-                  <div key={ord.id} className="bg-white rounded-2xl p-5 shadow-sm border border-emerald-200">
-                    <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                      {ord.trackingNumber}
-                    </span>
-                    <h3 className="font-bold text-gray-900 text-sm mt-2">{ord.customerName}</h3>
+                  <div key={ord.id} className="bg-white rounded-2xl p-5 shadow-sm border border-emerald-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                        {ord.trackingNumber}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400">
+                        {ord.proofOfDelivery?.timestamp}
+                      </span>
+                    </div>
+
+                    <h3 className="font-bold text-gray-900 text-sm">{ord.customerName}</h3>
                     <p className="text-xs text-gray-500">{ord.address}, {ord.postcode}</p>
-                    <div className="mt-3 bg-gray-50 p-3 rounded-xl border">
-                      <span className="text-[10px] font-bold text-gray-500 uppercase block">Customer Signature:</span>
-                      <img src={ord.proofOfDelivery?.signatureData} alt="Signature" className="max-h-14 mt-1" />
+
+                    {ord.proofOfDelivery?.hasItemExceptions && (
+                      <div className="p-2 bg-rose-50 text-rose-800 font-bold text-xs rounded-lg border border-rose-200">
+                        ⚠️ Exception: {ord.proofOfDelivery.itemExceptionNotes}
+                      </div>
+                    )}
+
+                    <div className="mt-2 bg-gray-50 p-3 rounded-xl border">
+                      <span className="text-[10px] font-bold text-gray-500 uppercase block">Signed by: {ord.proofOfDelivery?.recipientName}</span>
+                      <img src={ord.proofOfDelivery?.signatureData} alt="Signature" className="max-h-12 mt-1 object-contain" />
                     </div>
                   </div>
                 ))}

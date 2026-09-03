@@ -3,6 +3,7 @@ import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, 
 import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
+import { CustomerTrackingPortal } from './components/CustomerTrackingPortal';
 
 export const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
@@ -11,8 +12,9 @@ export const App: React.FC = () => {
   const [skuCatalog, setSkuCatalog] = useState<SkuDwellSetting[]>(INITIAL_SKU_SETTINGS);
   const [brandTheme, setBrandTheme] = useState<BrandTheme>(KALSI_BRAND_THEME);
 
-  const [viewMode, setViewMode] = useState<'admin' | 'driver'>('admin');
+  const [viewMode, setViewMode] = useState<'admin' | 'driver' | 'customer'>('admin');
   const [activeDriverId, setActiveDriverId] = useState<string>(INITIAL_DRIVERS[0].id);
+  const [activeCustomerTracking, setActiveCustomerTracking] = useState<string>('KAL-889101');
 
   const handleCreateRoute = (newRoute: DeliveryRoute) => {
     setRoutes((prev) => [newRoute, ...prev]);
@@ -53,6 +55,15 @@ export const App: React.FC = () => {
         prev.map((d) => (d.id === driverId ? { ...d, status: 'ON_ROUTE' } : d))
       );
     }
+  };
+
+  const handleConfirmRouteLoaded = (routeId: string) => {
+    setRoutes((prev) =>
+      prev.map((r) => (r.id === routeId ? { ...r, allLoaded: true, status: 'ASSIGNED' } : r))
+    );
+    setOrders((prev) =>
+      prev.map((o) => (o.routeId === routeId ? { ...o, status: 'LOADED' } : o))
+    );
   };
 
   const handleUpdateOrderDwell = (orderId: string, manualDwell: number) => {
@@ -107,6 +118,8 @@ export const App: React.FC = () => {
       deliveredLat: podData.deliveredLat || null,
       deliveredLng: podData.deliveredLng || null,
       timestamp: podData.timestamp || new Date().toISOString(),
+      hasItemExceptions: podData.hasItemExceptions,
+      itemExceptionNotes: podData.itemExceptionNotes,
     };
 
     setOrders((prev) =>
@@ -178,8 +191,13 @@ export const App: React.FC = () => {
             setActiveDriverId(driverId);
             setViewMode('driver');
           }}
+          onOpenCustomerTracker={(trk) => {
+            setActiveCustomerTracking(trk);
+            setViewMode('customer');
+          }}
+          onConfirmRouteLoaded={handleConfirmRouteLoaded}
         />
-      ) : (
+      ) : viewMode === 'driver' ? (
         <DriverApp
           driver={currentDriver}
           brandTheme={brandTheme}
@@ -187,6 +205,19 @@ export const App: React.FC = () => {
           onCompletePod={handleCompletePod}
           onStartRoute={handleStartRoute}
           onBackToAdmin={() => setViewMode('admin')}
+          onOpenCustomerTracker={(trk) => {
+            setActiveCustomerTracking(trk);
+            setViewMode('customer');
+          }}
+        />
+      ) : (
+        <CustomerTrackingPortal
+          orders={orders}
+          routes={routes}
+          drivers={drivers}
+          brandTheme={brandTheme}
+          initialTrackingNumber={activeCustomerTracking}
+          onBackToPortal={() => setViewMode('admin')}
         />
       )}
     </div>

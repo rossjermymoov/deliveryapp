@@ -26,6 +26,9 @@ export interface OrderItem {
   name: string;
   quantity: number;
   dwellMinsPerUnit: number;
+  loadedOnVan?: boolean;
+  damagedQuantity?: number;
+  damageReason?: string;
 }
 
 export interface SkuDwellSetting {
@@ -56,9 +59,20 @@ export interface ProofOfDelivery {
   deliveredLat?: number | null;
   deliveredLng?: number | null;
   timestamp: string;
+  hasItemExceptions?: boolean;
+  itemExceptionNotes?: string;
 }
 
-export type OrderStatus = 'PENDING' | 'ROUTED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED_EXCEPTION';
+export type OrderStatus = 'PENDING' | 'ROUTED' | 'LOADED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED_EXCEPTION';
+
+export interface CustomerNotificationLog {
+  id: string;
+  timestamp: string;
+  type: 'ORDER_CONFIRMED' | 'ROUTE_SCHEDULED' | 'OUT_FOR_DELIVERY' | 'NEXT_STOP' | 'DELIVERED';
+  channel: 'SMS' | 'EMAIL';
+  recipient: string;
+  messageText: string;
+}
 
 export interface Order {
   id: string;
@@ -79,7 +93,9 @@ export interface Order {
   status: OrderStatus;
   routeId?: string;
   stopSequence?: number;
+  estimatedDeliveryWindow?: string; // e.g. "09:30 - 10:30 AM"
   proofOfDelivery?: ProofOfDelivery;
+  notifications?: CustomerNotificationLog[];
   createdAt: string;
   urgency?: 'STANDARD' | 'PRIORITY' | 'EXPRESS_AM';
 }
@@ -105,13 +121,14 @@ export interface DeliveryRoute {
   routeNumber: string; // e.g. "Route 1 (North Birmingham)"
   depotId: string;
   date: string;
-  status: 'UNASSIGNED' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED';
+  status: 'UNASSIGNED' | 'ASSIGNED' | 'LOADING' | 'IN_PROGRESS' | 'COMPLETED';
   totalDwellMins: number;
   totalDrivingMins: number;
   breakTimeMins: number;
   totalEstimatedMins: number;
   totalDistanceKm: number;
   shiftUtilisationPct: number;
+  allLoaded?: boolean;
   isProblemRoute?: boolean;
   problemReason?: string;
   driverId?: string;
