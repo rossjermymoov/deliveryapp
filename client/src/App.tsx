@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_VANS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME, UK_DEPOTS, INITIAL_USERS } from './data/initialData';
-import { Order, Driver, VanVehicle, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot, UserAccount } from './types';
+import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_VANS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME, UK_DEPOTS, INITIAL_USERS, INITIAL_FAULTS } from './data/initialData';
+import { Order, Driver, VanVehicle, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot, UserAccount, VehicleFaultReport } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
 
@@ -8,6 +8,7 @@ export const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
   const [drivers, setDrivers] = useState<Driver[]>(INITIAL_DRIVERS);
   const [vans, setVans] = useState<VanVehicle[]>(INITIAL_VANS);
+  const [faults, setFaults] = useState<VehicleFaultReport[]>(INITIAL_FAULTS);
   const [routes, setRoutes] = useState<DeliveryRoute[]>(INITIAL_ROUTES);
   const [depots, setDepots] = useState<Depot[]>(UK_DEPOTS);
   const [skuCatalog, setSkuCatalog] = useState<SkuDwellSetting[]>(INITIAL_SKU_SETTINGS);
@@ -207,6 +208,19 @@ export const App: React.FC = () => {
     setOrders((prev) => [fullOrder, ...prev]);
   };
 
+  const handleDriverSubmitFault = (newFault: VehicleFaultReport) => {
+    setFaults((prev) => [newFault, ...prev]);
+
+    // If fault is critical, ground the vehicle
+    if (newFault.severity === 'CRITICAL_GROUND_VEHICLE') {
+      setVans((prev) =>
+        prev.map((v) =>
+          v.id === newFault.vanId ? { ...v, status: 'GROUNDED' } : v
+        )
+      );
+    }
+  };
+
   const handleStartRoute = (routeId: string) => {
     setRoutes((prev) =>
       prev.map((r) => (r.id === routeId ? { ...r, status: 'IN_PROGRESS' } : r))
@@ -302,11 +316,13 @@ export const App: React.FC = () => {
           skuCatalog={skuCatalog}
           brandTheme={brandTheme}
           users={users}
+          faults={faults}
           currentUser={currentUser}
           onSwitchUser={setCurrentUserId}
           onUpdateUsers={setUsers}
           onUpdateDrivers={setDrivers}
           onUpdateVans={setVans}
+          onUpdateFaults={setFaults}
           onUpdateBrandTheme={setBrandTheme}
           onUpdateDepots={setDepots}
           onCreateRoute={handleCreateRoute}
@@ -327,6 +343,7 @@ export const App: React.FC = () => {
         <DriverApp
           driver={currentDriver}
           brandTheme={brandTheme}
+          vans={vans}
           activeRoute={driverActiveRoute}
           allAvailableRoutes={routes.filter((r) => r.status === 'UNASSIGNED' || r.driverId === activeDriverId)}
           onClaimRoute={handleAssignDriverToRoute}
@@ -334,6 +351,7 @@ export const App: React.FC = () => {
           onStartRoute={handleStartRoute}
           onCompletePod={handleCompletePod}
           onCompleteRoute={handleCompleteRoute}
+          onSubmitFaultReport={handleDriverSubmitFault}
           onBackToAdmin={() => setViewMode('admin')}
         />
       )}

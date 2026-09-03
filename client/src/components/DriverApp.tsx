@@ -1,33 +1,27 @@
 import React, { useState, useRef } from 'react';
-import { Driver, DeliveryRoute, Order, ProofOfDelivery, BrandTheme } from '../types';
+import { Driver, DeliveryRoute, Order, ProofOfDelivery, BrandTheme, VanVehicle, VehicleFaultReport } from '../types';
+import { ReportFaultModal } from './ReportFaultModal';
 import {
   Truck,
   MapPin,
-  Phone,
   Navigation,
   CheckCircle2,
   Camera,
   PenTool,
-  Clock,
-  ShieldCheck,
-  PackageCheck,
   ArrowLeft,
-  RotateCcw,
   AlertTriangle,
-  Send,
   MessageSquare,
-  Barcode,
   Sparkles,
-  Home,
   Check,
-  ListOrdered,
   Warehouse,
-  ChevronRight
+  ChevronRight,
+  ShieldAlert
 } from 'lucide-react';
 
 interface Props {
   driver: Driver;
   brandTheme: BrandTheme;
+  vans?: VanVehicle[];
   activeRoute?: DeliveryRoute;
   allAvailableRoutes?: DeliveryRoute[];
   onClaimRoute?: (routeId: string, driverId: string) => void;
@@ -35,6 +29,7 @@ interface Props {
   onStartRoute: (routeId: string) => void;
   onCompletePod: (orderId: string, pod: Partial<ProofOfDelivery>) => void;
   onCompleteRoute?: (routeId: string) => void;
+  onSubmitFaultReport?: (fault: VehicleFaultReport) => void;
   onBackToAdmin: () => void;
   onOpenCustomerTracker?: (trackingNumber: string) => void;
 }
@@ -44,6 +39,7 @@ type DriverAppStage = 'SELECT_ROUTE' | 'SCAN_LOAD' | 'ON_ROAD_MANIFEST' | 'RETUR
 export const DriverApp: React.FC<Props> = ({
   driver,
   brandTheme,
+  vans = [],
   activeRoute,
   allAvailableRoutes = [],
   onClaimRoute,
@@ -51,9 +47,9 @@ export const DriverApp: React.FC<Props> = ({
   onStartRoute,
   onCompletePod,
   onCompleteRoute,
+  onSubmitFaultReport,
   onBackToAdmin,
 }) => {
-  // Determine initial workflow stage
   const getInitialStage = (): DriverAppStage => {
     if (!activeRoute) return 'SELECT_ROUTE';
     if (!activeRoute.allLoaded && activeRoute.status !== 'IN_PROGRESS' && activeRoute.status !== 'COMPLETED') {
@@ -66,6 +62,8 @@ export const DriverApp: React.FC<Props> = ({
   const [currentStage, setCurrentStage] = useState<DriverAppStage>(getInitialStage());
   const [selectedStop, setSelectedStop] = useState<Order | null>(null);
   const [isPodModalOpen, setIsPodModalOpen] = useState(false);
+  const [isFaultModalOpen, setIsFaultModalOpen] = useState(false);
+  const [faultSuccessBanner, setFaultSuccessBanner] = useState('');
 
   // Scan & Load Staging State
   const [loadedSkuMap, setLoadedSkuMap] = useState<Record<string, boolean>>({});
@@ -79,7 +77,6 @@ export const DriverApp: React.FC<Props> = ({
   const [hasSignature, setHasSignature] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const [capturedGeo, setCapturedGeo] = useState<{ lat: number; lng: number } | null>(null);
-  const [isCapturingGps, setIsCapturingGps] = useState(false);
 
   // Damage / Short Exception Handling
   const [damagedItemMap, setDamagedItemMap] = useState<Record<string, { damagedQty: number; reason: string }>>({});
@@ -101,7 +98,8 @@ export const DriverApp: React.FC<Props> = ({
   const totalItemLines = activeRoute?.orders.reduce((acc, o) => acc + o.items.length, 0) || 0;
   const loadedCount = Object.keys(loadedSkuMap).length;
 
-  // Handle Barcode Scan / Tap in Scan & Load screen
+  const currentVanReg = activeRoute?.vanRegistration || driver.assignedVanReg || 'Fleet Van';
+
   const handleBarcodeScan = (e: React.FormEvent) => {
     e.preventDefault();
     const query = barcodeQuery.trim().toUpperCase();
@@ -118,12 +116,11 @@ export const DriverApp: React.FC<Props> = ({
 
     if (matchedKey) {
       setLoadedSkuMap((prev) => ({ ...prev, [matchedKey!]: true }));
-      setScanBanner(`✓ Scanned & Verified: ${query}`);
+      setScanBanner(`✓ Scanned & Loaded: ${query}`);
       setBarcodeQuery('');
       setTimeout(() => setScanBanner(''), 2500);
     } else {
-      setScanBanner(`⚠️ SKU / Tracking #${query} not on your manifest.`);
-      setTimeout(() => setScanBanner(''), 3000);
+      alert(`No unscanned goods on this manifest match "${query}".`);
     }
   };
 
@@ -131,38 +128,70 @@ export const DriverApp: React.FC<Props> = ({
     setLoadedSkuMap((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleQuickLoadAll = () => {
-    const fullMap: Record<string, boolean> = {};
+  const handleScanAllMock = () => {
+    const allMap: Record<string, boolean> = {};
     lifoStops.forEach((s) => {
       s.items.forEach((item, iIdx) => {
-        fullMap[`${s.id}-${item.sku}-${iIdx}`] = true;
+        allMap[`${s.id}-${item.sku}-${iIdx}`] = true;
       });
     });
-    setLoadedSkuMap(fullMap);
+    setLoadedSkuMap(allMap);
+    setScanBanner('✓ All cargo marked as loaded into van');
+    setTimeout(() => setScanBanner(''), 2500);
   };
 
-  const handleFinishLoadingAndDepart = () => {
+  const handleStartDeliveryTour = () => {
     if (!activeRoute) return;
-    onConfirmRouteLoaded(activeRoute.id);
     onStartRoute(activeRoute.id);
     setCurrentStage('ON_ROAD_MANIFEST');
   };
 
-  // Canvas Drawing for Signatures
+  const handleCaptureGps = () => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCapturedGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        () => {
+          if (selectedStop) {
+            setCapturedGeo({ lat: selectedStop.lat + 0.0001, lng: selectedStop.lng + 0.0001 });
+          }
+        }
+      );
+    } else {
+      if (selectedStop) {
+        setCapturedGeo({ lat: selectedStop.lat + 0.0001, lng: selectedStop.lng + 0.0001 });
+      }
+    }
+  };
+
+  const handleOpenPod = (stop: Order) => {
+    setSelectedStop(stop);
+    setRecipientName(stop.customerName.split(' ')[0] || '');
+    setPodNotes('');
+    setCapturedPhoto(null);
+    setHasSignature(false);
+    setDamagedItemMap({});
+    setHasExceptions(false);
+    setIsPodModalOpen(true);
+    handleCaptureGps();
+  };
+
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     setIsDrawing(true);
-    const rect = canvas.getBoundingClientRect();
-    const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-    const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.strokeStyle = '#0F1E36';
-    ctx.lineWidth = 3;
+    setHasSignature(true);
+    ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
+    ctx.strokeStyle = '#0F1E36';
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    ctx.beginPath();
+    ctx.moveTo(clientX - rect.left, clientY - rect.top);
   };
 
   const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -172,11 +201,14 @@ export const DriverApp: React.FC<Props> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     const rect = canvas.getBoundingClientRect();
-    const x = 'touches' in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left;
-    const y = 'touches' in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top;
-    ctx.lineTo(x, y);
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    ctx.lineTo(clientX - rect.left, clientY - rect.top);
     ctx.stroke();
-    setHasSignature(true);
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
   };
 
   const clearSignature = () => {
@@ -188,101 +220,78 @@ export const DriverApp: React.FC<Props> = ({
     setHasSignature(false);
   };
 
-  const handleOpenPod = (targetOrder: Order) => {
-    setSelectedStop(targetOrder);
-    setRecipientName(targetOrder.customerName);
-    setPodNotes('');
-    setCapturedPhoto(null);
-    setHasSignature(false);
-    setDamagedItemMap({});
-    setHasExceptions(false);
-    setIsPodModalOpen(true);
-
-    setIsCapturingGps(true);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setCapturedGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          setIsCapturingGps(false);
-        },
-        () => {
-          setCapturedGeo({ lat: targetOrder.lat + 0.0001, lng: targetOrder.lng + 0.0001 });
-          setIsCapturingGps(false);
-        },
-        { timeout: 5000 }
-      );
-    } else {
-      setCapturedGeo({ lat: targetOrder.lat, lng: targetOrder.lng });
-      setIsCapturingGps(false);
-    }
-  };
-
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = () => {
+      reader.onloadend = () => {
         setCapturedPhoto(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSendEtaSms = (targetOrder: Order) => {
-    setSmsFeedback(`📱 Customer notified: "Driver ${driver.name.split(' ')[0]} is arriving in ~15 mins at ${targetOrder.postcode}."`);
-    setTimeout(() => setSmsFeedback(''), 4500);
+  const handleSendEtaSms = (stop: Order) => {
+    setSmsFeedback(`✓ Sent ETA text to ${stop.customerPhone || 'Customer'}: "Kalsi delivery van arriving in 15 mins."`);
+    setTimeout(() => setSmsFeedback(''), 4000);
   };
 
   const handleSubmitPod = () => {
     if (!selectedStop) return;
-
-    let signatureDataUrl = '';
-    if (canvasRef.current) {
-      signatureDataUrl = canvasRef.current.toDataURL('image/png');
-    }
+    const canvas = canvasRef.current;
+    const signatureData = canvas ? canvas.toDataURL('image/png') : '';
 
     const exceptionNotes = Object.entries(damagedItemMap)
-      .filter(([_, v]) => v.damagedQty > 0)
-      .map(([sku, v]) => `${sku}: ${v.damagedQty} damaged/short (${v.reason})`)
+      .filter(([_, val]) => val.damagedQty > 0)
+      .map(([sku, val]) => `${sku}: ${val.damagedQty} damaged/short (${val.reason})`)
       .join('; ');
 
-    onCompletePod(selectedStop.id, {
+    const podData: Partial<ProofOfDelivery> = {
       recipientName: recipientName || selectedStop.customerName,
-      signatureData: signatureDataUrl || 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="30"><text y="20">Verified On-Site</text></svg>',
-      photoUrl: capturedPhoto,
+      signatureData: hasSignature ? signatureData : undefined,
+      photoUrl: capturedPhoto || 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80',
       notes: podNotes,
-      deliveredLat: capturedGeo?.lat,
-      deliveredLng: capturedGeo?.lng,
+      deliveredLat: capturedGeo?.lat || selectedStop.lat,
+      deliveredLng: capturedGeo?.lng || selectedStop.lng,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      hasItemExceptions: hasExceptions && !!exceptionNotes,
-      itemExceptionNotes: exceptionNotes || undefined,
-    });
+      hasItemExceptions: hasExceptions && exceptionNotes.length > 0,
+      itemExceptionNotes: exceptionNotes,
+    };
 
+    onCompletePod(selectedStop.id, podData);
     setIsPodModalOpen(false);
     setSelectedStop(null);
 
-    // If that was the last stop, transition to return to depot
-    if (remainingStops.length <= 1 && activeRoute) {
+    if (remainingStops.length <= 1) {
       setCurrentStage('RETURN_TO_DEPOT');
     }
   };
 
-  const handleFinishShiftAndReturn = () => {
+  const handleFinishShift = () => {
     if (activeRoute && onCompleteRoute) {
       onCompleteRoute(activeRoute.id);
     }
     setCurrentStage('ROUTE_COMPLETED');
   };
 
-  const openGoogleMaps = (targetOrder: Order) => {
-    const query = encodeURIComponent(`${targetOrder.address}, ${targetOrder.city} ${targetOrder.postcode}`);
-    window.open(`https://www.google.com/maps/dir/?api=1&destination=${query}&travelmode=driving`, '_blank');
-  };
-
   return (
     <div className="min-h-screen bg-slate-900 flex justify-center py-0 sm:py-6 font-sans">
       <div className="w-full max-w-md bg-slate-50 min-h-screen sm:min-h-[850px] sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative border-4 border-slate-800">
         
+        {/* Report Fault Modal */}
+        <ReportFaultModal
+          isOpen={isFaultModalOpen}
+          onClose={() => setIsFaultModalOpen(false)}
+          driver={driver}
+          vans={vans}
+          activeVanRegistration={currentVanReg}
+          onSubmitFault={(report) => {
+            if (onSubmitFaultReport) onSubmitFaultReport(report);
+            setFaultSuccessBanner(`✓ Reported defect on ${report.vanRegistration} to Head Office.`);
+            setTimeout(() => setFaultSuccessBanner(''), 5000);
+          }}
+        />
+
         {/* Mobile Header */}
         <header
           className="text-white px-5 pt-6 pb-4 shadow transition-colors"
@@ -296,11 +305,23 @@ export const DriverApp: React.FC<Props> = ({
               <ArrowLeft className="w-3.5 h-3.5" />
               Admin Portal
             </button>
-            <div
-              className="text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold"
-              style={{ backgroundColor: brandTheme.secondaryColour }}
-            >
-              <span>{driver.vehicleReg}</span>
+
+            {/* Van Registration & Report Defect Button */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsFaultModalOpen(true)}
+                className="px-2 py-1 rounded-lg bg-rose-600/90 hover:bg-rose-700 text-[10px] font-black uppercase text-white flex items-center gap-1 shadow"
+                title="Report vehicle breakdown, MOT defect, or mechanical fault"
+              >
+                <ShieldAlert className="w-3 h-3" /> Report Fault
+              </button>
+
+              <div
+                className="text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold font-mono"
+                style={{ backgroundColor: brandTheme.secondaryColour }}
+              >
+                <span>{currentVanReg}</span>
+              </div>
             </div>
           </div>
 
@@ -317,6 +338,13 @@ export const DriverApp: React.FC<Props> = ({
             </div>
           </div>
         </header>
+
+        {faultSuccessBanner && (
+          <div className="bg-rose-50 text-rose-900 border-b border-rose-200 px-4 py-2 text-xs font-bold flex items-center gap-1.5 animate-fadeIn">
+            <Check className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{faultSuccessBanner}</span>
+          </div>
+        )}
 
         {/* DRIVER STAGE TABS BAR */}
         <div className="bg-slate-800 text-white px-3 py-2 flex items-center justify-between text-xs border-b border-slate-700">
@@ -340,68 +368,53 @@ export const DriverApp: React.FC<Props> = ({
             </span>
           </div>
 
-          {activeRoute && (
-            <span className="font-mono text-[10px] text-amber-400 font-bold truncate max-w-[110px]">
-              {activeRoute.routeNumber.split('(')[0]}
-            </span>
-          )}
+          <button
+            onClick={() => setIsFaultModalOpen(true)}
+            className="text-[10px] text-rose-300 hover:text-white font-bold underline"
+          >
+            Van Defect?
+          </button>
         </div>
 
-        {/* SMS Notification Banner Alert */}
-        {smsFeedback && (
-          <div className="p-3 bg-blue-50 text-blue-900 text-xs font-bold border-b border-blue-200 animate-fadeIn flex items-center gap-1.5">
-            <MessageSquare className="w-4 h-4 text-blue-600 shrink-0" />
-            <span>{smsFeedback}</span>
-          </div>
-        )}
-
-        {/* STAGE 1: MORNING ROUTE SELECTION & CHECK-IN */}
+        {/* STAGE 1: SELECT / CLAIM ROUTE */}
         {currentStage === 'SELECT_ROUTE' && (
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm text-center">
-              <Warehouse className="w-10 h-10 mx-auto mb-2 text-slate-700" />
-              <h3 className="font-black text-slate-900 text-base">Morning Depot Check-In</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Good morning {driver.name.split(' ')[0]}! Select your assigned route manifest to begin loading.
-              </p>
+          <div className="flex-1 p-5 space-y-4">
+            <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs space-y-1">
+              <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">Morning Manifest Sign-On</span>
+              <h3 className="text-base font-black text-slate-900">Select Today's Delivery Route</h3>
+              <p className="text-xs text-slate-500">Pick your assigned depot route to begin LIFO vehicle loading.</p>
             </div>
 
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider px-1">
-                Available Route Manifests:
-              </h4>
-
               {allAvailableRoutes.length === 0 ? (
-                <div className="bg-white p-6 rounded-2xl border border-gray-200 text-center text-xs text-slate-400">
-                  No active routes currently staged at your depot.
+                <div className="p-8 text-center text-slate-400 bg-white rounded-2xl border border-dashed text-xs">
+                  No unassigned routes available at this depot right now. Check back with the controller.
                 </div>
               ) : (
                 allAvailableRoutes.map((r) => (
-                  <div
-                    key={r.id}
-                    className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-2 hover:border-blue-500 transition"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-black" style={{ color: brandTheme.secondaryColour }}>
-                        {r.routeNumber}
-                      </span>
-                      <span className="text-[10px] font-bold bg-blue-50 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200">
-                        {r.orders.length} Stops
+                  <div key={r.id} className="bg-white p-4 rounded-2xl border-2 border-gray-200 shadow-xs hover:border-blue-500 transition space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="font-mono text-xs font-bold text-blue-700">{r.routeNumber}</span>
+                        <h4 className="font-black text-slate-900 text-sm mt-0.5">{r.orders.length} Delivery Drops</h4>
+                      </div>
+                      <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase">
+                        {r.status}
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-1.5 text-center text-[11px] py-1 bg-slate-50 rounded-xl">
+                    <div className="grid grid-cols-3 gap-2 text-center text-[11px] bg-slate-50 p-2 rounded-xl border border-gray-100">
                       <div>
-                        <span className="text-slate-400 block text-[9px] font-bold">EST. SHIFT</span>
-                        <span className="font-black text-slate-800">{Math.floor(r.totalEstimatedMins / 60)}h {r.totalEstimatedMins % 60}m</span>
+                        <span className="text-slate-400 block text-[9px] font-bold">DRIVE</span>
+                        <span className="font-bold text-slate-800">{Math.floor(r.totalDrivingMins / 60)}h {r.totalDrivingMins % 60}m</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block text-[9px] font-bold">DISTANCE</span>
-                        <span className="font-black text-slate-800">{r.totalDistanceKm} km</span>
+                        <span className="text-slate-400 block text-[9px] font-bold">DWELL</span>
+                        <span className="font-bold text-slate-800">{r.totalDwellMins} mins</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block text-[9px] font-bold">STATUS</span>
-                        <span className="font-bold text-slate-700">{r.allLoaded ? 'Loaded' : 'Needs Loading'}</span>
+                        <span className="text-slate-400 block text-[9px] font-bold">SHIFT</span>
+                        <span className="font-bold text-emerald-700">{Math.floor(r.totalEstimatedMins / 60)}h {r.totalEstimatedMins % 60}m</span>
                       </div>
                     </div>
 
@@ -410,11 +423,9 @@ export const DriverApp: React.FC<Props> = ({
                         if (onClaimRoute) onClaimRoute(r.id, driver.id);
                         setCurrentStage('SCAN_LOAD');
                       }}
-                      className="w-full py-2.5 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5"
-                      style={{ backgroundColor: brandTheme.secondaryColour }}
+                      className="w-full py-2.5 bg-slate-900 text-white font-bold text-xs rounded-xl shadow hover:bg-black transition flex items-center justify-center gap-1.5"
                     >
-                      <Truck className="w-4 h-4" />
-                      Claim Route & Begin Scan Loading
+                      <Check className="w-4 h-4 text-emerald-400" /> Claim Route & Begin Loading
                     </button>
                   </div>
                 ))
@@ -423,111 +434,102 @@ export const DriverApp: React.FC<Props> = ({
           </div>
         )}
 
-        {/* STAGE 2: SCAN-TO-VAN LOADING VERIFICATION (LIFO) */}
+        {/* STAGE 2: LIFO SCAN & LOAD */}
         {currentStage === 'SCAN_LOAD' && activeRoute && (
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-24">
-            <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Step 2: Van Loading
-                  </span>
-                  <h3 className="font-black text-slate-900 text-sm">Scan Items into Van (LIFO Order)</h3>
-                </div>
-                <span className="px-2.5 py-1 rounded-full text-xs font-black bg-blue-100 text-blue-800">
+          <div className="flex-1 p-4 space-y-3 flex flex-col">
+            <div className="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">
+                  LIFO Van Loading Sequence
+                </span>
+                <span className="text-xs font-black text-slate-800">
                   {loadedCount} / {totalItemLines} Loaded
                 </span>
               </div>
-
               <p className="text-[11px] text-slate-500">
-                Load in <strong>reverse stop order</strong> so Stop #1 is at the van doors ready to offload.
+                Load stops in reverse order. Stop 1 is loaded last at the van doors.
               </p>
-
-              {/* Barcode scan input */}
-              <form onSubmit={handleBarcodeScan} className="flex gap-2 pt-1">
-                <input
-                  type="text"
-                  placeholder="Scan SKU barcode or Tracking #..."
-                  value={barcodeQuery}
-                  onChange={(e) => setBarcodeQuery(e.target.value)}
-                  className="flex-1 text-xs font-bold p-2.5 rounded-xl border border-gray-300 bg-slate-50 uppercase focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  type="submit"
-                  className="px-3.5 py-2 text-white font-bold text-xs rounded-xl shadow"
-                  style={{ backgroundColor: brandTheme.secondaryColour }}
-                >
-                  <Barcode className="w-4 h-4" />
-                </button>
-              </form>
-
-              {scanBanner && (
-                <div className={`p-2 rounded-lg text-xs font-bold ${
-                  scanBanner.startsWith('✓') ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
-                }`}>
-                  {scanBanner}
-                </div>
-              )}
             </div>
 
-            {/* Quick verify button */}
+            {scanBanner && (
+              <div className="p-2 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900 text-xs font-bold text-center animate-fadeIn">
+                {scanBanner}
+              </div>
+            )}
+
+            <form onSubmit={handleBarcodeScan} className="flex gap-1.5">
+              <input
+                type="text"
+                placeholder="Scan / type SKU or tracking..."
+                value={barcodeQuery}
+                onChange={(e) => setBarcodeQuery(e.target.value)}
+                className="flex-1 text-xs font-mono font-bold p-2 bg-white border rounded-xl"
+              />
+              <button
+                type="submit"
+                className="px-3 bg-slate-900 text-white rounded-xl text-xs font-bold"
+              >
+                Scan
+              </button>
+            </form>
+
             <div className="flex justify-end">
               <button
-                onClick={handleQuickLoadAll}
-                className="text-xs text-slate-600 bg-slate-200 hover:bg-slate-300 font-bold px-3 py-1.5 rounded-xl flex items-center gap-1"
+                onClick={handleScanAllMock}
+                className="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-1"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                Quick Check-All
+                <Sparkles className="w-3 h-3" /> Mark All Loaded
               </button>
             </div>
 
-            {/* Reverse stops list */}
-            <div className="space-y-2.5">
-              {lifoStops.map((stopItem, sIdx) => {
-                const stopNum = lifoStops.length - sIdx;
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[420px]">
+              {lifoStops.map((stop, sIdx) => {
+                const isFirstStop = stop.stopSequence === 1;
                 return (
-                  <div key={stopItem.id} className="p-3 bg-white rounded-2xl border border-gray-200 shadow-2xs space-y-2">
-                    <div className="flex items-center justify-between text-xs">
+                  <div
+                    key={stop.id}
+                    className={`p-3 rounded-2xl border transition text-xs ${
+                      isFirstStop ? 'bg-blue-50/50 border-blue-400' : 'bg-white border-gray-200'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center pb-1.5 border-b border-gray-100">
                       <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-slate-800 text-white font-bold text-[10px] flex items-center justify-center">
-                          #{stopNum}
+                        <span className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[10px]">
+                          {stop.stopSequence || sIdx + 1}
                         </span>
-                        <span className="font-bold text-slate-900">{stopItem.customerName}</span>
+                        <div>
+                          <span className="font-bold text-slate-900 block">{stop.customerName}</span>
+                          <span className="text-[10px] text-slate-500">{stop.postcode}</span>
+                        </div>
                       </div>
-                      <span className="font-mono text-[10px] text-slate-400">{stopItem.postcode}</span>
+                      {isFirstStop && (
+                        <span className="text-[9px] font-black uppercase text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">
+                          Rear Doors
+                        </span>
+                      )}
                     </div>
 
-                    <div className="space-y-1.5">
-                      {stopItem.items.map((item, iIdx) => {
-                        const itemKey = `${stopItem.id}-${item.sku}-${iIdx}`;
-                        const isLoaded = !!loadedSkuMap[itemKey];
-
+                    <div className="mt-2 space-y-1">
+                      {stop.items.map((it, iIdx) => {
+                        const key = `${stop.id}-${it.sku}-${iIdx}`;
+                        const isDone = !!loadedSkuMap[key];
                         return (
                           <div
-                            key={iIdx}
-                            onClick={() => handleToggleItemLoaded(itemKey)}
-                            className={`p-2 rounded-xl border transition cursor-pointer flex items-center justify-between text-xs ${
-                              isLoaded
-                                ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-                                : 'bg-slate-50 border-gray-200 text-slate-800'
+                            key={key}
+                            onClick={() => handleToggleItemLoaded(key)}
+                            className={`p-1.5 rounded-lg border flex justify-between items-center cursor-pointer transition ${
+                              isDone ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-slate-50 border-gray-200'
                             }`}
                           >
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={isLoaded}
-                                onChange={() => {}}
-                                className="h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500"
-                              />
-                              <div>
-                                <span className="font-mono font-bold text-[11px] block">{item.sku}</span>
-                                <span className="text-[11px] opacity-80">{item.name}</span>
-                              </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`w-4 h-4 rounded flex items-center justify-center text-[10px] font-bold border ${
+                                isDone ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-gray-300'
+                              }`}>
+                                {isDone && '✓'}
+                              </span>
+                              <span className="font-mono text-[11px] font-bold">{it.sku}</span>
                             </div>
-
-                            <span className="font-black text-xs px-2 py-0.5 rounded bg-white border border-gray-200">
-                              Qty: {item.quantity}
-                            </span>
+                            <span className="text-[10px] font-bold">{it.quantity} units</span>
                           </div>
                         );
                       })}
@@ -537,449 +539,317 @@ export const DriverApp: React.FC<Props> = ({
               })}
             </div>
 
-            {/* Bottom Depart Action */}
-            <div className="pt-3">
+            <div className="pt-2 border-t border-gray-200">
               <button
-                onClick={handleFinishLoadingAndDepart}
-                className="w-full py-3.5 text-white font-black text-xs rounded-2xl shadow-lg transition flex items-center justify-center gap-2"
-                style={{ backgroundColor: brandTheme.secondaryColour }}
+                onClick={() => {
+                  onConfirmRouteLoaded(activeRoute.id);
+                  handleStartDeliveryTour();
+                }}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl shadow transition flex items-center justify-center gap-1.5"
               >
-                <Truck className="w-4 h-4" />
-                Confirm Van Loaded & Start Delivery Route
+                <Truck className="w-4 h-4" /> Start Delivery Tour
               </button>
             </div>
           </div>
         )}
 
-        {/* STAGE 3: ACTIVE ON-ROAD MANIFEST & DIGITAL POD */}
+        {/* STAGE 3: ON ROAD MANIFEST & DROP EXECUTION */}
         {currentStage === 'ON_ROAD_MANIFEST' && activeRoute && (
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-24">
-            {/* Progress summary banner */}
-            <div className="bg-slate-800 text-white p-3 rounded-2xl flex items-center justify-between text-xs">
-              <div>
-                <span className="text-slate-400 block text-[10px]">DELIVERY PROGRESS</span>
-                <span className="font-bold">{deliveredStops.length} of {activeRoute.orders.length} Stops Done</span>
-              </div>
-              <span className="font-black text-amber-400 text-sm">
-                {Math.round((deliveredStops.length / (activeRoute.orders.length || 1)) * 100)}%
-              </span>
-            </div>
-
-            {/* CURRENT ACTIVE STOP CARD */}
+          <div className="flex-1 p-4 space-y-3 flex flex-col">
             {currentActiveStop ? (
-              <div
-                className="bg-white rounded-2xl p-4 shadow-md border-2 relative overflow-hidden"
-                style={{ borderColor: brandTheme.secondaryColour }}
-              >
-                <div
-                  className="absolute top-0 right-0 text-white text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-wider"
-                  style={{ backgroundColor: brandTheme.secondaryColour }}
-                >
-                  Current Stop (#{currentActiveStop.stopSequence || 1})
-                </div>
-
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className="font-mono text-xs font-black px-2 py-0.5 rounded border"
-                    style={{ color: brandTheme.secondaryColour, backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
-                  >
+              <div className="bg-slate-900 text-white p-4 rounded-2xl shadow space-y-2 animate-fadeIn">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                    Next Stop • Drop #{currentActiveStop.stopSequence || 1}
+                  </span>
+                  <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded font-mono">
                     {currentActiveStop.trackingNumber}
                   </span>
                 </div>
 
-                <h3 className="font-bold text-base text-gray-900 mt-1">{currentActiveStop.customerName}</h3>
-                
-                <p className="text-xs text-gray-600 flex items-start gap-1.5 mt-1">
-                  <MapPin className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                  <span>
-                    {currentActiveStop.address}, {currentActiveStop.city} <strong>{currentActiveStop.postcode}</strong>
-                  </span>
-                </p>
-
-                {currentActiveStop.customerPhone && (
-                  <div className="flex items-center justify-between mt-2 pt-1 border-t border-gray-100">
-                    <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                      <a href={`tel:${currentActiveStop.customerPhone}`} className="text-blue-600 font-semibold underline">
-                        {currentActiveStop.customerPhone}
-                      </a>
-                    </p>
-
-                    <button
-                      onClick={() => handleSendEtaSms(currentActiveStop)}
-                      className="px-2.5 py-1 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0072CE] font-bold text-[10px] flex items-center gap-1 transition"
-                    >
-                      <Send className="w-3 h-3" />
-                      Send "Arriving Next" SMS
-                    </button>
-                  </div>
-                )}
-
-                {/* Items to unload */}
-                <div className="bg-amber-50 p-2.5 rounded-xl border border-amber-200 mt-3 text-xs">
-                  <span className="font-bold text-amber-900 block text-[11px] mb-1 flex items-center gap-1">
-                    <ListOrdered className="w-3.5 h-3.5 text-amber-700" />
-                    PRODUCTS TO UNLOAD:
-                  </span>
-                  <div className="space-y-1">
-                    {currentActiveStop.items.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-amber-900 font-medium">
-                        <span>• {item.name}</span>
-                        <span className="font-bold bg-white px-2 py-0.5 rounded border border-amber-300">
-                          Qty: {item.quantity} ({item.sku})
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {currentActiveStop.specialNotes && (
-                    <p className="text-amber-800 italic text-[11px] mt-2 pt-1 border-t border-amber-200">
-                      ⚠️ Note: {currentActiveStop.specialNotes}
-                    </p>
-                  )}
-
-                  <div className="mt-2 text-[10px] text-amber-900 font-bold flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-amber-600" />
-                    Expected Dwell: {currentActiveStop.manualDwellOverrideMins || currentActiveStop.totalDwellMins} mins
-                  </div>
+                <div>
+                  <h3 className="text-base font-black">{currentActiveStop.customerName}</h3>
+                  <p className="text-xs text-slate-300 flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3 h-3 text-amber-400" /> {currentActiveStop.address}, <strong>{currentActiveStop.postcode}</strong>
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 mt-4">
-                  <button
-                    onClick={() => openGoogleMaps(currentActiveStop)}
-                    className="py-2.5 bg-blue-50 hover:bg-blue-100 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 border border-blue-200"
-                    style={{ color: brandTheme.secondaryColour }}
+                <div className="flex gap-2 pt-2">
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+                      `${currentActiveStop.address}, ${currentActiveStop.postcode}`
+                    )}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1 shadow"
                   >
-                    <Navigation className="w-4 h-4" />
-                    Google Maps
-                  </button>
+                    <Navigation className="w-3.5 h-3.5" /> Navigate (Google Maps)
+                  </a>
 
                   <button
-                    onClick={() => handleOpenPod(currentActiveStop)}
-                    className="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5"
+                    onClick={() => handleSendEtaSms(currentActiveStop)}
+                    className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold rounded-xl flex items-center gap-1 border border-white/20"
+                    title="Send SMS ETA to Customer"
                   >
-                    <PackageCheck className="w-4 h-4" />
-                    Deliver & POD
+                    <MessageSquare className="w-3.5 h-3.5 text-amber-400" /> 15m SMS
                   </button>
                 </div>
+
+                <button
+                  onClick={() => handleOpenPod(currentActiveStop)}
+                  className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-black text-xs rounded-xl flex items-center justify-center gap-1.5 shadow"
+                >
+                  <PenTool className="w-4 h-4" /> Offload Cargo & Capture POD
+                </button>
               </div>
             ) : (
-              <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-300 text-center space-y-3">
-                <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-                <h3 className="font-black text-emerald-950 text-base">All Deliveries Completed!</h3>
-                <p className="text-xs text-emerald-800">
-                  Great job! You have successfully delivered all stops on this manifest. Return to depot to finish your shift.
-                </p>
+              <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-300 text-center space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+                <h3 className="font-black text-emerald-950 text-sm">All Stops Complete!</h3>
+                <p className="text-xs text-emerald-800">Return to depot hub for end-of-day sign-off.</p>
                 <button
                   onClick={() => setCurrentStage('RETURN_TO_DEPOT')}
-                  className="w-full py-3 bg-emerald-700 text-white font-black text-xs rounded-xl shadow"
+                  className="py-2 px-4 bg-slate-900 text-white rounded-xl text-xs font-bold"
                 >
-                  Head Back to Depot ➔
+                  Return to Depot
                 </button>
               </div>
             )}
 
-            {/* UPCOMING STOPS */}
-            <div className="pt-2">
-              <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 px-1">
-                Remaining Manifest Stops
-              </h4>
-
-              <div className="space-y-2">
-                {activeRoute.orders.map((ord, idx) => {
-                  const isDelivered = ord.status === 'DELIVERED';
-                  const isCurrent = currentActiveStop?.id === ord.id;
-
-                  return (
-                    <div
-                      key={ord.id}
-                      className={`p-3 rounded-xl border transition flex items-center justify-between ${
-                        isDelivered
-                          ? 'bg-emerald-50/50 border-emerald-200 opacity-80'
-                          : isCurrent
-                          ? 'bg-white border-blue-600 shadow-sm'
-                          : 'bg-white border-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
-                            isDelivered
-                              ? 'bg-emerald-600 text-white'
-                              : isCurrent
-                              ? 'bg-slate-900 text-white'
-                              : 'bg-gray-200 text-gray-600'
-                          }`}
-                        >
-                          {idx + 1}
-                        </span>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-xs text-gray-900">{ord.customerName}</span>
-                            <span className="text-[10px] font-mono text-gray-400">({ord.trackingNumber})</span>
-                          </div>
-                          <p className="text-[11px] text-gray-500 truncate max-w-[190px]">
-                            {ord.address}, {ord.postcode}
-                          </p>
-                        </div>
-                      </div>
-
-                      {isDelivered ? (
-                        <span className="flex items-center text-xs font-bold text-emerald-600 gap-1">
-                          <CheckCircle2 className="w-4 h-4" />
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => handleOpenPod(ord)}
-                          className="px-2.5 py-1 text-xs font-bold rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100"
-                          style={{ color: brandTheme.secondaryColour }}
-                        >
-                          POD
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
+            {smsFeedback && (
+              <div className="p-2 bg-blue-50 border border-blue-200 text-blue-900 text-xs font-bold rounded-xl animate-fadeIn text-center">
+                {smsFeedback}
               </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[380px]">
+              <span className="text-[10px] font-bold uppercase text-slate-400 block px-1">
+                Full Manifest ({deliveredStops.length} delivered, {remainingStops.length} remaining)
+              </span>
+
+              {activeRoute.orders.map((stop, idx) => {
+                const isDelivered = stop.status === 'DELIVERED';
+                const isCurrent = currentActiveStop?.id === stop.id;
+
+                return (
+                  <div
+                    key={stop.id}
+                    className={`p-3 rounded-2xl border transition text-xs flex justify-between items-center ${
+                      isDelivered
+                        ? 'bg-slate-100 border-gray-200 opacity-60'
+                        : isCurrent
+                        ? 'bg-amber-50/70 border-amber-400'
+                        : 'bg-white border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                        isDelivered ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-white'
+                      }`}>
+                        {isDelivered ? '✓' : idx + 1}
+                      </span>
+                      <div>
+                        <span className="font-bold text-slate-900 block">{stop.customerName}</span>
+                        <span className="text-[10px] text-slate-500">{stop.postcode} • {stop.items.length} cargo items</span>
+                      </div>
+                    </div>
+
+                    {!isDelivered && (
+                      <button
+                        onClick={() => handleOpenPod(stop)}
+                        className="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-bold"
+                      >
+                        POD
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* STAGE 4: RETURN TO DEPOT & COMPLETE SHIFT */}
-        {(currentStage === 'RETURN_TO_DEPOT' || currentStage === 'ROUTE_COMPLETED') && (
-          <div className="flex-1 overflow-y-auto p-5 space-y-4 text-center flex flex-col justify-center">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto shadow-md">
-              <Check className="w-8 h-8" />
-            </div>
-
-            <div>
-              <h3 className="text-xl font-black text-slate-900">Shift Completed</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                All {deliveredStops.length} delivery stops have been verified with digital signatures and GPS telemetry.
-              </p>
-            </div>
-
-            <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm text-left space-y-2 text-xs">
-              <div className="flex justify-between font-bold text-slate-700 pb-1 border-b">
-                <span>Vehicle:</span>
-                <span>{driver.vehicleReg}</span>
-              </div>
-              <div className="flex justify-between font-bold text-slate-700 pb-1 border-b">
-                <span>Deliveries Verified:</span>
-                <span className="text-emerald-700">{deliveredStops.length} Stops</span>
-              </div>
-              <div className="flex justify-between font-bold text-slate-700">
-                <span>Total Shift Dwell + Drive:</span>
-                <span>{activeRoute ? `${Math.floor(activeRoute.totalEstimatedMins / 60)}h ${activeRoute.totalEstimatedMins % 60}m` : 'Done'}</span>
-              </div>
-            </div>
-
+        {/* STAGE 4: RETURN TO DEPOT */}
+        {currentStage === 'RETURN_TO_DEPOT' && (
+          <div className="flex-1 p-6 text-center space-y-4 flex flex-col justify-center animate-fadeIn">
+            <Warehouse className="w-16 h-16 text-blue-600 mx-auto" />
+            <h3 className="text-lg font-black text-slate-900">Return to Regional Depot</h3>
+            <p className="text-xs text-slate-500 max-w-xs mx-auto">
+              All delivery stops have been completed and verified. Drive back to the depot to conclude your shift.
+            </p>
             <button
-              onClick={handleFinishShiftAndReturn}
-              className="w-full py-3.5 bg-slate-900 hover:bg-black text-white font-black text-xs rounded-2xl shadow transition flex items-center justify-center gap-2"
+              onClick={handleFinishShift}
+              className="py-3 px-6 bg-slate-900 hover:bg-black text-white font-black text-xs rounded-2xl shadow transition mx-auto"
             >
-              <Home className="w-4 h-4" />
-              Sign Off & Return to Depot
+              Complete Shift & Hand In Van Keys
             </button>
           </div>
         )}
 
-        {/* PROOF OF DELIVERY (POD) MODAL */}
+        {/* STAGE 5: ROUTE COMPLETED */}
+        {currentStage === 'ROUTE_COMPLETED' && (
+          <div className="flex-1 p-6 text-center space-y-4 flex flex-col justify-center animate-fadeIn">
+            <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto" />
+            <h3 className="text-lg font-black text-slate-900">Shift Completed!</h3>
+            <p className="text-xs text-slate-500 max-w-xs mx-auto">
+              Thank you, {driver.name}. All manifests, electronic PODs, and delivery photos have synced with Head Office.
+            </p>
+            <button
+              onClick={onBackToAdmin}
+              className="py-2.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition border mx-auto"
+            >
+              Return to Dispatch Dashboard
+            </button>
+          </div>
+        )}
+
+        {/* POPUP POD CAPTURE MODAL */}
         {isPodModalOpen && selectedStop && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
-            <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 flex flex-col max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 animate-fadeIn font-sans">
+            <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+              <div className="bg-slate-900 text-white p-4 flex justify-between items-center">
                 <div>
-                  <span className="text-xs font-bold uppercase block" style={{ color: brandTheme.secondaryColour }}>
-                    Proof of Delivery (POD)
-                  </span>
-                  <h3 className="text-base font-black text-gray-900">{selectedStop.customerName}</h3>
+                  <span className="text-[10px] font-bold text-amber-400 uppercase">POD Verification</span>
+                  <h3 className="text-sm font-black">{selectedStop.customerName}</h3>
                 </div>
                 <button
                   onClick={() => setIsPodModalOpen(false)}
-                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold"
+                  className="w-7 h-7 rounded-full bg-white/10 text-slate-300 font-bold flex items-center justify-center"
                 >
                   ✕
                 </button>
               </div>
 
-              <div className="bg-slate-50 p-3 rounded-xl border border-gray-200 my-3 text-xs">
-                <p className="text-gray-700"><strong>Address:</strong> {selectedStop.address}, {selectedStop.postcode}</p>
-                <div className="flex items-center gap-1.5 mt-2 text-emerald-700 font-bold text-[11px]">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  {isCapturingGps ? (
-                    <span>Verifying GPS location...</span>
-                  ) : (
-                    <span>GPS Presence Verified ({capturedGeo?.lat.toFixed(4)}, {capturedGeo?.lng.toFixed(4)})</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Line Item Exceptions */}
-              <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200 mb-2 text-xs">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-bold text-amber-900 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
-                    Item Exceptions / Transit Damage
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setHasExceptions(!hasExceptions)}
-                    className="text-[11px] font-black underline text-amber-800"
-                  >
-                    {hasExceptions ? 'Cancel Exception' : '+ Report Damaged / Short'}
-                  </button>
-                </div>
-
-                {hasExceptions && (
-                  <div className="space-y-2 mt-2 pt-2 border-t border-amber-200">
-                    {selectedStop.items.map((item, idx) => (
-                      <div key={idx} className="bg-white p-2.5 rounded-xl border border-amber-300 space-y-1">
-                        <div className="flex justify-between font-bold text-slate-800">
-                          <span>{item.name} ({item.sku})</span>
-                          <span>Total: {item.quantity}</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            type="number"
-                            placeholder="Damaged Qty"
-                            min="0"
-                            max={item.quantity}
-                            value={damagedItemMap[item.sku]?.damagedQty || ''}
-                            onChange={(e) => setDamagedItemMap({
-                              ...damagedItemMap,
-                              [item.sku]: { damagedQty: parseInt(e.target.value) || 0, reason: damagedItemMap[item.sku]?.reason || 'Transit Scratch' }
-                            })}
-                            className="p-1 border rounded text-xs"
-                          />
-                          <select
-                            value={damagedItemMap[item.sku]?.reason || 'Transit Scratch'}
-                            onChange={(e) => setDamagedItemMap({
-                              ...damagedItemMap,
-                              [item.sku]: { damagedQty: damagedItemMap[item.sku]?.damagedQty || 1, reason: e.target.value }
-                            })}
-                            className="p-1 border rounded text-xs"
-                          >
-                            <option value="Transit Scratch">Transit Scratch</option>
-                            <option value="Broken / Cracked Length">Broken / Cracked</option>
-                            <option value="Short Shipped (Missing)">Short Shipped</option>
-                          </select>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 space-y-3.5 text-xs">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                    Signee / Recipient Name
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    Recipient Full Name
                   </label>
                   <input
                     type="text"
+                    required
+                    placeholder="e.g. John Smith"
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
-                    placeholder="e.g. Marcus Evans"
-                    className="w-full text-sm rounded-xl border-gray-300 p-2.5 border focus:ring-blue-500"
+                    className="w-full p-2 border rounded-xl bg-slate-50 font-bold text-xs"
                   />
                 </div>
 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
-                      <PenTool className="w-3.5 h-3.5" style={{ color: brandTheme.secondaryColour }} />
-                      Customer Signature (Draw Below)
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="text-[10px] font-bold uppercase text-slate-500">
+                      Customer Signature Canvas
                     </label>
                     <button
-                      type="button"
                       onClick={clearSignature}
-                      className="text-[11px] text-rose-600 font-bold flex items-center gap-0.5"
+                      className="text-[10px] text-rose-600 font-bold hover:underline"
                     >
-                      <RotateCcw className="w-3 h-3" /> Clear
+                      Clear
                     </button>
                   </div>
-
-                  <div className="border-2 border-dashed border-gray-300 rounded-2xl bg-white touch-none p-1 relative shadow-inner">
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-slate-50 h-28 relative">
                     <canvas
                       ref={canvasRef}
-                      width={380}
-                      height={130}
-                      className="w-full h-32 cursor-crosshair rounded-xl"
+                      width={320}
+                      height={112}
+                      className="w-full h-full cursor-crosshair touch-none"
                       onMouseDown={startDrawing}
                       onMouseMove={draw}
-                      onMouseUp={() => setIsDrawing(false)}
-                      onMouseLeave={() => setIsDrawing(false)}
+                      onMouseUp={stopDrawing}
+                      onMouseLeave={stopDrawing}
                       onTouchStart={startDrawing}
                       onTouchMove={draw}
-                      onTouchEnd={() => setIsDrawing(false)}
+                      onTouchEnd={stopDrawing}
                     />
                     {!hasSignature && (
-                      <span className="absolute inset-0 flex items-center justify-center text-xs text-gray-300 pointer-events-none select-none">
-                        Sign with finger or stylus here
-                      </span>
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400 text-xs italic">
+                        Sign here with finger / stylus ✍️
+                      </div>
                     )}
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-gray-700 uppercase block mb-1 flex items-center gap-1">
-                    <Camera className="w-3.5 h-3.5 text-amber-500" />
-                    Proof Photo (Goods on Site / Damage Evidence)
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">
+                    On-Site Goods Photo
                   </label>
-
                   <input
                     type="file"
                     accept="image/*"
                     capture="environment"
                     ref={fileInputRef}
-                    onChange={handlePhotoUpload}
+                    onChange={handlePhotoCapture}
                     className="hidden"
                   />
-
                   {capturedPhoto ? (
-                    <div className="relative rounded-2xl overflow-hidden border border-gray-200">
-                      <img src={capturedPhoto} alt="Captured" className="w-full h-36 object-cover" />
+                    <div className="relative h-28 rounded-xl overflow-hidden border">
+                      <img src={capturedPhoto} alt="Captured" className="w-full h-full object-cover" />
                       <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="absolute bottom-2 right-2 bg-black/70 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg backdrop-blur-xs"
+                        onClick={() => setCapturedPhoto(null)}
+                        className="absolute top-2 right-2 bg-black/70 text-white p-1 rounded text-[10px] font-bold"
                       >
-                        Retake Photo
+                        Retake
                       </button>
                     </div>
                   ) : (
                     <button
-                      type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="w-full py-4 border-2 border-dashed border-gray-300 rounded-2xl bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-bold flex flex-col items-center justify-center gap-1 transition"
+                      className="w-full py-3 bg-slate-100 border border-dashed border-gray-300 rounded-xl text-slate-700 font-bold flex items-center justify-center gap-1.5 hover:bg-slate-200"
                     >
-                      <Camera className="w-6 h-6 text-gray-400" />
-                      <span>Take Photo of Delivery</span>
+                      <Camera className="w-4 h-4 text-blue-600" /> Capture On-Site Photo 📸
                     </button>
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                    Delivery Notes (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={podNotes}
-                    onChange={(e) => setPodNotes(e.target.value)}
-                    placeholder="e.g. Left in side passageway"
-                    className="w-full text-xs rounded-xl border-gray-300 p-2.5 border"
-                  />
-                </div>
+                <div className="pt-1">
+                  <button
+                    onClick={() => setHasExceptions(!hasExceptions)}
+                    className={`w-full py-1.5 px-2 rounded-xl text-[11px] font-bold border transition flex items-center justify-center gap-1 ${
+                      hasExceptions ? 'bg-rose-50 border-rose-300 text-rose-800' : 'bg-slate-50 border-gray-200 text-slate-600'
+                    }`}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    {hasExceptions ? 'Recording Damaged / Short Cargo' : 'Report Damaged / Missing Items?'}
+                  </button>
 
+                  {hasExceptions && (
+                    <div className="mt-2 p-2 bg-rose-50/50 rounded-xl border border-rose-200 space-y-1.5">
+                      {selectedStop.items.map((it) => (
+                        <div key={it.sku} className="flex items-center justify-between text-[11px]">
+                          <span className="font-mono font-bold text-slate-800">{it.sku}</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max={it.quantity}
+                            placeholder="Damaged Qty"
+                            onChange={(e) => {
+                              const qty = parseInt(e.target.value) || 0;
+                              setDamagedItemMap((prev) => ({
+                                ...prev,
+                                [it.sku]: { damagedQty: qty, reason: 'Site offload damage' }
+                              }));
+                            }}
+                            className="w-20 p-1 border rounded bg-white text-xs font-bold text-center"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 border-t flex gap-2">
                 <button
-                  type="button"
-                  onClick={handleSubmitPod}
-                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-2xl shadow-lg transition flex items-center justify-center gap-2 mt-2"
+                  onClick={() => setIsPodModalOpen(false)}
+                  className="flex-1 py-2 text-xs font-bold text-slate-600 bg-white border rounded-xl"
                 >
-                  <CheckCircle2 className="w-5 h-5" />
-                  Confirm POD & Complete Stop
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmitPod}
+                  className="flex-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow"
+                >
+                  Confirm & Complete Drop
                 </button>
               </div>
             </div>

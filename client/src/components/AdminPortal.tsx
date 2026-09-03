@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, VanVehicle } from '../types';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, VanVehicle, VehicleFaultReport } from '../types';
 import { DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
 import { MorningDashboard } from './MorningDashboard';
@@ -16,7 +16,8 @@ import {
   Warehouse,
   Settings,
   ShieldCheck,
-  UserCheck
+  UserCheck,
+  ShieldAlert
 } from 'lucide-react';
 
 interface Props {
@@ -28,11 +29,13 @@ interface Props {
   skuCatalog: SkuDwellSetting[];
   brandTheme: BrandTheme;
   users: UserAccount[];
+  faults: VehicleFaultReport[];
   currentUser: UserAccount;
   onSwitchUser: (userId: string) => void;
   onUpdateUsers: (users: UserAccount[]) => void;
   onUpdateDrivers: (drivers: Driver[]) => void;
   onUpdateVans: (vans: VanVehicle[]) => void;
+  onUpdateFaults: (faults: VehicleFaultReport[]) => void;
   onUpdateBrandTheme: (theme: BrandTheme) => void;
   onUpdateDepots: (depots: Depot[]) => void;
   onCreateRoute: (route: DeliveryRoute) => void;
@@ -56,11 +59,13 @@ export const AdminPortal: React.FC<Props> = ({
   skuCatalog,
   brandTheme,
   users,
+  faults,
   currentUser,
   onSwitchUser,
   onUpdateUsers,
   onUpdateDrivers,
   onUpdateVans,
+  onUpdateFaults,
   onUpdateBrandTheme,
   onUpdateDepots,
   onCreateRoute,
@@ -98,6 +103,10 @@ export const AdminPortal: React.FC<Props> = ({
   const activeOrders = orders.filter((o) => o.depotId === effectiveDepotId);
   const activeDrivers = drivers.filter((d) => d.depotId === effectiveDepotId);
   const currentDepot = depots.find((d) => d.id === effectiveDepotId) || depots[0];
+
+  const depotOpenFaults = faults.filter(
+    (f) => (isHeadOfficeAdmin || f.depotId === effectiveDepotId) && f.status !== 'REPAIRED'
+  );
 
   const handleAutoBatchDepot = () => {
     const maxPerVan = currentDepot.maxOrdersPerVan || 6;
@@ -313,7 +322,12 @@ export const AdminPortal: React.FC<Props> = ({
               style={{ backgroundColor: activeTab === 'settings' ? brandTheme.secondaryColour : undefined }}
             >
               <Settings className="w-4 h-4 text-amber-500" />
-              Settings & Fleet Admin
+              Fleet & Compliance
+              {depotOpenFaults.length > 0 && (
+                <span className="px-1.5 py-0.2 bg-rose-600 text-white rounded-full text-[10px] font-black animate-pulse flex items-center gap-0.5">
+                  <ShieldAlert className="w-2.5 h-2.5" /> {depotOpenFaults.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -393,7 +407,7 @@ export const AdminPortal: React.FC<Props> = ({
           />
         )}
 
-        {/* TAB 4: FULL-PAGE SETTINGS & FLEET ADMIN */}
+        {/* TAB 4: FULL-PAGE SETTINGS, FLEET ADMIN & DEFECT STREAM */}
         {activeTab === 'settings' && (
           <SettingsPage
             brandTheme={brandTheme}
@@ -410,6 +424,8 @@ export const AdminPortal: React.FC<Props> = ({
             onUpdateDrivers={onUpdateDrivers}
             vans={vans}
             onUpdateVans={onUpdateVans}
+            faults={faults}
+            onUpdateFaults={onUpdateFaults}
             currentUser={currentUser}
           />
         )}

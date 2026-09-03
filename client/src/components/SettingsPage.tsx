@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, Driver, VanVehicle } from '../types';
+import { SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, Driver, VanVehicle, VehicleFaultReport } from '../types';
 import { PRESET_THEMES } from '../data/initialData';
 import {
   Sliders,
@@ -16,7 +16,11 @@ import {
   ShieldCheck,
   ArrowRightLeft,
   Warehouse,
-  Barcode
+  Barcode,
+  Calendar,
+  ShieldAlert,
+  Wrench,
+  CheckCircle2
 } from 'lucide-react';
 
 interface Props {
@@ -34,6 +38,8 @@ interface Props {
   onUpdateDrivers: (drivers: Driver[]) => void;
   vans: VanVehicle[];
   onUpdateVans: (vans: VanVehicle[]) => void;
+  faults: VehicleFaultReport[];
+  onUpdateFaults: (faults: VehicleFaultReport[]) => void;
   currentUser: UserAccount;
 }
 
@@ -52,14 +58,15 @@ export const SettingsPage: React.FC<Props> = ({
   onUpdateDrivers,
   vans,
   onUpdateVans,
+  faults,
+  onUpdateFaults,
   currentUser,
 }) => {
   const isHeadOffice = currentUser.role === 'HEAD_OFFICE_ADMIN';
   const assignedDepotId = currentUser.assignedDepotId || depots[0]?.id || 'depot-bhm';
   const currentDepot = depots.find((d) => d.id === assignedDepotId) || depots[0];
 
-  // If Head Office: default to 'staff'; If Depot Controller: default to 'my_drivers'
-  const [activeTab, setActiveTab] = useState<'staff' | 'all_drivers' | 'my_drivers' | 'all_vans' | 'my_vans' | 'depots' | 'my_depot' | 'dwell' | 'shift' | 'branding'>(
+  const [activeTab, setActiveTab] = useState<'staff' | 'all_drivers' | 'my_drivers' | 'all_vans' | 'my_vans' | 'faults' | 'depots' | 'my_depot' | 'dwell' | 'shift' | 'branding'>(
     isHeadOffice ? 'staff' : 'my_drivers'
   );
 
@@ -82,13 +89,17 @@ export const SettingsPage: React.FC<Props> = ({
     depotId: isHeadOffice ? (depots[0]?.id || 'depot-bhm') : assignedDepotId,
   });
 
-  // New Van Form State
+  // New Van Form State (Including MOT & Service Dates)
   const [newVan, setNewVan] = useState<Partial<VanVehicle>>({
     registration: '',
     model: 'Mercedes Sprinter 3.5t Long-Wheelbase',
     barcode: '',
     depotId: isHeadOffice ? (depots[0]?.id || 'depot-bhm') : assignedDepotId,
     maxPayloadKg: 1350,
+    motExpiryDate: '2027-03-31',
+    nextServiceDueDate: '2026-12-15',
+    lastServiceDate: '2026-05-01',
+    mileage: 25000,
   });
 
   // Filtered lists for Depot Controller
@@ -99,6 +110,10 @@ export const SettingsPage: React.FC<Props> = ({
   const visibleVans = isHeadOffice
     ? vans
     : vans.filter((v) => v.depotId === assignedDepotId);
+
+  const visibleFaults = isHeadOffice
+    ? faults
+    : faults.filter((f) => f.depotId === assignedDepotId);
 
   // Transfer Staff Member between Depots (Head Office Admin Only)
   const handleTransferStaff = (userId: string, targetDepotId: string) => {
@@ -136,6 +151,28 @@ export const SettingsPage: React.FC<Props> = ({
     const updated = vans.map((v) => (v.id === vanId ? { ...v, depotId: targetDepotId } : v));
     onUpdateVans(updated);
     setSaveBanner(`✓ Transferred vehicle to ${targetDepot?.name || targetDepotId}`);
+    setTimeout(() => setSaveBanner(''), 3000);
+  };
+
+  // Update MOT / Service date on existing van
+  const handleUpdateVanCompliance = (vanId: string, field: 'motExpiryDate' | 'nextServiceDueDate' | 'mileage', val: any) => {
+    const updated = vans.map((v) => (v.id === vanId ? { ...v, [field]: val } : v));
+    onUpdateVans(updated);
+  };
+
+  // Resolve / Update Defect Status
+  const handleUpdateFaultStatus = (faultId: string, newStatus: VehicleFaultReport['status']) => {
+    const updated = faults.map((f) => (f.id === faultId ? { ...f, status: newStatus } : f));
+    onUpdateFaults(updated);
+
+    // If marked repaired, update van status back to AVAILABLE if it was grounded
+    if (newStatus === 'REPAIRED') {
+      const fault = faults.find((f) => f.id === faultId);
+      if (fault) {
+        onUpdateVans(vans.map((v) => (v.id === fault.vanId && v.status === 'GROUNDED' ? { ...v, status: 'AVAILABLE' } : v)));
+      }
+    }
+    setSaveBanner(`✓ Updated fault status to ${newStatus}`);
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
@@ -192,7 +229,7 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Add Van Vehicle Handler
+  // Add Van Vehicle Handler (with MOT & Service Dates)
   const handleAddVan = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newVan.registration) return;
@@ -209,6 +246,11 @@ export const SettingsPage: React.FC<Props> = ({
       barcode: newVan.barcode?.toUpperCase() || `VAN-${reg.replace(/\s+/g, '')}`,
       status: 'AVAILABLE',
       maxPayloadKg: newVan.maxPayloadKg || 1350,
+      motExpiryDate: newVan.motExpiryDate || '2027-03-31',
+      nextServiceDueDate: newVan.nextServiceDueDate || '2026-12-15',
+      lastServiceDate: newVan.lastServiceDate || '2026-05-01',
+      mileage: newVan.mileage || 25000,
+      activeFaultsCount: 0,
     };
 
     onUpdateVans([...vans, createdVan]);
@@ -218,6 +260,10 @@ export const SettingsPage: React.FC<Props> = ({
       barcode: '',
       depotId: isHeadOffice ? depots[0]?.id : assignedDepotId,
       maxPayloadKg: 1350,
+      motExpiryDate: '2027-03-31',
+      nextServiceDueDate: '2026-12-15',
+      lastServiceDate: '2026-05-01',
+      mileage: 25000,
     });
     setSaveBanner(`✓ Registered vehicle "${createdVan.registration}" at ${assignedDepot.name}!`);
     setTimeout(() => setSaveBanner(''), 3000);
@@ -282,6 +328,8 @@ export const SettingsPage: React.FC<Props> = ({
     onUpdateDepots(updated);
   };
 
+  const openFaultsCount = visibleFaults.filter((f) => f.status !== 'REPAIRED').length;
+
   return (
     <div className="space-y-6 animate-fadeIn font-sans pb-12">
       {/* Top Page Header */}
@@ -295,18 +343,23 @@ export const SettingsPage: React.FC<Props> = ({
               {isHeadOffice ? 'Head Office Administration' : `${currentDepot.city} Depot Settings`}
             </span>
             <span className="text-xs text-slate-400 font-bold">
-              • {isHeadOffice ? 'Global Access & Fleet Management' : 'Local Depot Drivers & Van Fleet'}
+              • MOT Compliance, Fleet Maintenance & Safety Reports
             </span>
           </div>
           <h2 className="text-xl font-black text-slate-900 mt-1">
-            {isHeadOffice ? 'Global Operations Settings' : `${currentDepot.name} Fleet Configuration`}
+            {isHeadOffice ? 'Global Operations & Fleet Compliance' : `${currentDepot.name} Fleet & Workshop`}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            {isHeadOffice
-              ? 'Head Office Administration • Manage staff transfers, decoupled driver rosters, physical van inventory, SKUs and branding.'
-              : `Managing decoupled drivers and vehicle fleet pool for ${currentDepot.name}.`}
+            Track statutory MOT dates, periodic service intervals, and driver defect reports in real-time.
           </p>
         </div>
+
+        {openFaultsCount > 0 && (
+          <div className="bg-rose-50 border border-rose-300 text-rose-900 px-3.5 py-2 rounded-2xl flex items-center gap-2 text-xs font-black animate-pulse">
+            <ShieldAlert className="w-4 h-4 text-rose-600" />
+            <span>{openFaultsCount} Active Defect Reports Awaiting Workshop</span>
+          </div>
+        )}
       </div>
 
       {saveBanner && (
@@ -319,9 +372,39 @@ export const SettingsPage: React.FC<Props> = ({
       {/* Navigation Tabs */}
       <div className="flex bg-white rounded-2xl border border-gray-200 p-1.5 gap-1.5 overflow-x-auto shadow-sm text-xs">
         
+        {/* FAULT REPORTS TAB (HIGHEST VISIBILITY FOR WORKSHOP) */}
+        <button
+          onClick={() => setActiveTab('faults')}
+          className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+            activeTab === 'faults'
+              ? 'bg-rose-600 text-white shadow-xs'
+              : 'text-rose-700 hover:bg-rose-50'
+          }`}
+        >
+          <ShieldAlert className="w-4 h-4" />
+          Driver Defect Reports ({visibleFaults.length})
+          {openFaultsCount > 0 && (
+            <span className="bg-white text-rose-800 text-[10px] px-1.5 py-0.2 rounded-full font-black">
+              {openFaultsCount}
+            </span>
+          )}
+        </button>
+
         {/* HEAD OFFICE ADMIN TABS */}
         {isHeadOffice ? (
           <>
+            <button
+              onClick={() => setActiveTab('all_vans')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'all_vans'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Truck className="w-4 h-4 text-blue-400" />
+              Van Fleet & MOTs ({vans.length})
+            </button>
+
             <button
               onClick={() => setActiveTab('staff')}
               className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
@@ -347,18 +430,6 @@ export const SettingsPage: React.FC<Props> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab('all_vans')}
-              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
-                activeTab === 'all_vans'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <Truck className="w-4 h-4 text-blue-400" />
-              All UK Van Fleet ({vans.length})
-            </button>
-
-            <button
               onClick={() => setActiveTab('depots')}
               className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
                 activeTab === 'depots'
@@ -367,7 +438,7 @@ export const SettingsPage: React.FC<Props> = ({
               }`}
             >
               <Compass className="w-4 h-4 text-blue-400" />
-              All 22 UK Depots ({depots.length})
+              Depots ({depots.length})
             </button>
 
             <button
@@ -379,7 +450,7 @@ export const SettingsPage: React.FC<Props> = ({
               }`}
             >
               <Sliders className="w-4 h-4 text-amber-400" />
-              Global SKU Dwell Rules ({skuCatalog.length})
+              SKU Dwells ({skuCatalog.length})
             </button>
 
             <button
@@ -391,7 +462,7 @@ export const SettingsPage: React.FC<Props> = ({
               }`}
             >
               <Clock className="w-4 h-4 text-teal-400" />
-              Shift & Traffic Buffers
+              Shift Buffers
             </button>
 
             <button
@@ -403,12 +474,24 @@ export const SettingsPage: React.FC<Props> = ({
               }`}
             >
               <Palette className="w-4 h-4 text-purple-400" />
-              White-Label Branding
+              Branding
             </button>
           </>
         ) : (
           /* DEPOT CONTROLLER TABS */
           <>
+            <button
+              onClick={() => setActiveTab('my_vans')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'my_vans'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Truck className="w-4 h-4 text-blue-400" />
+              {currentDepot.city} Van Fleet & MOTs ({visibleVans.length})
+            </button>
+
             <button
               onClick={() => setActiveTab('my_drivers')}
               className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
@@ -419,18 +502,6 @@ export const SettingsPage: React.FC<Props> = ({
             >
               <Users className="w-4 h-4 text-emerald-400" />
               {currentDepot.city} Drivers ({visibleDrivers.length})
-            </button>
-
-            <button
-              onClick={() => setActiveTab('my_vans')}
-              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
-                activeTab === 'my_vans'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <Truck className="w-4 h-4 text-blue-400" />
-              {currentDepot.city} Van Fleet ({visibleVans.length})
             </button>
 
             <button
@@ -451,7 +522,303 @@ export const SettingsPage: React.FC<Props> = ({
       {/* TAB CONTENT PANELS */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200">
         
-        {/* PANEL 1: STAFF & DEPOT TRANSFERS (HEAD OFFICE ADMIN ONLY) */}
+        {/* PANEL 0: DRIVER DEFECT REPORTS & WORKSHOP INVESTIGATION */}
+        {activeTab === 'faults' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-rose-600" />
+                Driver Vehicle Defect Reports (Instant Head Office Stream)
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Defects submitted live by drivers from their mobile app during pre-trip walkarounds or while out on delivery.
+              </p>
+            </div>
+
+            <div className="border border-gray-200 rounded-2xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
+                  <tr>
+                    <th className="p-3.5">Vehicle</th>
+                    <th className="p-3.5">Reported By</th>
+                    <th className="p-3.5">Category & Severity</th>
+                    <th className="p-3.5">Fault Description</th>
+                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-right">Workshop Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {visibleFaults.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400 font-bold">
+                        ✓ No active vehicle faults reported. Fleet is 100% operational.
+                      </td>
+                    </tr>
+                  ) : (
+                    visibleFaults.map((flt) => {
+                      const isGrounded = flt.severity === 'CRITICAL_GROUND_VEHICLE' || flt.status === 'GROUNDED';
+                      const isRepaired = flt.status === 'REPAIRED';
+
+                      return (
+                        <tr key={flt.id} className={`hover:bg-slate-50 ${isGrounded ? 'bg-rose-50/30' : ''}`}>
+                          <td className="p-3.5">
+                            <span className="font-mono font-black text-xs px-2.5 py-1 rounded bg-amber-100 text-amber-950 border border-amber-300 block w-fit">
+                              {flt.vanRegistration}
+                            </span>
+                            <span className="text-[10px] text-slate-400 mt-0.5 block">{flt.timestamp}</span>
+                          </td>
+
+                          <td className="p-3.5">
+                            <span className="font-bold text-slate-900 block">{flt.reportedByDriverName}</span>
+                            <span className="text-[10px] text-slate-400">ID: {flt.reportedByDriverId}</span>
+                          </td>
+
+                          <td className="p-3.5">
+                            <span className="font-black text-slate-800 block text-xs">{flt.category}</span>
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase mt-0.5 inline-block ${
+                              flt.severity === 'CRITICAL_GROUND_VEHICLE' ? 'bg-rose-600 text-white' :
+                              flt.severity === 'HIGH' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                              'bg-slate-100 text-slate-700'
+                            }`}>
+                              {flt.severity.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+
+                          <td className="p-3.5 max-w-xs">
+                            <p className="text-slate-800 text-xs font-medium leading-relaxed">
+                              {flt.description}
+                            </p>
+                          </td>
+
+                          <td className="p-3.5">
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase inline-flex items-center gap-1 ${
+                              isRepaired ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                              isGrounded ? 'bg-rose-100 text-rose-900 border border-rose-300' :
+                              'bg-blue-100 text-blue-900 border border-blue-300'
+                            }`}>
+                              {isRepaired ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Wrench className="w-3 h-3" />}
+                              {flt.status}
+                            </span>
+                          </td>
+
+                          <td className="p-3.5 text-right">
+                            <select
+                              value={flt.status}
+                              onChange={(e) => handleUpdateFaultStatus(flt.id, e.target.value as any)}
+                              className="text-xs font-bold p-1.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                            >
+                              <option value="OPEN">Mark Open</option>
+                              <option value="INVESTIGATING">Workshop Investigating</option>
+                              <option value="GROUNDED">⛔ Ground Van</option>
+                              <option value="REPAIRED">✓ Repaired & Cleared</option>
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* PANEL 1: VAN FLEET, MOTS & SERVICE DATES */}
+        {(activeTab === 'all_vans' || activeTab === 'my_vans') && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Truck className="w-5 h-5 text-blue-600" />
+                {isHeadOffice ? 'All UK Van Fleet • MOT & Service Schedule' : `${currentDepot.city} Van Fleet • MOT & Service Schedule`}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Manage vehicle compliance dates, statutory MOT expiries, service due dates, and mileage.
+              </p>
+            </div>
+
+            <div className="border border-gray-200 rounded-2xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
+                  <tr>
+                    <th className="p-3.5">Registration</th>
+                    <th className="p-3.5">Model / Barcode</th>
+                    <th className="p-3.5">MOT Expiry Date</th>
+                    <th className="p-3.5">Next Service Due</th>
+                    <th className="p-3.5">Mileage</th>
+                    <th className="p-3.5">Status</th>
+                    {isHeadOffice && <th className="p-3.5 text-center">Transfer Depot</th>}
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {visibleVans.map((v) => {
+                    return (
+                      <tr key={v.id} className="hover:bg-slate-50">
+                        <td className="p-3.5">
+                          <span className="font-mono font-black text-xs px-2.5 py-1 rounded bg-amber-100 text-amber-950 border border-amber-300 block w-fit">
+                            {v.registration}
+                          </span>
+                        </td>
+
+                        <td className="p-3.5">
+                          <span className="font-bold text-slate-900 block">{v.model}</span>
+                          <span className="font-mono text-[10px] text-blue-600 flex items-center gap-1 mt-0.5">
+                            <Barcode className="w-3 h-3" /> {v.barcode}
+                          </span>
+                        </td>
+
+                        {/* MOT Expiry Input */}
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                            <input
+                              type="date"
+                              value={v.motExpiryDate || ''}
+                              onChange={(e) => handleUpdateVanCompliance(v.id, 'motExpiryDate', e.target.value)}
+                              className="text-xs font-mono font-bold p-1 border rounded-lg bg-white"
+                            />
+                          </div>
+                        </td>
+
+                        {/* Next Service Due Input */}
+                        <td className="p-3.5">
+                          <div className="flex items-center gap-1.5">
+                            <Wrench className="w-3.5 h-3.5 text-slate-400" />
+                            <input
+                              type="date"
+                              value={v.nextServiceDueDate || ''}
+                              onChange={(e) => handleUpdateVanCompliance(v.id, 'nextServiceDueDate', e.target.value)}
+                              className="text-xs font-mono font-bold p-1 border rounded-lg bg-white"
+                            />
+                          </div>
+                        </td>
+
+                        {/* Mileage */}
+                        <td className="p-3.5">
+                          <input
+                            type="number"
+                            value={v.mileage || 0}
+                            onChange={(e) => handleUpdateVanCompliance(v.id, 'mileage', parseInt(e.target.value) || 0)}
+                            className="w-20 text-xs font-mono font-bold p-1 border rounded-lg bg-white text-right"
+                          />
+                          <span className="text-[10px] text-slate-400 ml-1">mi</span>
+                        </td>
+
+                        {/* Status */}
+                        <td className="p-3.5">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                            v.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-800' :
+                            v.status === 'ON_ROUTE' ? 'bg-blue-100 text-blue-800' :
+                            'bg-rose-100 text-rose-800'
+                          }`}>
+                            {v.status}
+                          </span>
+                        </td>
+
+                        {isHeadOffice && (
+                          <td className="p-3.5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <ArrowRightLeft className="w-3.5 h-3.5 text-slate-400" />
+                              <select
+                                value={v.depotId}
+                                onChange={(e) => handleTransferVan(v.id, e.target.value)}
+                                className="text-xs font-bold p-1.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                              >
+                                {depots.map((d) => (
+                                  <option key={d.id} value={d.id}>
+                                    {d.code} - {d.city}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+                        )}
+
+                        <td className="p-3.5 text-right">
+                          <button
+                            onClick={() => handleDeleteVan(v.id)}
+                            className="text-rose-600 hover:text-rose-800 p-1 font-bold text-xs"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Add Van Form */}
+            <form
+              onSubmit={handleAddVan}
+              className="p-5 bg-slate-50 rounded-2xl border border-gray-200 grid grid-cols-1 sm:grid-cols-6 gap-3 items-end"
+            >
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Registration</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. KL24 XYZ"
+                  value={newVan.registration}
+                  onChange={(e) => setNewVan({ ...newVan, registration: e.target.value })}
+                  className="w-full text-xs font-black uppercase p-2.5 border rounded-xl bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Vehicle Model</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mercedes Sprinter LWB"
+                  value={newVan.model}
+                  onChange={(e) => setNewVan({ ...newVan, model: e.target.value })}
+                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">MOT Expiry Date</label>
+                <input
+                  type="date"
+                  value={newVan.motExpiryDate}
+                  onChange={(e) => setNewVan({ ...newVan, motExpiryDate: e.target.value })}
+                  className="w-full text-xs font-mono font-bold p-2 border rounded-xl bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Next Service Due</label>
+                <input
+                  type="date"
+                  value={newVan.nextServiceDueDate}
+                  onChange={(e) => setNewVan({ ...newVan, nextServiceDueDate: e.target.value })}
+                  className="w-full text-xs font-mono font-bold p-2 border rounded-xl bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Mileage</label>
+                <input
+                  type="number"
+                  placeholder="25000"
+                  value={newVan.mileage}
+                  onChange={(e) => setNewVan({ ...newVan, mileage: parseInt(e.target.value) || 0 })}
+                  className="w-full text-xs font-mono font-bold p-2.5 border rounded-xl bg-white"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Add Van
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* PANEL 2: STAFF & DEPOT TRANSFERS (HEAD OFFICE ADMIN ONLY) */}
         {activeTab === 'staff' && isHeadOffice && (
           <div className="space-y-6">
             <div>
@@ -619,7 +986,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 2: DRIVER ROSTER (DECOUPLED FROM VEHICLES) */}
+        {/* PANEL 3: DRIVER ROSTER */}
         {(activeTab === 'all_drivers' || activeTab === 'my_drivers') && (
           <div className="space-y-6">
             <div>
@@ -765,164 +1132,6 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 3: VAN FLEET INVENTORY (DECOUPLED VEHICLES) */}
-        {(activeTab === 'all_vans' || activeTab === 'my_vans') && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Truck className="w-5 h-5 text-blue-600" />
-                {isHeadOffice ? 'All UK Van Fleet Inventory' : `${currentDepot.city} Van Fleet Pool`}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Physical delivery vans and barcodes. If a van is undergoing maintenance or broken, drivers can seamlessly switch to any other van.
-              </p>
-            </div>
-
-            <div className="border border-gray-200 rounded-2xl overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
-                  <tr>
-                    <th className="p-3.5">Registration Plate</th>
-                    <th className="p-3.5">Vehicle Model</th>
-                    <th className="p-3.5">Barcode / Asset Tag</th>
-                    <th className="p-3.5">Depot Station</th>
-                    <th className="p-3.5">Status</th>
-                    {isHeadOffice && <th className="p-3.5 text-center">Transfer Depot</th>}
-                    <th className="p-3.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {visibleVans.map((v) => {
-                    const assignedDepot = depots.find((d) => d.id === v.depotId);
-
-                    return (
-                      <tr key={v.id} className="hover:bg-slate-50">
-                        <td className="p-3.5">
-                          <span className="font-mono font-black text-xs px-2.5 py-1 rounded bg-amber-100 text-amber-950 border border-amber-300">
-                            {v.registration}
-                          </span>
-                        </td>
-
-                        <td className="p-3.5 font-medium text-slate-800">{v.model}</td>
-
-                        <td className="p-3.5 font-mono text-[11px] font-bold text-blue-700 flex items-center gap-1">
-                          <Barcode className="w-4 h-4 text-slate-400" /> {v.barcode}
-                        </td>
-
-                        <td className="p-3.5 font-bold text-slate-900">
-                          {assignedDepot?.name || v.depotId}
-                        </td>
-
-                        <td className="p-3.5">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                            v.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-800' :
-                            v.status === 'ON_ROUTE' ? 'bg-blue-100 text-blue-800' :
-                            'bg-rose-100 text-rose-800'
-                          }`}>
-                            {v.status}
-                          </span>
-                        </td>
-
-                        {isHeadOffice && (
-                          <td className="p-3.5 text-center">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <ArrowRightLeft className="w-3.5 h-3.5 text-slate-400" />
-                              <select
-                                value={v.depotId}
-                                onChange={(e) => handleTransferVan(v.id, e.target.value)}
-                                className="text-xs font-bold p-1.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                              >
-                                {depots.map((d) => (
-                                  <option key={d.id} value={d.id}>
-                                    {d.code} - {d.city}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          </td>
-                        )}
-
-                        <td className="p-3.5 text-right">
-                          <button
-                            onClick={() => handleDeleteVan(v.id)}
-                            className="text-rose-600 hover:text-rose-800 p-1 font-bold text-xs"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Add Van Form */}
-            <form
-              onSubmit={handleAddVan}
-              className="p-5 bg-slate-50 rounded-2xl border border-gray-200 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end"
-            >
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Registration</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. KL24 XYZ"
-                  value={newVan.registration}
-                  onChange={(e) => setNewVan({ ...newVan, registration: e.target.value })}
-                  className="w-full text-xs font-black uppercase p-2.5 border rounded-xl bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Vehicle Model</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Mercedes Sprinter LWB"
-                  value={newVan.model}
-                  onChange={(e) => setNewVan({ ...newVan, model: e.target.value })}
-                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Barcode (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. VAN-KL24XYZ"
-                  value={newVan.barcode}
-                  onChange={(e) => setNewVan({ ...newVan, barcode: e.target.value })}
-                  className="w-full text-xs font-mono font-bold p-2.5 border rounded-xl bg-white uppercase"
-                />
-              </div>
-
-              {isHeadOffice && (
-                <div>
-                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Depot</label>
-                  <select
-                    value={newVan.depotId}
-                    onChange={(e) => setNewVan({ ...newVan, depotId: e.target.value })}
-                    className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
-                  >
-                    {depots.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.code} - {d.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow flex items-center justify-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" /> Add Van to Fleet
-              </button>
-            </form>
-          </div>
-        )}
-
         {/* PANEL 4: ALL UK DEPOTS (HEAD OFFICE ADMIN ONLY) */}
         {activeTab === 'depots' && isHeadOffice && (
           <div className="space-y-6">
@@ -1023,7 +1232,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 5: LOCAL DEPOT PARAMETERS (FOR DEPOT CONTROLLER) */}
+        {/* PANEL 5: LOCAL DEPOT PARAMETERS */}
         {activeTab === 'my_depot' && !isHeadOffice && (
           <div className="space-y-6">
             <div>

@@ -1,12 +1,12 @@
-import { Order, Driver, DeliveryRoute, SkuDwellSetting, BrandTheme, Depot, UserAccount, VanVehicle } from '../types';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting, BrandTheme, Depot, UserAccount, VanVehicle, VehicleFaultReport } from '../types';
 
 export const KALSI_BRAND_THEME: BrandTheme = {
   companyName: 'Kalsi Plastics',
   tagline: 'Advanced Building Product Manufacturing & Fleet Logistics',
   logoText: 'KALSI',
-  primaryColour: '#0F1E36', // Kalsi Deep Navy
-  secondaryColour: '#0072CE', // Kalsi Blue
-  accentColour: '#16A34A', // Kalsi Emerald
+  primaryColour: '#0F1E36',
+  secondaryColour: '#0072CE',
+  accentColour: '#16A34A',
   supportPhone: '0800 123 4567',
 };
 
@@ -184,16 +184,150 @@ export const UK_DEPOTS: Depot[] = [
   },
 ];
 
-// DECOUPLED FLEET OF VANS (Assigned per depot, selectable / scan barcode by any driver)
+// DECOUPLED FLEET OF VANS WITH MOT, SERVICE DATES & MILEAGE
 export const INITIAL_VANS: VanVehicle[] = [
-  { id: 'van-1', registration: 'KL24 BHM', depotId: 'depot-bhm', model: 'Mercedes Sprinter 3.5t Long-Wheelbase', status: 'AVAILABLE', barcode: 'VAN-KL24BHM', maxPayloadKg: 1350 },
-  { id: 'van-2', registration: 'KP23 BHM', depotId: 'depot-bhm', model: 'Ford Transit 350 Leader Jumbo', status: 'ON_ROUTE', barcode: 'VAN-KP23BHM', maxPayloadKg: 1280 },
-  { id: 'van-3', registration: 'KV72 BHM', depotId: 'depot-bhm', model: 'Mercedes Sprinter Extra-Long Frame', status: 'AVAILABLE', barcode: 'VAN-KV72BHM', maxPayloadKg: 1400 },
-  { id: 'van-4', registration: 'KB70 BHM', depotId: 'depot-bhm', model: 'Volkswagen Crafter CR35 Maxi', status: 'MAINTENANCE', barcode: 'VAN-KB70BHM', maxPayloadKg: 1300 },
-  { id: 'van-5', registration: 'KM73 MAN', depotId: 'depot-man', model: 'Ford Transit 350 L4 H3 Long', status: 'ON_ROUTE', barcode: 'VAN-KM73MAN', maxPayloadKg: 1320 },
-  { id: 'van-6', registration: 'KL71 LON', depotId: 'depot-lon-n', model: 'Mercedes Sprinter 315 CDI Pro', status: 'AVAILABLE', barcode: 'VAN-KL71LON', maxPayloadKg: 1350 },
-  { id: 'van-7', registration: 'KN24 NCL', depotId: 'depot-ncl', model: 'Iveco Daily 35S14 Hi-Matic 5m Bed', status: 'AVAILABLE', barcode: 'VAN-KN24NCL', maxPayloadKg: 1450 },
-  { id: 'van-8', registration: 'KC72 CRO', depotId: 'depot-lon-s', model: 'Ford Transit Jumbo High Roof', status: 'AVAILABLE', barcode: 'VAN-KC72CRO', maxPayloadKg: 1300 },
+  {
+    id: 'van-1',
+    registration: 'KL24 BHM',
+    depotId: 'depot-bhm',
+    model: 'Mercedes Sprinter 3.5t Long-Wheelbase',
+    status: 'AVAILABLE',
+    barcode: 'VAN-KL24BHM',
+    maxPayloadKg: 1350,
+    motExpiryDate: '2027-03-15',
+    nextServiceDueDate: '2026-11-20',
+    lastServiceDate: '2026-05-10',
+    mileage: 24500,
+    activeFaultsCount: 0
+  },
+  {
+    id: 'van-2',
+    registration: 'KP23 BHM',
+    depotId: 'depot-bhm',
+    model: 'Ford Transit 350 Leader Jumbo',
+    status: 'ON_ROUTE',
+    barcode: 'VAN-KP23BHM',
+    maxPayloadKg: 1280,
+    motExpiryDate: '2026-10-10',
+    nextServiceDueDate: '2026-12-05',
+    lastServiceDate: '2026-04-12',
+    mileage: 48900,
+    activeFaultsCount: 1
+  },
+  {
+    id: 'van-3',
+    registration: 'KV72 BHM',
+    depotId: 'depot-bhm',
+    model: 'Mercedes Sprinter Extra-Long Frame',
+    status: 'AVAILABLE',
+    barcode: 'VAN-KV72BHM',
+    maxPayloadKg: 1400,
+    motExpiryDate: '2026-12-01',
+    nextServiceDueDate: '2026-10-15',
+    lastServiceDate: '2026-03-20',
+    mileage: 62100,
+    activeFaultsCount: 0
+  },
+  {
+    id: 'van-4',
+    registration: 'KB70 BHM',
+    depotId: 'depot-bhm',
+    model: 'Volkswagen Crafter CR35 Maxi',
+    status: 'MAINTENANCE',
+    barcode: 'VAN-KB70BHM',
+    maxPayloadKg: 1300,
+    motExpiryDate: '2026-09-30',
+    nextServiceDueDate: '2026-09-25',
+    lastServiceDate: '2026-01-14',
+    mileage: 89400,
+    activeFaultsCount: 1
+  },
+  {
+    id: 'van-5',
+    registration: 'KM73 MAN',
+    depotId: 'depot-man',
+    model: 'Ford Transit 350 L4 H3 Long',
+    status: 'ON_ROUTE',
+    barcode: 'VAN-KM73MAN',
+    maxPayloadKg: 1320,
+    motExpiryDate: '2027-01-18',
+    nextServiceDueDate: '2027-02-10',
+    lastServiceDate: '2026-06-02',
+    mileage: 31200,
+    activeFaultsCount: 0
+  },
+  {
+    id: 'van-6',
+    registration: 'KL71 LON',
+    depotId: 'depot-lon-n',
+    model: 'Mercedes Sprinter 315 CDI Pro',
+    status: 'AVAILABLE',
+    barcode: 'VAN-KL71LON',
+    maxPayloadKg: 1350,
+    motExpiryDate: '2026-11-04',
+    nextServiceDueDate: '2026-12-15',
+    lastServiceDate: '2026-04-30',
+    mileage: 71500,
+    activeFaultsCount: 0
+  },
+  {
+    id: 'van-7',
+    registration: 'KN24 NCL',
+    depotId: 'depot-ncl',
+    model: 'Iveco Daily 35S14 Hi-Matic 5m Bed',
+    status: 'AVAILABLE',
+    barcode: 'VAN-KN24NCL',
+    maxPayloadKg: 1450,
+    motExpiryDate: '2027-04-22',
+    nextServiceDueDate: '2027-05-10',
+    lastServiceDate: '2026-07-01',
+    mileage: 18400,
+    activeFaultsCount: 0
+  },
+  {
+    id: 'van-8',
+    registration: 'KC72 CRO',
+    depotId: 'depot-lon-s',
+    model: 'Ford Transit Jumbo High Roof',
+    status: 'AVAILABLE',
+    barcode: 'VAN-KC72CRO',
+    maxPayloadKg: 1300,
+    motExpiryDate: '2026-11-28',
+    nextServiceDueDate: '2026-10-30',
+    lastServiceDate: '2026-02-18',
+    mileage: 54200,
+    activeFaultsCount: 0
+  },
+];
+
+// INITIAL REPORTED VEHICLE FAULTS
+export const INITIAL_FAULTS: VehicleFaultReport[] = [
+  {
+    id: 'flt-1',
+    vanId: 'van-2',
+    vanRegistration: 'KP23 BHM',
+    reportedByDriverId: 'drv-2',
+    reportedByDriverName: 'Sarah Miller',
+    depotId: 'depot-bhm',
+    timestamp: 'Today 08:25 AM',
+    category: 'TYRES',
+    severity: 'MEDIUM',
+    description: 'Nearside front tyre pressure warning illuminated on dashboard; slight tread wear noted during morning walkaround.',
+    status: 'OPEN'
+  },
+  {
+    id: 'flt-2',
+    vanId: 'van-4',
+    vanRegistration: 'KB70 BHM',
+    reportedByDriverId: 'drv-1',
+    reportedByDriverName: 'Dave Jenkins',
+    depotId: 'depot-bhm',
+    timestamp: 'Yesterday 16:45',
+    category: 'BRAKES',
+    severity: 'HIGH',
+    description: 'Squealing noise from front brake pads during heavy braking on dual carriageway. Van grounded for workshop inspection.',
+    status: 'INVESTIGATING'
+  }
 ];
 
 // Seed User Accounts
@@ -276,7 +410,6 @@ export const INITIAL_SKU_SETTINGS: SkuDwellSetting[] = [
   { sku: 'BOX-BRK-20', name: 'Box of Gutter Brackets & Jointers (20pk)', defaultDwellMins: 5 },
 ];
 
-// DECOUPLED DRIVERS (No hardcoded vehicle registrations)
 export const INITIAL_DRIVERS: Driver[] = [
   { id: 'drv-1', name: 'Dave Jenkins', phone: '07700 900101', depotId: 'depot-bhm', currentLat: 52.4862, currentLng: -1.8904, lastUpdated: '08:42 AM', status: 'ON_ROUTE', assignedVanId: 'van-1', assignedVanReg: 'KL24 BHM' },
   { id: 'drv-2', name: 'Sarah Miller', phone: '07700 900102', depotId: 'depot-bhm', currentLat: 52.4550, currentLng: -1.9400, lastUpdated: '08:40 AM', status: 'DELIVERING', assignedVanId: 'van-2', assignedVanReg: 'KP23 BHM' },

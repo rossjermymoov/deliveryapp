@@ -11,14 +11,37 @@ export interface UserAccount {
   driverId?: string;
 }
 
+export type VanFaultSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL_GROUND_VEHICLE';
+
+export interface VehicleFaultReport {
+  id: string;
+  vanId: string;
+  vanRegistration: string;
+  reportedByDriverId: string;
+  reportedByDriverName: string;
+  depotId: string;
+  timestamp: string;
+  category: 'BRAKES' | 'TYRES' | 'ENGINE_LIGHT' | 'LIGHTS_ELECTRICS' | 'BODYWORK_DAMAGE' | 'CARGO_DOORS' | 'STEERING_SUSPENSION' | 'OTHER';
+  severity: VanFaultSeverity;
+  description: string;
+  photoUrl?: string | null;
+  status: 'OPEN' | 'INVESTIGATING' | 'REPAIRED' | 'GROUNDED';
+}
+
 export interface VanVehicle {
   id: string;
   registration: string;
   depotId: string;
   model: string;
-  status: 'AVAILABLE' | 'ON_ROUTE' | 'MAINTENANCE';
+  status: 'AVAILABLE' | 'ON_ROUTE' | 'MAINTENANCE' | 'GROUNDED';
   barcode: string;
   maxPayloadKg?: number;
+  // Fleet Compliance Dates
+  motExpiryDate?: string; // YYYY-MM-DD
+  nextServiceDueDate?: string; // YYYY-MM-DD
+  lastServiceDate?: string; // YYYY-MM-DD
+  mileage?: number;
+  activeFaultsCount?: number;
 }
 
 export interface OrderItem {
@@ -81,7 +104,7 @@ export interface Driver {
   depotId: string;
   assignedVanId?: string;
   assignedVanReg?: string;
-  vehicleReg?: string; // backwards compatibility fallback
+  vehicleReg?: string;
   currentLat: number;
   currentLng: number;
   lastUpdated: string;
