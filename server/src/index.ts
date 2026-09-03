@@ -20,34 +20,16 @@ if (!fs.existsSync(uploadDir)) {
 }
 app.use('/uploads', express.static(uploadDir));
 
+// Serve Client Web Application in Production
+const clientDistPath = path.join(process.cwd(), 'client', 'dist');
+if (fs.existsSync(clientDistPath)) {
+  console.log(`Serving client from ${clientDistPath}`);
+  app.use(express.static(clientDistPath));
+}
+
 // -------------------------------------------------------------
 // 1. WEBHOOK INGESTION (From Label / Tracking Provider)
 // -------------------------------------------------------------
-/**
- * Incoming Webhook payload schema:
- * {
- *   "event": "shipment.label_created",
- *   "tracking_number": "KAL-UK-88219",
- *   "label_id": "lbl_99a8182",
- *   "channel": "B&Q" | "Shopify" | "eBay" | "Direct",
- *   "order_reference": "BQ-99128",
- *   "recipient": {
- *     "name": "Jane Doe",
- *     "phone": "07700900000",
- *     "email": "jane@example.com",
- *     "address_line1": "100 New Street",
- *     "city": "Birmingham",
- *     "postcode": "B2 4QA",
- *     "latitude": 52.4795,
- *     "longitude": -1.8986
- *   },
- *   "parcel": {
- *     "description": "5x 4m White Fascia, 2x Gutter Spares",
- *     "dwell_time_mins": 15
- *   },
- *   "notes": "Gate code 1234"
- * }
- */
 app.post('/api/webhooks/shipment', async (req: Request, res: Response) => {
   try {
     const payload = req.body;
@@ -173,7 +155,6 @@ app.post('/api/routes/optimize-and-create', async (req: Request, res: Response) 
         where: { id: { in: shipmentIds }, depotId },
       });
     } else {
-      // Auto-pick up to 8 nearest unassigned orders in depot bucket
       shipmentsToRoute = await prisma.shipment.findMany({
         where: { depotId, status: 'BUCKET_PENDING' },
         take: 8,
@@ -184,7 +165,6 @@ app.post('/api/routes/optimize-and-create', async (req: Request, res: Response) 
       return res.status(400).json({ error: 'No unassigned orders found in this depot bucket to build a route.' });
     }
 
-    // Run TSP & Dwell Time calculations
     const stopPoints = shipmentsToRoute.map((s) => ({
       ...s,
       dwellTimeMins: s.dwellTimeMins || dwellTimeMins,
@@ -198,7 +178,6 @@ app.post('/api/routes/optimize-and-create', async (req: Request, res: Response) 
 
     const routeNumber = `RT-${depot.code}-${Date.now().toString().slice(-6)}`;
 
-    // Create route in DB
     const newRoute = await prisma.deliveryRoute.create({
       data: {
         routeNumber,
@@ -211,7 +190,6 @@ app.post('/api/routes/optimize-and-create', async (req: Request, res: Response) 
       },
     });
 
-    // Update shipments with sequence order & route linkage
     for (let i = 0; i < result.orderedStops.length; i++) {
       const stop = result.orderedStops[i];
       await prisma.shipment.update({
@@ -250,7 +228,6 @@ app.post('/api/routes/optimize-and-create', async (req: Request, res: Response) 
   }
 });
 
-// Assign Driver to existing Route
 app.post('/api/routes/:id/assign', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { driverId } = req.body;
@@ -270,7 +247,6 @@ app.post('/api/routes/:id/assign', async (req: Request, res: Response) => {
 // -------------------------------------------------------------
 // 4. DRIVER MOBILE APPLICATION API
 // -------------------------------------------------------------
-// Get Driver Profile & Active Route Manifest
 app.get('/api/driver/:driverId/active-manifest', async (req: Request, res: Response) => {
   const { driverId } = req.params;
 
@@ -299,7 +275,6 @@ app.get('/api/driver/:driverId/active-manifest', async (req: Request, res: Respo
   res.json({ driver, activeRoute });
 });
 
-// Start Route
 app.post('/api/driver/routes/:routeId/start', async (req: Request, res: Response) => {
   const { routeId } = req.params;
   const updatedRoute = await prisma.deliveryRoute.update({
@@ -313,7 +288,6 @@ app.post('/api/driver/routes/:routeId/start', async (req: Request, res: Response
   res.json(updatedRoute);
 });
 
-// Driver Completes Stop & Submits Proof of Delivery (POD)
 app.post('/api/driver/shipments/:shipmentId/pod', async (req: Request, res: Response) => {
   try {
     const { shipmentId } = req.params;
@@ -323,12 +297,11 @@ app.post('/api/driver/shipments/:shipmentId/pod', async (req: Request, res: Resp
       return res.status(400).json({ error: 'Customer signature is required for POD.' });
     }
 
-    // Create POD record
     const pod = await prisma.proofOfDelivery.create({
       data: {
         shipmentId,
         recipientName: recipientName || 'Customer on Site',
-        signatureData, // Base64 data URL
+        signatureData,
         photoUrl: photoUrl || null,
         notes: notes || null,
         deliveredLat: deliveredLat || null,
@@ -336,14 +309,12 @@ app.post('/api/driver/shipments/:shipmentId/pod', async (req: Request, res: Resp
       },
     });
 
-    // Mark Shipment as DELIVERED
     const updatedShipment = await prisma.shipment.update({
       where: { id: shipmentId },
       data: { status: 'DELIVERED' },
       include: { route: true },
     });
 
-    // If all stops on route are delivered, mark route as COMPLETED
     if (updatedShipment.routeId) {
       const remainingStops = await prisma.shipment.count({
         where: {
@@ -367,7 +338,6 @@ app.post('/api/driver/shipments/:shipmentId/pod', async (req: Request, res: Resp
   }
 });
 
-// List all drivers for easy switching / testing
 app.get('/api/drivers', async (req: Request, res: Response) => {
   const drivers = await prisma.driver.findMany({
     include: { depot: true },
@@ -376,7 +346,6 @@ app.get('/api/drivers', async (req: Request, res: Response) => {
   res.json(drivers);
 });
 
-// All Routes Overview for Admin Dispatch
 app.get('/api/routes', async (req: Request, res: Response) => {
   const routes = await prisma.deliveryRoute.findMany({
     include: {
@@ -392,7 +361,14 @@ app.get('/api/routes', async (req: Request, res: Response) => {
   res.json(routes);
 });
 
+// Wildcard route to serve index.html for React SPA
+if (fs.existsSync(clientDistPath)) {
+  app.get('*', (_req: Request, res: Response) => {
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
+
 // Start Server
 app.listen(PORT, () => {
-  console.log(`🚀 Kalsi Logistics Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Kalsi Logistics Server running on port ${PORT}`);
 });

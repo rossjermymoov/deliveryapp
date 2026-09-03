@@ -1,0 +1,10 @@
+{
+  "name": "kalsi-logistics-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm --prefix server install && npm --prefix client install",
+    "build": "npm --prefix client run build && npm --prefix server run db:push && npm --prefix server run db:seed",
+    "start": "node server/dist/index.js || tsx server/src/index.ts"
+  }
+}
