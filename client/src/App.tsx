@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, KALSI_PRODUCT_CATALOG, DEFAULT_SETTINGS } from './data/initialData';
-import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, GlobalSettings } from './types';
+import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS } from './data/initialData';
+import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
 
@@ -8,13 +8,11 @@ export const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
   const [drivers, setDrivers] = useState<Driver[]>(INITIAL_DRIVERS);
   const [routes, setRoutes] = useState<DeliveryRoute[]>(INITIAL_ROUTES);
-  const [skuCatalog, setSkuCatalog] = useState<SkuDwellSetting[]>(KALSI_PRODUCT_CATALOG);
-  const [settings, setSettings] = useState<GlobalSettings>(DEFAULT_SETTINGS);
+  const [skuCatalog, setSkuCatalog] = useState<SkuDwellSetting[]>(INITIAL_SKU_SETTINGS);
 
   const [viewMode, setViewMode] = useState<'admin' | 'driver'>('admin');
   const [activeDriverId, setActiveDriverId] = useState<string>(INITIAL_DRIVERS[0].id);
 
-  // Handlers
   const handleCreateRoute = (newRoute: DeliveryRoute) => {
     setRoutes((prev) => [newRoute, ...prev]);
 
@@ -27,32 +25,6 @@ export const App: React.FC = () => {
             routeId: newRoute.id,
             status: 'ROUTED',
             stopSequence: found.stopSequence,
-          };
-        }
-        return o;
-      })
-    );
-  };
-
-  const handleBatchCreateRoutes = (newRoutes: DeliveryRoute[]) => {
-    setRoutes((prev) => [...newRoutes, ...prev]);
-
-    const routedMap = new Map<string, { routeId: string; sequence: number }>();
-    newRoutes.forEach((r) => {
-      r.orders.forEach((o) => {
-        routedMap.set(o.id, { routeId: r.id, sequence: o.stopSequence || 1 });
-      });
-    });
-
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (routedMap.has(o.id)) {
-          const info = routedMap.get(o.id)!;
-          return {
-            ...o,
-            routeId: info.routeId,
-            status: 'ROUTED',
-            stopSequence: info.sequence,
           };
         }
         return o;
@@ -75,7 +47,6 @@ export const App: React.FC = () => {
       )
     );
 
-    // Update driver active status
     if (driverId) {
       setDrivers((prev) =>
         prev.map((d) => (d.id === driverId ? { ...d, status: 'ON_ROUTE' } : d))
@@ -95,20 +66,19 @@ export const App: React.FC = () => {
     const fullOrder: Order = {
       id: newOrderData.id || `ord-${Date.now()}`,
       trackingNumber: newOrderData.trackingNumber || `KAL-${Math.floor(880000 + Math.random() * 90000)}`,
-      customerName: newOrderData.customerName || 'UK Merchant Customer',
-      customerPhone: newOrderData.customerPhone || '+44 7700 900999',
-      address: newOrderData.address || '10 Trade Park Way',
+      customerName: newOrderData.customerName || 'Customer',
+      customerPhone: newOrderData.customerPhone || '07700 900000',
+      customerEmail: newOrderData.customerEmail || 'customer@example.co.uk',
+      address: newOrderData.address || '10 High Street',
       city: newOrderData.city || 'Birmingham',
-      postcode: newOrderData.postcode || 'B7 5EX',
+      postcode: newOrderData.postcode || 'B1 1AA',
       lat: newOrderData.lat || 52.4862,
       lng: newOrderData.lng || -1.8904,
       items: newOrderData.items || [],
-      totalItemCount: newOrderData.totalItemCount || 4,
-      totalVanUnits: newOrderData.totalVanUnits || 4,
-      calculatedDwellMins: newOrderData.calculatedDwellMins || 20,
+      totalDwellMins: newOrderData.totalDwellMins || 15,
       manualDwellOverrideMins: newOrderData.manualDwellOverrideMins,
       specialNotes: newOrderData.specialNotes || undefined,
-      status: 'PENDING_DISPATCH',
+      status: 'PENDING',
       createdAt: new Date().toISOString(),
     };
 
@@ -127,7 +97,7 @@ export const App: React.FC = () => {
   const handleCompletePod = (orderId: string, podData: Partial<ProofOfDelivery>) => {
     const fullPod: ProofOfDelivery = {
       id: `pod-${Date.now()}`,
-      shipmentId: orderId,
+      orderId,
       recipientName: podData.recipientName || 'Customer',
       signatureData: podData.signatureData || '',
       photoUrl: podData.photoUrl || null,
@@ -166,7 +136,6 @@ export const App: React.FC = () => {
       })
     );
 
-    // Update driver GPS location to delivery point
     if (podData.deliveredLat && podData.deliveredLng) {
       setDrivers((prev) =>
         prev.map((d) =>
@@ -196,13 +165,10 @@ export const App: React.FC = () => {
           drivers={drivers}
           routes={routes}
           skuCatalog={skuCatalog}
-          settings={settings}
           onCreateRoute={handleCreateRoute}
-          onBatchCreateRoutes={handleBatchCreateRoutes}
           onAssignDriverToRoute={handleAssignDriverToRoute}
           onUpdateOrderDwell={handleUpdateOrderDwell}
           onUpdateSkuCatalog={setSkuCatalog}
-          onUpdateSettings={setSettings}
           onSimulateNewOrder={handleSimulateNewOrder}
           onSwitchToDriver={(driverId) => {
             setActiveDriverId(driverId);

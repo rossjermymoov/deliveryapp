@@ -1,8 +1,7 @@
-import { Order, GlobalSettings } from '../types';
+import { Order } from '../types';
 
-// Depot base point (Kalsi Birmingham Main Works)
 export const DEPOT_LOCATION = {
-  name: 'Kalsi Plastics Works',
+  name: 'Kalsi Works (Birmingham Central)',
   address: 'Nechells Parkway, Birmingham B7 5EX',
   lat: 52.4938,
   lng: -1.8687,
@@ -28,52 +27,11 @@ export function estimateDriveTimeMinutes(distanceKm: number): number {
 }
 
 /**
- * Splits orders into van batches based on van volume capacity & max stops.
- */
-export function autoBatchOrdersByVanCapacity(
-  orders: Order[],
-  settings: GlobalSettings
-): { batches: Order[][] } {
-  if (orders.length === 0) return { batches: [] };
-
-  const remaining = [...orders];
-  const batches: Order[][] = [];
-
-  while (remaining.length > 0) {
-    const currentBatch: Order[] = [];
-    let currentCapacity = 0;
-
-    for (let i = 0; i < remaining.length; i++) {
-      const ord = remaining[i];
-      const ordCapacity = ord.totalVanUnits || 3;
-
-      const wouldExceedCapacity = currentCapacity + ordCapacity > settings.maxVanCapacityUnits && currentBatch.length > 0;
-      const wouldExceedStops = currentBatch.length >= settings.maxStopsPerVan;
-
-      if (!wouldExceedCapacity && !wouldExceedStops) {
-        currentBatch.push(ord);
-        currentCapacity += ordCapacity;
-        remaining.splice(i, 1);
-        i--;
-      }
-    }
-
-    if (currentBatch.length === 0 && remaining.length > 0) {
-      currentBatch.push(remaining.shift()!);
-    }
-
-    batches.push(currentBatch);
-  }
-
-  return { batches };
-}
-
-/**
  * Optimizes route sequence using TSP Nearest Neighbor.
  */
 export function optimizeRouteStops(orders: Order[]) {
   if (orders.length === 0) {
-    return { orderedStops: [], totalDistanceKm: 0, totalDurationMins: 0, totalDrivingMins: 0, totalDwellMins: 0, totalCapacityUnits: 0 };
+    return { orderedStops: [], totalDistanceKm: 0, totalDurationMins: 0, totalDrivingMins: 0, totalDwellMins: 0 };
   }
 
   const unvisited = [...orders];
@@ -82,7 +40,6 @@ export function optimizeRouteStops(orders: Order[]) {
   let totalDistanceKm = 0;
   let totalDrivingMins = 0;
   let totalDwellMins = 0;
-  let totalCapacityUnits = 0;
 
   while (unvisited.length > 0) {
     let nearestIdx = 0;
@@ -109,12 +66,11 @@ export function optimizeRouteStops(orders: Order[]) {
     const nextStop = unvisited.splice(nearestIdx, 1)[0];
     const dwell = nextStop.manualDwellOverrideMins !== undefined
       ? nextStop.manualDwellOverrideMins
-      : (nextStop.calculatedDwellMins || 15);
+      : (nextStop.totalDwellMins || 15);
 
     totalDistanceKm += shortestDist;
     totalDrivingMins += estimateDriveTimeMinutes(shortestDist);
     totalDwellMins += dwell;
-    totalCapacityUnits += (nextStop.totalVanUnits || 3);
 
     orderedStops.push({
       ...nextStop,
@@ -139,6 +95,5 @@ export function optimizeRouteStops(orders: Order[]) {
     totalDurationMins: Math.round(totalDrivingMins + totalDwellMins),
     totalDrivingMins,
     totalDwellMins,
-    totalCapacityUnits,
   };
 }

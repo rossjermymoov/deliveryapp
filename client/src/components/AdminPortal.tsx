@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Order, Driver, DeliveryRoute, SkuDwellSetting, GlobalSettings } from '../types';
-import { optimizeRouteStops, autoBatchOrdersByVanCapacity } from '../utils/routing';
-import { calculateOrderDwellAndUnits } from '../utils/dwellCalculator';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting } from '../types';
+import { optimizeRouteStops } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
 import { 
   Package, 
@@ -13,16 +12,15 @@ import {
   FileCheck2, 
   Timer, 
   Sliders, 
-  Layers, 
   UserCheck, 
   Edit3, 
-  Boxes, 
   Plus, 
   Search, 
-  ChevronDown, 
-  ChevronUp,
   Radio,
-  Truck
+  Truck,
+  Phone,
+  Mail,
+  ListOrdered
 } from 'lucide-react';
 
 interface Props {
@@ -30,13 +28,10 @@ interface Props {
   drivers: Driver[];
   routes: DeliveryRoute[];
   skuCatalog: SkuDwellSetting[];
-  settings: GlobalSettings;
   onCreateRoute: (route: DeliveryRoute) => void;
-  onBatchCreateRoutes: (routes: DeliveryRoute[]) => void;
   onAssignDriverToRoute: (routeId: string, driverId: string) => void;
   onUpdateOrderDwell: (orderId: string, manualDwell: number) => void;
   onUpdateSkuCatalog: (catalog: SkuDwellSetting[]) => void;
-  onUpdateSettings: (settings: GlobalSettings) => void;
   onSimulateNewOrder: (order: Partial<Order>) => void;
   onSwitchToDriver: (driverId: string) => void;
 }
@@ -46,44 +41,39 @@ export const AdminPortal: React.FC<Props> = ({
   drivers,
   routes,
   skuCatalog,
-  settings,
   onCreateRoute,
-  onBatchCreateRoutes,
   onAssignDriverToRoute,
   onUpdateOrderDwell,
   onUpdateSkuCatalog,
-  onUpdateSettings,
   onSimulateNewOrder,
   onSwitchToDriver,
 }) => {
   const [activeTab, setActiveTab] = useState<'orders' | 'routes' | 'map' | 'sku_dwell' | 'pods' | 'new_order_sim'>('orders');
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [editingDwellId, setEditingDwellId] = useState<string | null>(null);
   const [tempDwellVal, setTempDwellVal] = useState<number>(15);
   const [searchFilter, setSearchFilter] = useState('');
 
-  // Single Route Preview State
-  const [singleOptimizationPreview, setSingleOptimizationPreview] = useState<any>(null);
+  // Route Preview
+  const [routePreview, setRoutePreview] = useState<any>(null);
 
   // SKU Management modal state
   const [newSkuCode, setNewSkuCode] = useState('');
   const [newSkuName, setNewSkuName] = useState('');
-  const [newSkuCategory, setNewSkuCategory] = useState<string>('Aquacel Roofline');
-  const [newSkuDim, setNewSkuDim] = useState('5m length');
   const [newSkuDwell, setNewSkuDwell] = useState(15);
-  const [newSkuUnits, setNewSkuUnits] = useState(3);
 
   // New Inbound Order Simulator Form State
-  const [simCustomer, setSimCustomer] = useState('Central Midlands Roofing Supplies');
+  const [simName, setSimName] = useState('Mark Richardson (Apex Roofing)');
+  const [simPhone, setSimPhone] = useState('07711 998877');
+  const [simEmail, setSimEmail] = useState('mark@apexroof.co.uk');
   const [simAddress, setSimAddress] = useState('24 Aston Expressway, Birmingham');
   const [simPostcode, setSimPostcode] = useState('B6 4DD');
-  const [simSelectedSku, setSimSelectedSku] = useState(skuCatalog[0]?.sku || 'AQUACEL-FASCIA-5M-W');
+  const [simSku, setSimSku] = useState(skuCatalog[0]?.sku || 'FAS-5M-WHT');
   const [simQty, setSimQty] = useState(4);
-  const [simNotes, setSimNotes] = useState('Bulky 5m fascias. Unload at yard entrance.');
-  const [simulatedSuccessMsg, setSimulatedSuccessMsg] = useState('');
+  const [simNotes, setSimNotes] = useState('Deliver to front trade gate');
+  const [simSuccess, setSimSuccess] = useState('');
 
-  const pendingOrders = orders.filter((o) => o.status === 'PENDING_DISPATCH');
+  const pendingOrders = orders.filter((o) => o.status === 'PENDING');
   const completedOrders = orders.filter((o) => o.status === 'DELIVERED' && o.proofOfDelivery);
 
   const filteredOrders = pendingOrders.filter(
@@ -91,7 +81,8 @@ export const AdminPortal: React.FC<Props> = ({
       o.trackingNumber.toLowerCase().includes(searchFilter.toLowerCase()) ||
       o.customerName.toLowerCase().includes(searchFilter.toLowerCase()) ||
       o.address.toLowerCase().includes(searchFilter.toLowerCase()) ||
-      o.postcode.toLowerCase().includes(searchFilter.toLowerCase())
+      o.postcode.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      o.items.some((i) => i.sku.toLowerCase().includes(searchFilter.toLowerCase()))
   );
 
   const handleToggleSelectOrder = (id: string) => {
@@ -100,73 +91,37 @@ export const AdminPortal: React.FC<Props> = ({
     );
   };
 
-  const handleAutoBatchAllOrders = () => {
-    if (pendingOrders.length === 0) return;
-
-    const { batches } = autoBatchOrdersByVanCapacity(pendingOrders, settings);
-    const createdRoutes: DeliveryRoute[] = [];
-
-    batches.forEach((batch, index) => {
-      const opt = optimizeRouteStops(batch);
-      const routeId = `route-${Date.now()}-${index + 1}`;
-      const newRoute: DeliveryRoute = {
-        id: routeId,
-        routeNumber: `ROUTE-0${index + 1}`,
-        date: new Date().toISOString(),
-        status: 'UNASSIGNED',
-        dwellTimeTotalMins: opt.totalDwellMins,
-        totalEstimatedMins: opt.totalDurationMins,
-        totalDistanceKm: opt.totalDistanceKm,
-        totalVanUnitsUsed: opt.totalCapacityUnits,
-        maxVanCapacity: settings.maxVanCapacityUnits,
-        driverId: undefined,
-        orders: opt.orderedStops.map((o) => ({
-          ...o,
-          routeId,
-          status: 'ROUTED' as const,
-        })),
-      };
-      createdRoutes.push(newRoute);
-    });
-
-    onBatchCreateRoutes(createdRoutes);
-    setSelectedOrderIds([]);
-    setActiveTab('routes');
-  };
-
-  const handleCalculateSingleRoute = () => {
+  const handleCalculateRoute = () => {
     const selected = pendingOrders.filter((o) => selectedOrderIds.includes(o.id));
     if (selected.length === 0) return;
 
     const opt = optimizeRouteStops(selected);
-    setSingleOptimizationPreview(opt);
+    setRoutePreview(opt);
   };
 
-  const handleConfirmSingleRoute = () => {
-    if (!singleOptimizationPreview) return;
+  const handleConfirmRoute = () => {
+    if (!routePreview) return;
 
-    const routeId = `route-${Date.now()}`;
+    const routeNumber = `Route ${routes.length + 1}`;
     const newRoute: DeliveryRoute = {
-      id: routeId,
-      routeNumber: `ROUTE-0${routes.length + 1}`,
+      id: `route-${Date.now()}`,
+      routeNumber,
       date: new Date().toISOString(),
       status: 'UNASSIGNED',
-      dwellTimeTotalMins: singleOptimizationPreview.totalDwellMins,
-      totalEstimatedMins: singleOptimizationPreview.totalDurationMins,
-      totalDistanceKm: singleOptimizationPreview.totalDistanceKm,
-      totalVanUnitsUsed: singleOptimizationPreview.totalCapacityUnits,
-      maxVanCapacity: settings.maxVanCapacityUnits,
+      totalDwellMins: routePreview.totalDwellMins,
+      totalEstimatedMins: routePreview.totalDurationMins,
+      totalDistanceKm: routePreview.totalDistanceKm,
       driverId: undefined,
-      orders: singleOptimizationPreview.orderedStops.map((o: Order) => ({
+      orders: routePreview.orderedStops.map((o: Order) => ({
         ...o,
-        routeId,
+        routeId: `route-${Date.now()}`,
         status: 'ROUTED' as const,
       })),
     };
 
     onCreateRoute(newRoute);
     setSelectedOrderIds([]);
-    setSingleOptimizationPreview(null);
+    setRoutePreview(null);
     setActiveTab('routes');
   };
 
@@ -181,10 +136,7 @@ export const AdminPortal: React.FC<Props> = ({
     const newSku: SkuDwellSetting = {
       sku: newSkuCode.toUpperCase().trim(),
       name: newSkuName || newSkuCode,
-      category: newSkuCategory,
-      dimensions: newSkuDim,
       defaultDwellMins: newSkuDwell,
-      vanSpaceUnits: newSkuUnits,
     };
     onUpdateSkuCatalog([...skuCatalog, newSku]);
     setNewSkuCode('');
@@ -194,70 +146,62 @@ export const AdminPortal: React.FC<Props> = ({
   const handleCreateSimulatedOrder = (e: React.FormEvent) => {
     e.preventDefault();
     const tracking = `KAL-${Math.floor(880000 + Math.random() * 90000)}`;
-    const matchedProduct = skuCatalog.find((s) => s.sku === simSelectedSku) || skuCatalog[0];
+    const matchedProduct = skuCatalog.find((s) => s.sku === simSku) || skuCatalog[0];
 
     const orderItems = [
       {
         sku: matchedProduct.sku,
-        category: matchedProduct.category as any,
         name: matchedProduct.name,
-        dimensions: matchedProduct.dimensions,
         quantity: simQty,
-        individualDwellMins: matchedProduct.defaultDwellMins,
-        vanSpaceUnits: matchedProduct.vanSpaceUnits,
+        dwellMinsPerUnit: matchedProduct.defaultDwellMins,
       },
     ];
-
-    const metrics = calculateOrderDwellAndUnits(orderItems, skuCatalog);
-
-    const lat = 52.4862 + (Math.random() - 0.5) * 0.09;
-    const lng = -1.8904 + (Math.random() - 0.5) * 0.09;
 
     const newOrder: Partial<Order> = {
       id: `ord-${Date.now()}`,
       trackingNumber: tracking,
-      customerName: simCustomer,
+      customerName: simName,
+      customerPhone: simPhone,
+      customerEmail: simEmail,
       address: simAddress,
       city: 'Birmingham',
       postcode: simPostcode,
-      lat,
-      lng,
+      lat: 52.4862 + (Math.random() - 0.5) * 0.08,
+      lng: -1.8904 + (Math.random() - 0.5) * 0.08,
       items: orderItems,
-      totalItemCount: metrics.totalItemCount,
-      totalVanUnits: metrics.totalVanUnits,
-      calculatedDwellMins: metrics.calculatedDwellMins,
+      totalDwellMins: matchedProduct.defaultDwellMins,
       specialNotes: simNotes,
-      status: 'PENDING_DISPATCH',
+      status: 'PENDING',
       createdAt: new Date().toISOString(),
     };
 
     onSimulateNewOrder(newOrder);
-    setSimulatedSuccessMsg(`⚡ Inbound Webhook Received! Tracking #${tracking} loaded into Order Management with ${metrics.calculatedDwellMins}m dynamic dwell.`);
-    setTimeout(() => setSimulatedSuccessMsg(''), 5000);
+    setSimSuccess(`⚡ Order created! Tracking #${tracking} loaded.`);
+    setTimeout(() => setSimSuccess(''), 4000);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       {/* Top Header */}
-      <header className="bg-gradient-to-r from-[#003366] to-[#005696] text-white px-6 py-4 shadow-md">
+      <header className="bg-[#003366] text-white px-6 py-4 shadow-sm border-b border-blue-900">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="bg-[#FF6B00] text-white p-2.5 rounded-lg shadow font-black text-xl tracking-wider">
+            <div className="bg-[#FF6B00] text-white px-3 py-1.5 rounded-lg shadow font-black text-xl tracking-wider">
               KALSI
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">Kalsi Plastics Delivery & Fleet Management</h1>
-              <p className="text-xs text-blue-200">Order Management • Dwell Logic • Fleet Dispatch • Live Telematics</p>
+              <h1 className="text-xl font-bold tracking-tight">Kalsi Plastics Delivery System</h1>
+              <p className="text-xs text-blue-200">Order Management • Routing • Live Fleet Map</p>
             </div>
           </div>
 
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setActiveTab('map')}
-              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-1.5 transition"
+              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-2 transition"
             >
               <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
-              Live Driver Map ({drivers.length} Vans)
+              Live Fleet Map
             </button>
           </div>
         </div>
@@ -278,10 +222,7 @@ export const AdminPortal: React.FC<Props> = ({
               }`}
             >
               <Package className="w-4 h-4" />
-              Orders & Line Items
-              <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-[#FF6B00] text-white">
-                {pendingOrders.length}
-              </span>
+              Orders ({pendingOrders.length})
             </button>
 
             <button
@@ -293,7 +234,7 @@ export const AdminPortal: React.FC<Props> = ({
               }`}
             >
               <RouteIcon className="w-4 h-4" />
-              Routes & Manifests ({routes.length})
+              Routes ({routes.length})
             </button>
 
             <button
@@ -305,7 +246,7 @@ export const AdminPortal: React.FC<Props> = ({
               }`}
             >
               <Radio className="w-4 h-4 text-emerald-600" />
-              Driver Live GPS Map
+              Live Driver Map
             </button>
 
             <button
@@ -317,7 +258,7 @@ export const AdminPortal: React.FC<Props> = ({
               }`}
             >
               <Sliders className="w-4 h-4 text-[#FF6B00]" />
-              Dwell Time Settings & Catalog
+              Dwell Times per Product
             </button>
 
             <button
@@ -349,7 +290,7 @@ export const AdminPortal: React.FC<Props> = ({
           {drivers.length > 0 && (
             <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
               <Truck className="w-4 h-4 text-[#005696]" />
-              <span className="text-xs font-semibold text-[#005696]">Driver App:</span>
+              <span className="text-xs font-semibold text-[#005696]">Driver View:</span>
               {drivers.map((drv) => (
                 <button
                   key={drv.id}
@@ -363,18 +304,19 @@ export const AdminPortal: React.FC<Props> = ({
           )}
         </div>
 
-        {/* TAB 1: ORDER MANAGEMENT SYSTEM (OMS) & DWELL CONTROLS */}
+        {/* TAB 1: ORDER MANAGEMENT SYSTEM */}
         {activeTab === 'orders' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Clean Order List */}
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col">
               <div className="flex flex-wrap items-center justify-between pb-4 border-b border-gray-100 gap-3">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                     <Package className="w-5 h-5 text-[#005696]" />
-                    Order Management ({pendingOrders.length} Pending Orders)
+                    Orders ({pendingOrders.length})
                   </h2>
                   <p className="text-xs text-gray-500">
-                    Click an order to inspect all plastic units & dimensions. Click dwell time to override.
+                    Select orders to optimize into a delivery route.
                   </p>
                 </div>
 
@@ -383,10 +325,10 @@ export const AdminPortal: React.FC<Props> = ({
                     <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-2.5" />
                     <input
                       type="text"
-                      placeholder="Search tracking, customer..."
+                      placeholder="Search orders..."
                       value={searchFilter}
                       onChange={(e) => setSearchFilter(e.target.value)}
-                      className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-300 focus:ring-[#005696] w-48"
+                      className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-300 focus:ring-[#005696] w-44"
                     />
                   </div>
                   <button
@@ -401,29 +343,28 @@ export const AdminPortal: React.FC<Props> = ({
               {filteredOrders.length === 0 ? (
                 <div className="py-16 text-center text-gray-400 flex flex-col items-center">
                   <Package className="w-12 h-12 mb-3 text-gray-300" />
-                  <p className="font-semibold text-gray-600">No pending orders found</p>
+                  <p className="font-semibold text-gray-600">No pending orders</p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100 overflow-y-auto max-h-[620px] mt-2">
                   {filteredOrders.map((order) => {
                     const isSelected = selectedOrderIds.includes(order.id);
-                    const isExpanded = expandedOrderId === order.id;
                     const effectiveDwell = order.manualDwellOverrideMins !== undefined
                       ? order.manualDwellOverrideMins
-                      : order.calculatedDwellMins;
+                      : order.totalDwellMins;
                     const isOverridden = order.manualDwellOverrideMins !== undefined;
 
                     return (
                       <div
                         key={order.id}
-                        className={`rounded-xl transition my-1 border ${
+                        className={`p-4 rounded-xl transition my-1 border ${
                           isSelected
                             ? 'bg-blue-50/70 border-[#005696]/40 shadow-sm'
                             : 'hover:bg-slate-50 border-gray-100'
                         }`}
                       >
-                        {/* Order Summary Row */}
-                        <div className="p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        {/* Order Header & Contact Info */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-gray-100">
                           <div className="flex items-start gap-3">
                             <input
                               type="checkbox"
@@ -436,27 +377,29 @@ export const AdminPortal: React.FC<Props> = ({
                                 <span className="font-mono text-xs font-black text-[#005696] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
                                   {order.trackingNumber}
                                 </span>
-                                <span className="text-xs text-gray-400">{order.items.length} Product Lines ({order.totalItemCount} Total Items)</span>
+                                <span className="font-bold text-gray-900 text-sm">{order.customerName}</span>
                               </div>
-                              <h4 className="font-bold text-gray-900 text-sm mt-1">
-                                {order.customerName}
-                              </h4>
-                              <p className="text-xs text-gray-600 flex items-center gap-1 mt-0.5">
-                                <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                {order.address}, {order.postcode}
+                              <p className="text-xs text-gray-600 flex items-center gap-1 mt-1">
+                                <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                {order.address}, {order.city} <strong>{order.postcode}</strong>
                               </p>
                             </div>
                           </div>
 
-                          {/* Dwell, Van Units & Line Details Toggle */}
-                          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                            <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md flex items-center gap-1">
-                              <Boxes className="w-3.5 h-3.5 text-slate-500" />
-                              {order.totalVanUnits} Van Units
-                            </span>
+                          {/* Contact Details & Dwell Time */}
+                          <div className="flex sm:flex-col items-end gap-1.5 shrink-0 self-end sm:self-center">
+                            <div className="text-[11px] text-gray-500 flex items-center gap-3">
+                              <span className="flex items-center gap-1">
+                                <Phone className="w-3 h-3 text-blue-600" /> {order.customerPhone}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Mail className="w-3 h-3 text-gray-400" /> {order.customerEmail}
+                              </span>
+                            </div>
 
+                            {/* Dwell Time Pill */}
                             {editingDwellId === order.id ? (
-                              <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-[#005696] shadow-sm">
+                              <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-[#005696] shadow-sm mt-1">
                                 <input
                                   type="number"
                                   min="5"
@@ -484,67 +427,48 @@ export const AdminPortal: React.FC<Props> = ({
                                   setEditingDwellId(order.id);
                                   setTempDwellVal(effectiveDwell);
                                 }}
-                                className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full transition border ${
+                                className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full transition border mt-1 ${
                                   isOverridden
                                     ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border-gray-200'
                                 }`}
-                                title="Click to manually override dwell time"
+                                title="Click to override dwell time"
                               >
                                 <Timer className="w-3.5 h-3.5 mr-1 text-gray-500" />
                                 {effectiveDwell}m dwell {isOverridden && '(Override)'}
                                 <Edit3 className="w-3 h-3 ml-1.5 opacity-60" />
                               </button>
                             )}
-
-                            <button
-                              onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
-                              className="p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 transition"
-                              title="View units & items"
-                            >
-                              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                            </button>
                           </div>
                         </div>
 
-                        {/* Expanded Order Items View */}
-                        {isExpanded && (
-                          <div className="px-4 pb-4 pt-1 bg-slate-50/80 border-t border-gray-100 rounded-b-xl">
-                            <h5 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">
-                              Ordered Products & Specifications:
-                            </h5>
-                            <div className="space-y-1.5">
-                              {order.items.map((item, idx) => (
-                                <div
-                                  key={idx}
-                                  className="bg-white p-2.5 rounded-lg border border-gray-200 text-xs flex items-center justify-between"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold text-[#005696] bg-blue-50 px-2 py-0.5 rounded text-[11px]">
-                                      {item.quantity}x
-                                    </span>
-                                    <div>
-                                      <span className="font-bold text-gray-800">{item.name}</span>
-                                      <span className="text-[11px] text-gray-500 block">
-                                        Category: {item.category} • Dimensions: {item.dimensions}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  <div className="text-right">
-                                    <span className="text-[11px] font-semibold text-gray-600">
-                                      {item.individualDwellMins}m dwell ({item.vanSpaceUnits} van units)
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                            {order.specialNotes && (
-                              <p className="text-xs text-amber-800 bg-amber-50 p-2 rounded-lg border border-amber-200 mt-2 italic">
-                                ⚠️ <strong>Driver Note:</strong> {order.specialNotes}
-                              </p>
-                            )}
+                        {/* Order Product Lines (SKU & Quantity) */}
+                        <div className="pt-3">
+                          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                            <ListOrdered className="w-3.5 h-3.5 text-[#005696]" />
+                            Order Items:
                           </div>
-                        )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {order.items.map((item, idx) => (
+                              <div
+                                key={idx}
+                                className="bg-white p-2.5 rounded-lg border border-gray-200 text-xs flex items-center justify-between"
+                              >
+                                <div>
+                                  <span className="font-mono font-bold text-[#005696] text-[11px] block">
+                                    {item.sku}
+                                  </span>
+                                  <span className="font-medium text-gray-800">{item.name}</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="font-bold text-sm bg-slate-100 text-slate-800 px-2 py-0.5 rounded border border-gray-300">
+                                    Qty: {item.quantity}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
@@ -552,122 +476,95 @@ export const AdminPortal: React.FC<Props> = ({
               )}
             </div>
 
-            {/* Right: Route Generator & Van Wave Optimizer */}
+            {/* Route Optimizer Box */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
                   <Sparkles className="w-5 h-5 text-[#FF6B00]" />
-                  <h3 className="font-bold text-gray-900">Van Routing Engine</h3>
+                  <h3 className="font-bold text-gray-900">Route Creator</h3>
                 </div>
 
-                <div className="mt-4 p-4 bg-gradient-to-br from-blue-50 to-indigo-50/50 rounded-2xl border border-blue-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Layers className="w-5 h-5 text-[#005696]" />
-                    <h4 className="font-bold text-sm text-[#005696]">Automated Multi-Van Batcher</h4>
-                  </div>
-                  <p className="text-xs text-slate-600 mb-3">
-                    Automatically partition all <strong>{pendingOrders.length} pending orders</strong> into optimized van routes (Route 1, Route 2...) strictly respecting the <strong>{settings.maxVanCapacityUnits} van units</strong> capacity.
-                  </p>
-
-                  <button
-                    onClick={handleAutoBatchAllOrders}
-                    disabled={pendingOrders.length === 0}
-                    className="w-full py-3 bg-[#005696] hover:bg-[#003d6d] text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    <Layers className="w-4 h-4 text-[#FFB800]" />
-                    Auto-Batch Orders into Van Routes
-                  </button>
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-gray-100 space-y-4">
-                  <div className="flex items-center justify-between">
+                <div className="mt-4 space-y-4">
+                  <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-gray-200">
                     <span className="text-xs font-bold text-gray-700 uppercase">Selected Orders</span>
-                    <span className="text-xs font-black text-[#005696]">
-                      {selectedOrderIds.length} orders selected
+                    <span className="text-sm font-black text-[#005696]">
+                      {selectedOrderIds.length} orders
                     </span>
                   </div>
 
                   <button
-                    onClick={handleCalculateSingleRoute}
+                    onClick={handleCalculateRoute}
                     disabled={selectedOrderIds.length === 0}
-                    className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    className="w-full py-3 bg-[#005696] hover:bg-[#004070] text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2 disabled:opacity-50"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-[#FF6B00]" />
-                    Preview Route for Selected
+                    <Sparkles className="w-4 h-4 text-[#FFB800]" />
+                    Calculate Route for Selected Orders
                   </button>
                 </div>
 
-                {singleOptimizationPreview && (
-                  <div className="mt-4 p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 animate-fadeIn">
+                {routePreview && (
+                  <div className="mt-5 p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 animate-fadeIn">
                     <h5 className="text-xs font-bold text-emerald-800 uppercase mb-2 flex items-center gap-1">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      Optimized Route Ready
+                      Optimized Route Preview
                     </h5>
                     <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-                      <div className="bg-white p-2 rounded">
+                      <div className="bg-white p-2.5 rounded shadow-xs">
                         <span className="text-gray-400 block text-[10px]">TOTAL TIME</span>
-                        <span className="font-bold text-gray-900">{Math.floor(singleOptimizationPreview.totalDurationMins / 60)}h {singleOptimizationPreview.totalDurationMins % 60}m</span>
+                        <span className="font-bold text-gray-900">
+                          {Math.floor(routePreview.totalDurationMins / 60)}h {routePreview.totalDurationMins % 60}m
+                        </span>
                       </div>
-                      <div className="bg-white p-2 rounded">
-                        <span className="text-gray-400 block text-[10px]">VAN LOAD</span>
-                        <span className="font-bold text-[#005696]">{singleOptimizationPreview.totalCapacityUnits} / {settings.maxVanCapacityUnits} units</span>
+                      <div className="bg-white p-2.5 rounded shadow-xs">
+                        <span className="text-gray-400 block text-[10px]">TOTAL DISTANCE</span>
+                        <span className="font-bold text-gray-900">{routePreview.totalDistanceKm} km</span>
                       </div>
                     </div>
 
                     <button
-                      onClick={handleConfirmSingleRoute}
+                      onClick={handleConfirmRoute}
                       className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-1.5"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      Create Route (Assign Driver Later)
+                      Save & Create Route (Assign Driver Later)
                     </button>
                   </div>
                 )}
               </div>
 
               <div className="text-[11px] text-gray-400 mt-4 bg-slate-50 p-2.5 rounded-lg">
-                💡 <strong>Dispatch Workflow:</strong> Route 1 and Route 2 are generated first without driver dependencies. Drivers are assigned directly when loading the van.
+                💡 <strong>Route Workflow:</strong> Create Route 1, Route 2... first. Assign drivers when loading the vehicles.
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 2: ROUTE WAVES & LATE DRIVER ASSIGNMENT */}
+        {/* TAB 2: ROUTES & DRIVER ASSIGNMENT */}
         {activeTab === 'routes' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <RouteIcon className="w-5 h-5 text-[#005696]" />
-                  Generated Delivery Routes
+                  Delivery Routes ({routes.length})
                 </h2>
                 <p className="text-xs text-gray-500">
-                  Pick and assign any driver to any route when ready for vehicle departure.
+                  Assign any available driver to a route when ready for departure.
                 </p>
               </div>
-
-              <button
-                onClick={handleAutoBatchAllOrders}
-                disabled={pendingOrders.length === 0}
-                className="px-3.5 py-2 bg-[#005696] text-white font-bold text-xs rounded-xl shadow hover:bg-blue-800 transition flex items-center gap-1.5 disabled:opacity-50"
-              >
-                <Layers className="w-4 h-4 text-[#FFB800]" />
-                Auto-Batch Remaining ({pendingOrders.length})
-              </button>
             </div>
 
             {routes.length === 0 ? (
               <div className="bg-white rounded-2xl p-12 text-center text-gray-400 border border-gray-200">
                 <RouteIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                <p className="font-semibold text-gray-700">No delivery routes generated yet</p>
+                <p className="font-semibold text-gray-700">No delivery routes created yet</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Go to Orders tab and click "Auto-Batch Orders into Van Routes".
+                  Select orders in the Orders tab and click "Calculate Route".
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {routes.map((route) => {
-                  const totalStops = route.orders.length;
                   const isAssigned = !!route.driverId;
 
                   return (
@@ -684,29 +581,26 @@ export const AdminPortal: React.FC<Props> = ({
                             isAssigned ? 'bg-indigo-100 text-indigo-800' :
                             'bg-amber-100 text-amber-800'
                           }`}>
-                            {isAssigned ? `Driver: ${route.driver?.name.split(' ')[0]}` : 'UNASSIGNED (Ready to pick)'}
+                            {isAssigned ? `Driver: ${route.driver?.name}` : 'UNASSIGNED'}
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-4 gap-2 my-3 text-center text-xs">
+                        <div className="grid grid-cols-3 gap-2 my-3 text-center text-xs">
                           <div className="bg-slate-50 p-2 rounded-lg">
                             <span className="text-gray-400 block text-[10px]">STOPS</span>
-                            <span className="font-bold text-gray-800">{totalStops}</span>
-                          </div>
-                          <div className="bg-slate-50 p-2 rounded-lg">
-                            <span className="text-gray-400 block text-[10px]">VAN LOAD</span>
-                            <span className="font-bold text-[#005696]">{route.totalVanUnitsUsed} / {route.maxVanCapacity}</span>
+                            <span className="font-bold text-gray-800">{route.orders.length}</span>
                           </div>
                           <div className="bg-slate-50 p-2 rounded-lg">
                             <span className="text-gray-400 block text-[10px]">DISTANCE</span>
                             <span className="font-bold text-gray-800">{route.totalDistanceKm} km</span>
                           </div>
                           <div className="bg-slate-50 p-2 rounded-lg">
-                            <span className="text-gray-400 block text-[10px]">TIME</span>
+                            <span className="text-gray-400 block text-[10px]">EST. TIME</span>
                             <span className="font-bold text-gray-800">{Math.floor(route.totalEstimatedMins / 60)}h {route.totalEstimatedMins % 60}m</span>
                           </div>
                         </div>
 
+                        {/* Route Stops */}
                         <div className="space-y-2 mt-3 max-h-44 overflow-y-auto pr-1">
                           {route.orders.map((ord, idx) => (
                             <div key={ord.id} className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 text-xs flex items-center justify-between">
@@ -716,17 +610,18 @@ export const AdminPortal: React.FC<Props> = ({
                                 </span>
                                 <div>
                                   <span className="font-semibold text-gray-900 block">{ord.customerName}</span>
-                                  <span className="text-gray-500 text-[11px]">{ord.postcode} • {ord.totalItemCount} items</span>
+                                  <span className="text-gray-500 text-[11px]">{ord.postcode} • {ord.items.map((i) => `${i.quantity}x ${i.sku}`).join(', ')}</span>
                                 </div>
                               </div>
                               <span className="text-[10px] font-bold text-gray-600 bg-white px-2 py-0.5 rounded border">
-                                {ord.manualDwellOverrideMins || ord.calculatedDwellMins}m dwell
+                                {ord.manualDwellOverrideMins || ord.totalDwellMins}m dwell
                               </span>
                             </div>
                           ))}
                         </div>
                       </div>
 
+                      {/* Driver Assignment Dropdown */}
                       <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
                         <div className="flex-1">
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 flex items-center gap-1">
@@ -738,7 +633,7 @@ export const AdminPortal: React.FC<Props> = ({
                             onChange={(e) => onAssignDriverToRoute(route.id, e.target.value)}
                             className="w-full text-xs font-semibold rounded-lg border-gray-300 p-2 border focus:ring-[#005696]"
                           >
-                            <option value="">-- Unassigned (Select Driver) --</option>
+                            <option value="">-- Unassigned (Choose Driver) --</option>
                             {drivers.map((drv) => (
                               <option key={drv.id} value={drv.id}>
                                 {drv.name} ({drv.vehicleReg})
@@ -764,7 +659,7 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 3: DRIVER LIVE GPS MAP & TELEMATICS */}
+        {/* TAB 3: REAL MAP */}
         {activeTab === 'map' && (
           <DriverLiveMap
             drivers={drivers}
@@ -773,185 +668,101 @@ export const AdminPortal: React.FC<Props> = ({
           />
         )}
 
-        {/* TAB 4: SKU DWELL SETTINGS & CATALOG */}
+        {/* TAB 4: DWELL TIMES PER PRODUCT */}
         {activeTab === 'sku_dwell' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-              <div className="pb-4 border-b border-gray-100">
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <Sliders className="w-5 h-5 text-[#FF6B00]" />
-                  Product Catalog & Dwell Times
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Configure offload dwell times and van volume units for Kalsi Aquacel, Duraklad & Aquaflow products.
-                </p>
-              </div>
-
-              <div className="overflow-x-auto mt-4">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-gray-600 font-bold uppercase border-b border-gray-200">
-                    <tr>
-                      <th className="p-3">SKU</th>
-                      <th className="p-3">Product Name & Dimensions</th>
-                      <th className="p-3">Category</th>
-                      <th className="p-3 text-center">Dwell Time</th>
-                      <th className="p-3 text-center">Van Units</th>
-                      <th className="p-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {skuCatalog.map((item, index) => (
-                      <tr key={item.sku} className="hover:bg-slate-50">
-                        <td className="p-3 font-mono font-bold text-[#005696]">{item.sku}</td>
-                        <td className="p-3">
-                          <span className="font-bold text-gray-900 block">{item.name}</span>
-                          <span className="text-[11px] text-gray-500">{item.dimensions}</span>
-                        </td>
-                        <td className="p-3 text-gray-600 font-medium">{item.category}</td>
-                        <td className="p-3 text-center">
-                          <span className="bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-1 rounded font-bold">
-                            {item.defaultDwellMins} mins
-                          </span>
-                        </td>
-                        <td className="p-3 text-center font-bold text-slate-700">
-                          {item.vanSpaceUnits} units
-                        </td>
-                        <td className="p-3 text-right">
-                          <button
-                            onClick={() => {
-                              const updated = skuCatalog.filter((_, i) => i !== index);
-                              onUpdateSkuCatalog(updated);
-                            }}
-                            className="text-rose-600 font-bold hover:underline"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Add SKU */}
-              <form onSubmit={handleAddSku} className="mt-6 p-4 bg-slate-50 rounded-xl border border-gray-200">
-                <h4 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-1">
-                  <Plus className="w-4 h-4 text-[#005696]" />
-                  Add Kalsi Product to Dwell Registry
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="SKU Code"
-                      value={newSkuCode}
-                      onChange={(e) => setNewSkuCode(e.target.value)}
-                      className="w-full text-xs p-2 border rounded-lg"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Product Description"
-                      value={newSkuName}
-                      onChange={(e) => setNewSkuName(e.target.value)}
-                      className="w-full text-xs p-2 border rounded-lg"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <select
-                      value={newSkuCategory}
-                      onChange={(e) => setNewSkuCategory(e.target.value)}
-                      className="w-full text-xs p-2 border rounded-lg"
-                    >
-                      <option value="Aquacel Roofline">Aquacel Roofline</option>
-                      <option value="Duraklad Cladding">Duraklad Cladding</option>
-                      <option value="Aquaflow Drainage">Aquaflow Drainage</option>
-                      <option value="Underground Soil/Waste">Underground Soil/Waste</option>
-                    </select>
-                  </div>
-                  <div>
-                    <input
-                      type="text"
-                      placeholder="Dimensions (e.g. 5m length)"
-                      value={newSkuDim}
-                      onChange={(e) => setNewSkuDim(e.target.value)}
-                      className="w-full text-xs p-2 border rounded-lg"
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="number"
-                      placeholder="Dwell Mins"
-                      value={newSkuDwell}
-                      onChange={(e) => setNewSkuDwell(parseInt(e.target.value))}
-                      className="w-full text-xs p-2 border rounded-lg"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <input
-                      type="number"
-                      placeholder="Van Space Units"
-                      value={newSkuUnits}
-                      onChange={(e) => setNewSkuUnits(parseInt(e.target.value))}
-                      className="w-full text-xs p-2 border rounded-lg"
-                      required
-                    />
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  className="mt-3 px-4 py-2 bg-[#005696] text-white text-xs font-bold rounded-lg shadow"
-                >
-                  Save Product Dwell Rule
-                </button>
-              </form>
-            </div>
-
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
-              <h3 className="font-bold text-gray-900 pb-3 border-b border-gray-100 flex items-center gap-2">
-                <Boxes className="w-5 h-5 text-[#005696]" />
-                Van Capacity Settings
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+            <div className="pb-4 border-b border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Sliders className="w-5 h-5 text-[#FF6B00]" />
+                Dwell Times per Product SKU
               </h3>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                  Maximum Van Capacity (Volume Units)
-                </label>
-                <input
-                  type="number"
-                  min="5"
-                  max="40"
-                  value={settings.maxVanCapacityUnits}
-                  onChange={(e) =>
-                    onUpdateSettings({ ...settings, maxVanCapacityUnits: parseInt(e.target.value) })
-                  }
-                  className="w-full text-sm p-2 border rounded-lg"
-                />
-                <p className="text-[11px] text-gray-400 mt-1">
-                  Standard 3.5t LWB Sprinter carries ~16 volume units of bulky plastic lengths.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                  Max Stops per Van Run
-                </label>
-                <input
-                  type="number"
-                  min="2"
-                  max="15"
-                  value={settings.maxStopsPerVan}
-                  onChange={(e) =>
-                    onUpdateSettings({ ...settings, maxStopsPerVan: parseInt(e.target.value) })
-                  }
-                  className="w-full text-sm p-2 border rounded-lg"
-                />
-              </div>
+              <p className="text-xs text-gray-500">
+                Set the delivery dwell time in minutes for each product SKU.
+              </p>
             </div>
+
+            <div className="overflow-x-auto mt-4">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-gray-600 font-bold uppercase border-b border-gray-200">
+                  <tr>
+                    <th className="p-3">SKU</th>
+                    <th className="p-3">Product Name</th>
+                    <th className="p-3 text-center">Dwell Time (Mins)</th>
+                    <th className="p-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {skuCatalog.map((item, index) => (
+                    <tr key={item.sku} className="hover:bg-slate-50">
+                      <td className="p-3 font-mono font-bold text-[#005696]">{item.sku}</td>
+                      <td className="p-3 font-semibold text-gray-800">{item.name}</td>
+                      <td className="p-3 text-center">
+                        <span className="bg-amber-50 text-amber-900 border border-amber-200 px-3 py-1 rounded font-bold">
+                          {item.defaultDwellMins} minutes
+                        </span>
+                      </td>
+                      <td className="p-3 text-right">
+                        <button
+                          onClick={() => {
+                            const updated = skuCatalog.filter((_, i) => i !== index);
+                            onUpdateSkuCatalog(updated);
+                          }}
+                          className="text-rose-600 font-bold hover:underline"
+                        >
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Add New SKU Form */}
+            <form onSubmit={handleAddSku} className="mt-6 p-4 bg-slate-50 rounded-xl border border-gray-200">
+              <h4 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-1">
+                <Plus className="w-4 h-4 text-[#005696]" />
+                Add Product SKU & Dwell Time
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <input
+                    type="text"
+                    placeholder="SKU (e.g. FAS-5M-OAK)"
+                    value={newSkuCode}
+                    onChange={(e) => setNewSkuCode(e.target.value)}
+                    className="w-full text-xs p-2.5 border rounded-lg"
+                    required
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Product Name"
+                    value={newSkuName}
+                    onChange={(e) => setNewSkuName(e.target.value)}
+                    className="w-full text-xs p-2.5 border rounded-lg"
+                    required
+                  />
+                </div>
+                <div>
+                  <input
+                    type="number"
+                    placeholder="Dwell Time (Mins)"
+                    value={newSkuDwell}
+                    onChange={(e) => setNewSkuDwell(parseInt(e.target.value))}
+                    className="w-full text-xs p-2.5 border rounded-lg"
+                    required
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                className="mt-3 px-4 py-2 bg-[#005696] text-white text-xs font-bold rounded-lg shadow"
+              >
+                Save Product Dwell Time
+              </button>
+            </form>
           </div>
         )}
 
@@ -992,50 +803,45 @@ export const AdminPortal: React.FC<Props> = ({
           <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 p-6 w-full">
             <h2 className="text-lg font-bold text-gray-900 pb-3 border-b border-gray-100 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-[#FF6B00]" />
-              Inbound Webhook Receiver Simulator
+              Inbound Webhook Simulator
             </h2>
 
-            {simulatedSuccessMsg && (
+            {simSuccess && (
               <div className="mt-4 p-3 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-200">
-                {simulatedSuccessMsg}
+                {simSuccess}
               </div>
             )}
 
             <form onSubmit={handleCreateSimulatedOrder} className="space-y-4 mt-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Product Selection</label>
-                <select
-                  value={simSelectedSku}
-                  onChange={(e) => setSimSelectedSku(e.target.value)}
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Customer / Trade Name</label>
+                <input
+                  type="text"
+                  required
+                  value={simName}
+                  onChange={(e) => setSimName(e.target.value)}
                   className="w-full text-sm p-2 border rounded-lg"
-                >
-                  {skuCatalog.map((s) => (
-                    <option key={s.sku} value={s.sku}>
-                      {s.name} ({s.dimensions}) - {s.defaultDwellMins}m dwell
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Customer / Merchant Name</label>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Phone Number</label>
                   <input
                     type="text"
                     required
-                    value={simCustomer}
-                    onChange={(e) => setSimCustomer(e.target.value)}
+                    value={simPhone}
+                    onChange={(e) => setSimPhone(e.target.value)}
                     className="w-full text-sm p-2 border rounded-lg"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Quantity</label>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Email Address</label>
                   <input
-                    type="number"
-                    min="1"
-                    max="20"
-                    value={simQty}
-                    onChange={(e) => setSimQty(parseInt(e.target.value))}
+                    type="email"
+                    required
+                    value={simEmail}
+                    onChange={(e) => setSimEmail(e.target.value)}
                     className="w-full text-sm p-2 border rounded-lg"
                   />
                 </div>
@@ -1064,8 +870,36 @@ export const AdminPortal: React.FC<Props> = ({
                 </div>
               </div>
 
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Product SKU</label>
+                  <select
+                    value={simSku}
+                    onChange={(e) => setSimSku(e.target.value)}
+                    className="w-full text-sm p-2 border rounded-lg"
+                  >
+                    {skuCatalog.map((s) => (
+                      <option key={s.sku} value={s.sku}>
+                        {s.sku} - {s.name} ({s.defaultDwellMins}m dwell)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Quantity</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={simQty}
+                    onChange={(e) => setSimQty(parseInt(e.target.value))}
+                    className="w-full text-sm p-2 border rounded-lg"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Special Handling Notes</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Driver Notes</label>
                 <input
                   type="text"
                   value={simNotes}
@@ -1078,7 +912,7 @@ export const AdminPortal: React.FC<Props> = ({
                 type="submit"
                 className="w-full py-3 bg-[#FF6B00] hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow transition mt-3"
               >
-                Trigger Inbound Webhook (Load into Orders)
+                Simulate Inbound Order Webhook
               </button>
             </form>
           </div>

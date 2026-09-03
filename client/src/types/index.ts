@@ -1,20 +1,14 @@
 export interface OrderItem {
   sku: string;
-  category: 'Aquacel Roofline' | 'Duraklad Cladding' | 'Aquaflow Drainage' | 'Underground Soil/Waste' | 'Panelling & MDPE';
   name: string;
-  dimensions: string; // e.g., "5m Length x 225mm Width"
   quantity: number;
-  individualDwellMins: number;
-  vanSpaceUnits: number; // Volume unit score in the delivery van
+  dwellMinsPerUnit: number;
 }
 
 export interface SkuDwellSetting {
   sku: string;
   name: string;
-  category: string;
-  dimensions: string;
   defaultDwellMins: number;
-  vanSpaceUnits: number;
 }
 
 export interface Driver {
@@ -25,12 +19,12 @@ export interface Driver {
   currentLat: number;
   currentLng: number;
   lastUpdated: string;
-  status: 'IDLE' | 'ON_ROUTE' | 'DELIVERING' | 'OFF_DUTY';
+  status: 'IDLE' | 'ON_ROUTE' | 'DELIVERING';
 }
 
 export interface ProofOfDelivery {
   id: string;
-  shipmentId: string;
+  orderId: string;
   recipientName: string;
   signatureData: string;
   photoUrl?: string | null;
@@ -42,22 +36,20 @@ export interface ProofOfDelivery {
 
 export interface Order {
   id: string;
-  trackingNumber: string; // Sequential tracking e.g. KAL-889101
+  trackingNumber: string;
   customerName: string;
-  customerPhone?: string;
-  customerEmail?: string;
+  customerPhone: string;
+  customerEmail: string;
   address: string;
   city: string;
   postcode: string;
   lat: number;
   lng: number;
   items: OrderItem[];
-  totalItemCount: number;
-  totalVanUnits: number;
-  calculatedDwellMins: number;
+  totalDwellMins: number; // Sum of per-product dwell times
   manualDwellOverrideMins?: number;
   specialNotes?: string;
-  status: 'PENDING_DISPATCH' | 'ROUTED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED';
+  status: 'PENDING' | 'ROUTED' | 'OUT_FOR_DELIVERY' | 'DELIVERED';
   routeId?: string;
   stopSequence?: number;
   proofOfDelivery?: ProofOfDelivery;
@@ -66,21 +58,13 @@ export interface Order {
 
 export interface DeliveryRoute {
   id: string;
-  routeNumber: string; // e.g. ROUTE-01
+  routeNumber: string; // e.g. "Route 1"
   date: string;
   status: 'UNASSIGNED' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED';
-  dwellTimeTotalMins: number;
+  totalDwellMins: number;
   totalEstimatedMins: number;
   totalDistanceKm: number;
-  totalVanUnitsUsed: number;
-  maxVanCapacity: number;
   driverId?: string;
   driver?: Driver;
   orders: Order[];
-}
-
-export interface GlobalSettings {
-  maxVanCapacityUnits: number;
-  maxStopsPerVan: number;
-  baseStopBufferMins: number;
 }
