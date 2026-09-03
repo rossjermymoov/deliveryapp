@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Driver, DeliveryRoute, Order, ProofOfDelivery } from '../types';
+import { Driver, DeliveryRoute, Order, ProofOfDelivery, BrandTheme } from '../types';
 import {
   Truck,
   MapPin,
@@ -17,6 +17,7 @@ import {
 
 interface Props {
   driver: Driver;
+  brandTheme: BrandTheme;
   activeRoute?: DeliveryRoute;
   onCompletePod: (orderId: string, pod: Partial<ProofOfDelivery>) => void;
   onStartRoute: (routeId: string) => void;
@@ -25,6 +26,7 @@ interface Props {
 
 export const DriverApp: React.FC<Props> = ({
   driver,
+  brandTheme,
   activeRoute,
   onCompletePod,
   onStartRoute,
@@ -63,7 +65,7 @@ export const DriverApp: React.FC<Props> = ({
 
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.strokeStyle = '#003366';
+    ctx.strokeStyle = '#0F1E36';
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
   };
@@ -166,17 +168,23 @@ export const DriverApp: React.FC<Props> = ({
     <div className="min-h-screen bg-slate-900 flex justify-center py-0 sm:py-6">
       <div className="w-full max-w-md bg-slate-50 min-h-screen sm:min-h-[850px] sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col relative border-4 border-slate-800">
         
-        {/* Mobile Header */}
-        <header className="bg-[#003366] text-white px-5 pt-6 pb-4 shadow">
+        {/* Mobile Header with White-Label Theme */}
+        <header
+          className="text-white px-5 pt-6 pb-4 shadow transition-colors"
+          style={{ backgroundColor: brandTheme.primaryColor }}
+        >
           <div className="flex items-center justify-between">
             <button
               onClick={onBackToAdmin}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold flex items-center gap-1 text-blue-200"
+              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold flex items-center gap-1 text-white"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Portal
+              Dispatch OMS
             </button>
-            <div className="flex items-center gap-1.5 bg-[#FF6B00] text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+            <div
+              className="text-white px-2.5 py-0.5 rounded-full text-[11px] font-bold"
+              style={{ backgroundColor: brandTheme.secondaryColor }}
+            >
               <span>{driver.vehicleReg}</span>
             </div>
           </div>
@@ -184,9 +192,12 @@ export const DriverApp: React.FC<Props> = ({
           <div className="mt-3 flex items-center justify-between">
             <div>
               <h2 className="text-lg font-black tracking-tight">{driver.name}</h2>
-              <p className="text-xs text-blue-200">{driver.phone}</p>
+              <p className="text-xs opacity-80">{brandTheme.companyName} Driver • {driver.phone}</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center font-bold text-sm text-[#FFB800]">
+            <div
+              className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center font-bold text-sm text-white"
+              style={{ backgroundColor: brandTheme.secondaryColor }}
+            >
               {driver.name.charAt(0)}
             </div>
           </div>
@@ -194,13 +205,13 @@ export const DriverApp: React.FC<Props> = ({
 
         {/* Route Status Banner */}
         {activeRoute ? (
-          <div className="bg-[#002244] text-white px-5 py-3 flex items-center justify-between text-xs border-b border-blue-900">
+          <div className="bg-slate-800 text-white px-5 py-3 flex items-center justify-between text-xs border-b border-slate-700">
             <div>
-              <span className="text-blue-300 block text-[10px]">ROUTE</span>
-              <span className="font-mono font-bold text-[#FFB800]">{activeRoute.routeNumber}</span>
+              <span className="text-slate-400 block text-[10px]">ROUTE</span>
+              <span className="font-mono font-bold text-amber-400">{activeRoute.routeNumber}</span>
             </div>
             <div className="text-right">
-              <span className="text-blue-300 block text-[10px]">PROGRESS</span>
+              <span className="text-slate-400 block text-[10px]">PROGRESS</span>
               <span className="font-bold">
                 {deliveredStops.length} / {activeRoute.orders.length} Delivered
               </span>
@@ -215,7 +226,8 @@ export const DriverApp: React.FC<Props> = ({
             </p>
             <button
               onClick={onBackToAdmin}
-              className="mt-4 px-4 py-2 bg-[#005696] text-white font-bold text-xs rounded-xl shadow"
+              className="mt-4 px-4 py-2 text-white font-bold text-xs rounded-xl shadow"
+              style={{ backgroundColor: brandTheme.secondaryColor }}
             >
               Open Portal
             </button>
@@ -243,13 +255,22 @@ export const DriverApp: React.FC<Props> = ({
         {activeRoute && (
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-24">
             {currentStop && (
-              <div className="bg-white rounded-2xl p-4 shadow-md border-2 border-[#005696] relative overflow-hidden">
-                <div className="absolute top-0 right-0 bg-[#005696] text-white text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-wider">
+              <div
+                className="bg-white rounded-2xl p-4 shadow-md border-2 relative overflow-hidden"
+                style={{ borderColor: brandTheme.secondaryColor }}
+              >
+                <div
+                  className="absolute top-0 right-0 text-white text-[10px] font-black uppercase px-3 py-1 rounded-bl-xl tracking-wider"
+                  style={{ backgroundColor: brandTheme.secondaryColor }}
+                >
                   Next Stop (#{currentStop.stopSequence || 1})
                 </div>
 
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono text-xs font-black text-[#005696] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                  <span
+                    className="font-mono text-xs font-black px-2 py-0.5 rounded border"
+                    style={{ color: brandTheme.secondaryColor, backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
+                  >
                     {currentStop.trackingNumber}
                   </span>
                 </div>
@@ -303,9 +324,10 @@ export const DriverApp: React.FC<Props> = ({
                 <div className="grid grid-cols-2 gap-2 mt-4">
                   <button
                     onClick={() => openGoogleMaps(currentStop)}
-                    className="py-2.5 bg-blue-50 hover:bg-blue-100 text-[#005696] font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 border border-blue-200"
+                    className="py-2.5 bg-blue-50 hover:bg-blue-100 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5 border border-blue-200"
+                    style={{ color: brandTheme.secondaryColor }}
                   >
-                    <Navigation className="w-4 h-4 text-blue-600" />
+                    <Navigation className="w-4 h-4" />
                     Google Maps
                   </button>
 
@@ -337,7 +359,7 @@ export const DriverApp: React.FC<Props> = ({
                         isDelivered
                           ? 'bg-emerald-50/50 border-emerald-200 opacity-80'
                           : isCurrent
-                          ? 'bg-white border-[#005696] shadow-sm'
+                          ? 'bg-white border-blue-600 shadow-sm'
                           : 'bg-white border-gray-200'
                       }`}
                     >
@@ -347,7 +369,7 @@ export const DriverApp: React.FC<Props> = ({
                             isDelivered
                               ? 'bg-emerald-600 text-white'
                               : isCurrent
-                              ? 'bg-[#005696] text-white'
+                              ? 'bg-slate-900 text-white'
                               : 'bg-gray-200 text-gray-600'
                           }`}
                         >
@@ -371,7 +393,8 @@ export const DriverApp: React.FC<Props> = ({
                       ) : (
                         <button
                           onClick={() => handleOpenPod(ord)}
-                          className="px-2.5 py-1 text-xs font-bold text-[#005696] bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200"
+                          className="px-2.5 py-1 text-xs font-bold rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100"
+                          style={{ color: brandTheme.secondaryColor }}
                         >
                           POD
                         </button>
@@ -390,7 +413,9 @@ export const DriverApp: React.FC<Props> = ({
             <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 flex flex-col max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div>
-                  <span className="text-xs font-bold text-[#005696] uppercase block">Proof of Delivery (POD)</span>
+                  <span className="text-xs font-bold uppercase block" style={{ color: brandTheme.secondaryColor }}>
+                    Proof of Delivery (POD)
+                  </span>
                   <h3 className="text-base font-black text-gray-900">{selectedStop.customerName}</h3>
                 </div>
                 <button
@@ -424,14 +449,14 @@ export const DriverApp: React.FC<Props> = ({
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
                     placeholder="e.g. Marcus Evans"
-                    className="w-full text-sm rounded-xl border-gray-300 p-2.5 border focus:ring-[#005696]"
+                    className="w-full text-sm rounded-xl border-gray-300 p-2.5 border focus:ring-blue-500"
                   />
                 </div>
 
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-bold text-gray-700 uppercase flex items-center gap-1">
-                      <PenTool className="w-3.5 h-3.5 text-[#005696]" />
+                      <PenTool className="w-3.5 h-3.5" style={{ color: brandTheme.secondaryColor }} />
                       Customer Signature (Draw Below)
                     </label>
                     <button
@@ -467,7 +492,7 @@ export const DriverApp: React.FC<Props> = ({
 
                 <div>
                   <label className="text-xs font-bold text-gray-700 uppercase block mb-1 flex items-center gap-1">
-                    <Camera className="w-3.5 h-3.5 text-[#FF6B00]" />
+                    <Camera className="w-3.5 h-3.5 text-amber-500" />
                     Proof Photo (Goods on Site)
                   </label>
 

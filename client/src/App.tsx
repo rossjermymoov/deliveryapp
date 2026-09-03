@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS } from './data/initialData';
-import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting } from './types';
+import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME } from './data/initialData';
+import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
 
@@ -9,6 +9,7 @@ export const App: React.FC = () => {
   const [drivers, setDrivers] = useState<Driver[]>(INITIAL_DRIVERS);
   const [routes, setRoutes] = useState<DeliveryRoute[]>(INITIAL_ROUTES);
   const [skuCatalog, setSkuCatalog] = useState<SkuDwellSetting[]>(INITIAL_SKU_SETTINGS);
+  const [brandTheme, setBrandTheme] = useState<BrandTheme>(KALSI_BRAND_THEME);
 
   const [viewMode, setViewMode] = useState<'admin' | 'driver'>('admin');
   const [activeDriverId, setActiveDriverId] = useState<string>(INITIAL_DRIVERS[0].id);
@@ -165,6 +166,8 @@ export const App: React.FC = () => {
           drivers={drivers}
           routes={routes}
           skuCatalog={skuCatalog}
+          brandTheme={brandTheme}
+          onUpdateBrandTheme={setBrandTheme}
           onCreateRoute={handleCreateRoute}
           onAssignDriverToRoute={handleAssignDriverToRoute}
           onUpdateOrderDwell={handleUpdateOrderDwell}
@@ -178,6 +181,7 @@ export const App: React.FC = () => {
       ) : (
         <DriverApp
           driver={currentDriver}
+          brandTheme={brandTheme}
           activeRoute={driverActiveRoute}
           onCompletePod={handleCompletePod}
           onStartRoute={handleStartRoute}

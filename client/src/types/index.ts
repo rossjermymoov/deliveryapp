@@ -1,3 +1,14 @@
+export interface BrandTheme {
+  companyName: string;
+  tagline: string;
+  logoText: string;
+  primaryColor: string;    // e.g. Navy '#0B2545'
+  secondaryColor: string;  // e.g. Kalsi Blue '#0072CE'
+  accentColor: string;     // e.g. Kalsi Green '#22C55E' or Orange '#FF6B00'
+  headerBgColor: string;
+  fontFamily?: string;
+}
+
 export interface OrderItem {
   sku: string;
   name: string;

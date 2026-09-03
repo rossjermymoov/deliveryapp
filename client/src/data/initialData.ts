@@ -1,4 +1,53 @@
-import { Order, Driver, DeliveryRoute, SkuDwellSetting } from '../types';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting, BrandTheme } from '../types';
+
+export const KALSI_BRAND_THEME: BrandTheme = {
+  companyName: 'Kalsi Plastics',
+  tagline: 'Advanced Building Product Manufacturing & Fleet Logistics',
+  logoText: 'KALSI',
+  primaryColor: '#0F1E36', // Kalsi Navy
+  secondaryColor: '#0072CE', // Kalsi Blue
+  accentColor: '#16A34A', // Kalsi Green
+  headerBgColor: '#0F1E36',
+};
+
+export const PRESET_THEMES: Record<string, BrandTheme> = {
+  kalsi: {
+    companyName: 'Kalsi Plastics',
+    tagline: 'Advanced Building Product Manufacturing & Fleet Logistics',
+    logoText: 'KALSI',
+    primaryColor: '#0F1E36', // Kalsi Navy
+    secondaryColor: '#0072CE', // Kalsi Blue
+    accentColor: '#16A34A', // Kalsi Green
+    headerBgColor: '#0F1E36',
+  },
+  moov: {
+    companyName: 'Moov Logistics',
+    tagline: 'Next-Generation Delivery & Route Optimization Engine',
+    logoText: 'MOOV',
+    primaryColor: '#18181B', // Dark Zinc
+    secondaryColor: '#6366F1', // Indigo
+    accentColor: '#EC4899', // Pink Accent
+    headerBgColor: '#18181B',
+  },
+  timber: {
+    companyName: 'Premier Timber & Building',
+    tagline: 'Nationwide Heavy Goods & Trade Delivery Network',
+    logoText: 'PREMIER',
+    primaryColor: '#27272A',
+    secondaryColor: '#D97706', // Amber Gold
+    accentColor: '#059669', // Emerald
+    headerBgColor: '#1C1917',
+  },
+  generic: {
+    companyName: 'Enterprise Delivery OS',
+    tagline: 'Multi-Depot Routing & Fleet Management Platform',
+    logoText: 'FLEET',
+    primaryColor: '#0F172A', // Slate 900
+    secondaryColor: '#2563EB', // Blue 600
+    accentColor: '#10B981', // Emerald 500
+    headerBgColor: '#0F172A',
+  },
+};
 
 export const INITIAL_SKU_SETTINGS: SkuDwellSetting[] = [
   { sku: 'FAS-5M-WHT', name: '5m Fascia Board (White)', defaultDwellMins: 20 },
@@ -62,7 +111,7 @@ export const INITIAL_ORDERS: Order[] = [
       { sku: 'GUT-4M-BLK', name: '4m Deepflow Gutter (Black)', quantity: 3, dwellMinsPerUnit: 12 },
       { sku: 'BOX-BRK-20', name: 'Box of Gutter Brackets & Jointers (20pk)', quantity: 1, dwellMinsPerUnit: 5 },
     ],
-    totalDwellMins: 25, // Primary bulky dwell (20) + small items buffer
+    totalDwellMins: 25,
     specialNotes: 'Heavy 5m lengths. Gate entry code 1984.',
     status: 'PENDING',
     createdAt: '2026-09-03T08:30:00Z',

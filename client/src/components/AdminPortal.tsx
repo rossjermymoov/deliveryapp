@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters } from '../types';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme } from '../types';
 import { optimizeRouteStops, DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
+import { PRESET_THEMES } from '../data/initialData';
 import { 
   Package, 
   MapPin, 
@@ -24,7 +25,9 @@ import {
   Coffee, 
   Car, 
   AlertTriangle,
-  Clock
+  Clock,
+  Palette,
+  Check
 } from 'lucide-react';
 
 interface Props {
@@ -32,6 +35,8 @@ interface Props {
   drivers: Driver[];
   routes: DeliveryRoute[];
   skuCatalog: SkuDwellSetting[];
+  brandTheme: BrandTheme;
+  onUpdateBrandTheme: (theme: BrandTheme) => void;
   onCreateRoute: (route: DeliveryRoute) => void;
   onAssignDriverToRoute: (routeId: string, driverId: string) => void;
   onUpdateOrderDwell: (orderId: string, manualDwell: number) => void;
@@ -45,6 +50,8 @@ export const AdminPortal: React.FC<Props> = ({
   drivers,
   routes,
   skuCatalog,
+  brandTheme,
+  onUpdateBrandTheme,
   onCreateRoute,
   onAssignDriverToRoute,
   onUpdateOrderDwell,
@@ -52,7 +59,7 @@ export const AdminPortal: React.FC<Props> = ({
   onSimulateNewOrder,
   onSwitchToDriver,
 }) => {
-  const [activeTab, setActiveTab] = useState<'orders' | 'routes' | 'map' | 'sku_dwell' | 'pods' | 'new_order_sim'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'routes' | 'map' | 'sku_dwell' | 'pods' | 'branding' | 'new_order_sim'>('orders');
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [editingDwellId, setEditingDwellId] = useState<string | null>(null);
   const [tempDwellVal, setTempDwellVal] = useState<number>(15);
@@ -192,20 +199,33 @@ export const AdminPortal: React.FC<Props> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      {/* Top Header */}
-      <header className="bg-[#003366] text-white px-6 py-4 shadow-sm border-b border-blue-900">
+      {/* Top Header - White Label Theme Enabled */}
+      <header
+        className="text-white px-6 py-4 shadow-sm border-b transition-colors duration-300"
+        style={{ backgroundColor: brandTheme.primaryColor, borderColor: 'rgba(255,255,255,0.1)' }}
+      >
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="bg-[#FF6B00] text-white px-3 py-1.5 rounded-lg shadow font-black text-xl tracking-wider">
-              KALSI
+            <div
+              className="text-white px-3 py-1.5 rounded-lg shadow font-black text-xl tracking-wider uppercase transition-colors"
+              style={{ backgroundColor: brandTheme.secondaryColor }}
+            >
+              {brandTheme.logoText}
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">Kalsi Plastics Delivery & Fleet Management</h1>
-              <p className="text-xs text-blue-200">Order Management • Traffic & Dwell Routing • Live Fleet Map</p>
+              <h1 className="text-xl font-bold tracking-tight">{brandTheme.companyName} Logistics</h1>
+              <p className="text-xs opacity-80">{brandTheme.tagline}</p>
             </div>
           </div>
 
           <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setActiveTab('branding')}
+              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-2 transition"
+            >
+              <Palette className="w-4 h-4 text-emerald-400" />
+              White-Label Settings
+            </button>
             <button
               onClick={() => setActiveTab('map')}
               className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-2 transition"
@@ -227,9 +247,10 @@ export const AdminPortal: React.FC<Props> = ({
               onClick={() => setActiveTab('orders')}
               className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
                 activeTab === 'orders'
-                  ? 'bg-[#005696] text-white shadow-sm'
+                  ? 'text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
               }`}
+              style={{ backgroundColor: activeTab === 'orders' ? brandTheme.secondaryColor : undefined }}
             >
               <Package className="w-4 h-4" />
               Orders ({pendingOrders.length})
@@ -239,9 +260,10 @@ export const AdminPortal: React.FC<Props> = ({
               onClick={() => setActiveTab('routes')}
               className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
                 activeTab === 'routes'
-                  ? 'bg-[#005696] text-white shadow-sm'
+                  ? 'text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
               }`}
+              style={{ backgroundColor: activeTab === 'routes' ? brandTheme.secondaryColor : undefined }}
             >
               <RouteIcon className="w-4 h-4" />
               Routes ({routes.length})
@@ -251,9 +273,10 @@ export const AdminPortal: React.FC<Props> = ({
               onClick={() => setActiveTab('map')}
               className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
                 activeTab === 'map'
-                  ? 'bg-[#005696] text-white shadow-sm'
+                  ? 'text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
               }`}
+              style={{ backgroundColor: activeTab === 'map' ? brandTheme.secondaryColor : undefined }}
             >
               <Radio className="w-4 h-4 text-emerald-600" />
               Live Driver Map
@@ -263,11 +286,12 @@ export const AdminPortal: React.FC<Props> = ({
               onClick={() => setActiveTab('sku_dwell')}
               className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
                 activeTab === 'sku_dwell'
-                  ? 'bg-[#005696] text-white shadow-sm'
+                  ? 'text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
               }`}
+              style={{ backgroundColor: activeTab === 'sku_dwell' ? brandTheme.secondaryColor : undefined }}
             >
-              <Sliders className="w-4 h-4 text-[#FF6B00]" />
+              <Sliders className="w-4 h-4 text-amber-500" />
               Dwell Times per Product
             </button>
 
@@ -275,19 +299,33 @@ export const AdminPortal: React.FC<Props> = ({
               onClick={() => setActiveTab('pods')}
               className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
                 activeTab === 'pods'
-                  ? 'bg-[#005696] text-white shadow-sm'
+                  ? 'text-white shadow-sm'
                   : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
               }`}
+              style={{ backgroundColor: activeTab === 'pods' ? brandTheme.secondaryColor : undefined }}
             >
               <FileCheck2 className="w-4 h-4 text-emerald-600" />
               Proof of Delivery ({completedOrders.length})
             </button>
 
             <button
+              onClick={() => setActiveTab('branding')}
+              className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
+                activeTab === 'branding'
+                  ? 'text-white shadow-sm'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+              style={{ backgroundColor: activeTab === 'branding' ? brandTheme.secondaryColor : undefined }}
+            >
+              <Palette className="w-4 h-4 text-indigo-500" />
+              White-Label Branding
+            </button>
+
+            <button
               onClick={() => setActiveTab('new_order_sim')}
               className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
                 activeTab === 'new_order_sim'
-                  ? 'bg-[#FF6B00] text-white shadow-sm'
+                  ? 'bg-amber-600 text-white shadow-sm'
                   : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200'
               }`}
             >
@@ -299,13 +337,13 @@ export const AdminPortal: React.FC<Props> = ({
           {/* Quick Launch Driver Views */}
           {drivers.length > 0 && (
             <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
-              <Truck className="w-4 h-4 text-[#005696]" />
-              <span className="text-xs font-semibold text-[#005696]">Driver View:</span>
+              <Truck className="w-4 h-4" style={{ color: brandTheme.secondaryColor }} />
+              <span className="text-xs font-semibold text-slate-700">Driver View:</span>
               {drivers.map((drv) => (
                 <button
                   key={drv.id}
                   onClick={() => onSwitchToDriver(drv.id)}
-                  className="text-xs bg-white text-[#005696] font-bold px-2 py-0.5 rounded shadow-xs hover:bg-blue-600 hover:text-white border border-blue-200 transition"
+                  className="text-xs bg-white text-slate-800 font-bold px-2 py-0.5 rounded shadow-xs hover:bg-slate-800 hover:text-white border border-gray-300 transition"
                 >
                   {drv.name.split(' ')[0]} 📱
                 </button>
@@ -317,12 +355,11 @@ export const AdminPortal: React.FC<Props> = ({
         {/* TAB 1: ORDER MANAGEMENT SYSTEM */}
         {activeTab === 'orders' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Orders with Distinct High-Contrast Left Borders */}
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col">
               <div className="flex flex-wrap items-center justify-between pb-4 border-b border-gray-100 gap-3">
                 <div>
                   <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                    <Package className="w-5 h-5 text-[#005696]" />
+                    <Package className="w-5 h-5" style={{ color: brandTheme.secondaryColor }} />
                     Orders ({pendingOrders.length})
                   </h2>
                   <p className="text-xs text-gray-500">
@@ -338,7 +375,7 @@ export const AdminPortal: React.FC<Props> = ({
                       placeholder="Search orders..."
                       value={searchFilter}
                       onChange={(e) => setSearchFilter(e.target.value)}
-                      className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-300 focus:ring-[#005696] w-44"
+                      className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-300 focus:ring-blue-500 w-44"
                     />
                   </div>
                   <button
@@ -366,12 +403,11 @@ export const AdminPortal: React.FC<Props> = ({
 
                     // Alternating distinctive high-contrast border colors
                     const borderColors = [
-                      'border-l-[#005696]', // Kalsi Deep Blue
-                      'border-l-[#FF6B00]', // Kalsi Safety Orange
-                      'border-l-emerald-600', // Emerald Green
-                      'border-l-indigo-600', // Royal Indigo
-                      'border-l-amber-500', // Amber
-                      'border-l-purple-600', // Purple
+                      'border-l-[#0072CE]', // Secondary Accent
+                      'border-l-[#16A34A]', // Green
+                      'border-l-[#D97706]', // Amber
+                      'border-l-[#6366F1]', // Indigo
+                      'border-l-[#0F1E36]', // Navy
                     ];
                     const activeBorderColor = borderColors[idx % borderColors.length];
 
@@ -380,7 +416,7 @@ export const AdminPortal: React.FC<Props> = ({
                         key={order.id}
                         className={`p-4 rounded-xl transition border border-gray-200 border-l-[6px] shadow-sm ${activeBorderColor} ${
                           isSelected
-                            ? 'bg-blue-50/60 ring-2 ring-[#005696]'
+                            ? 'bg-blue-50/60 ring-2 ring-blue-600'
                             : 'bg-white hover:bg-slate-50/80'
                         }`}
                       >
@@ -391,11 +427,14 @@ export const AdminPortal: React.FC<Props> = ({
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => handleToggleSelectOrder(order.id)}
-                              className="mt-1 h-4 w-4 rounded text-[#005696] focus:ring-[#005696] cursor-pointer"
+                              className="mt-1 h-4 w-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
                             />
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="font-mono text-xs font-black text-[#005696] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                <span
+                                  className="font-mono text-xs font-black px-2 py-0.5 rounded border"
+                                  style={{ color: brandTheme.secondaryColor, backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
+                                >
                                   {order.trackingNumber}
                                 </span>
                                 <span className="font-bold text-gray-900 text-sm">{order.customerName}</span>
@@ -411,16 +450,16 @@ export const AdminPortal: React.FC<Props> = ({
                           <div className="flex sm:flex-col items-end gap-1.5 shrink-0 self-end sm:self-center">
                             <div className="text-[11px] text-gray-600 flex items-center gap-3">
                               <span className="flex items-center gap-1 font-medium">
-                                <Phone className="w-3 h-3 text-[#005696]" /> {order.customerPhone}
+                                <Phone className="w-3 h-3 text-blue-600" /> {order.customerPhone}
                               </span>
                               <span className="flex items-center gap-1">
                                 <Mail className="w-3 h-3 text-gray-400" /> {order.customerEmail}
                               </span>
                             </div>
 
-                            {/* Dwell Time Badge / Override */}
+                            {/* Dwell Time Badge */}
                             {editingDwellId === order.id ? (
-                              <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-[#005696] shadow-sm mt-1">
+                              <div className="flex items-center gap-1 bg-white p-1 rounded-lg border border-blue-600 shadow-sm mt-1">
                                 <input
                                   type="number"
                                   min="5"
@@ -463,10 +502,10 @@ export const AdminPortal: React.FC<Props> = ({
                           </div>
                         </div>
 
-                        {/* Order Product Lines (SKU & Quantity) */}
+                        {/* Order Product Lines */}
                         <div className="pt-3">
                           <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                            <ListOrdered className="w-3.5 h-3.5 text-[#005696]" />
+                            <ListOrdered className="w-3.5 h-3.5" style={{ color: brandTheme.secondaryColor }} />
                             Order Items:
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -476,7 +515,10 @@ export const AdminPortal: React.FC<Props> = ({
                                 className="bg-slate-50 p-2.5 rounded-lg border border-gray-200 text-xs flex items-center justify-between"
                               >
                                 <div>
-                                  <span className="font-mono font-black text-[#005696] text-[11px] block">
+                                  <span
+                                    className="font-mono font-black text-[11px] block"
+                                    style={{ color: brandTheme.secondaryColor }}
+                                  >
                                     {item.sku}
                                   </span>
                                   <span className="font-medium text-gray-800">{item.name}</span>
@@ -501,7 +543,7 @@ export const AdminPortal: React.FC<Props> = ({
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-                  <Sparkles className="w-5 h-5 text-[#FF6B00]" />
+                  <Sparkles className="w-5 h-5 text-amber-500" />
                   <h3 className="font-bold text-gray-900">Shift & Route Optimizer</h3>
                 </div>
 
@@ -509,13 +551,15 @@ export const AdminPortal: React.FC<Props> = ({
                 <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-gray-200 space-y-3">
                   <div className="text-xs font-bold text-gray-700 uppercase flex items-center justify-between">
                     <span>Driver Shift Parameters</span>
-                    <span className="text-[#005696] font-black">{shiftParams.shiftLengthHours}h Max Shift</span>
+                    <span className="font-black" style={{ color: brandTheme.secondaryColor }}>
+                      {shiftParams.shiftLengthHours}h Max Shift
+                    </span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
                       <label className="block text-[11px] text-gray-500 font-bold mb-1 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-[#005696]" /> Max Shift (Hours)
+                        <Clock className="w-3 h-3" style={{ color: brandTheme.secondaryColor }} /> Max Shift (Hours)
                       </label>
                       <input
                         type="number"
@@ -546,9 +590,11 @@ export const AdminPortal: React.FC<Props> = ({
                   <div>
                     <label className="block text-[11px] text-gray-500 font-bold mb-1 flex items-center justify-between">
                       <span className="flex items-center gap-1">
-                        <Car className="w-3 h-3 text-blue-600" /> Google Maps Traffic Buffer
+                        <Car className="w-3 h-3 text-blue-600" /> Traffic Buffer (Google Maps)
                       </span>
-                      <span className="font-black text-[#005696]">+{Math.round((shiftParams.trafficBufferMultiplier - 1) * 100)}% Traffic</span>
+                      <span className="font-black" style={{ color: brandTheme.secondaryColor }}>
+                        +{Math.round((shiftParams.trafficBufferMultiplier - 1) * 100)}% Traffic
+                      </span>
                     </label>
                     <input
                       type="range"
@@ -557,7 +603,7 @@ export const AdminPortal: React.FC<Props> = ({
                       step="0.05"
                       value={shiftParams.trafficBufferMultiplier}
                       onChange={(e) => setShiftParams({ ...shiftParams, trafficBufferMultiplier: parseFloat(e.target.value) })}
-                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#005696]"
+                      className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                     />
                   </div>
                 </div>
@@ -566,7 +612,7 @@ export const AdminPortal: React.FC<Props> = ({
                 <div className="mt-4 space-y-4">
                   <div className="flex items-center justify-between bg-blue-50 p-3 rounded-xl border border-blue-200">
                     <span className="text-xs font-bold text-gray-700 uppercase">Selected Orders</span>
-                    <span className="text-sm font-black text-[#005696]">
+                    <span className="text-sm font-black" style={{ color: brandTheme.secondaryColor }}>
                       {selectedOrderIds.length} orders
                     </span>
                   </div>
@@ -574,9 +620,10 @@ export const AdminPortal: React.FC<Props> = ({
                   <button
                     onClick={handleCalculateRoute}
                     disabled={selectedOrderIds.length === 0}
-                    className="w-full py-3 bg-[#005696] hover:bg-[#004070] text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="w-full py-3 text-white font-bold text-xs rounded-xl shadow transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    style={{ backgroundColor: brandTheme.primaryColor }}
                   >
-                    <Sparkles className="w-4 h-4 text-[#FFB800]" />
+                    <Sparkles className="w-4 h-4 text-amber-400" />
                     Calculate Route & Evaluate Feasibility
                   </button>
                 </div>
@@ -604,7 +651,6 @@ export const AdminPortal: React.FC<Props> = ({
                       </h5>
                     </div>
 
-                    {/* Detailed Duration Breakdown */}
                     <div className="grid grid-cols-3 gap-2 text-xs mb-3">
                       <div className="bg-white p-2 rounded shadow-2xs text-center border border-gray-100">
                         <span className="text-gray-400 block text-[10px] font-bold">DRIVING TIME</span>
@@ -614,7 +660,7 @@ export const AdminPortal: React.FC<Props> = ({
                       </div>
                       <div className="bg-white p-2 rounded shadow-2xs text-center border border-gray-100">
                         <span className="text-gray-400 block text-[10px] font-bold">DWELL TIME</span>
-                        <span className="font-black text-[#FF6B00]">
+                        <span className="font-black" style={{ color: brandTheme.secondaryColor }}>
                           {Math.floor(routePreview.totalDwellMins / 60)}h {routePreview.totalDwellMins % 60}m
                         </span>
                       </div>
@@ -628,7 +674,7 @@ export const AdminPortal: React.FC<Props> = ({
 
                     <div className="bg-white p-2.5 rounded-lg border border-gray-200 text-xs mb-3 flex items-center justify-between">
                       <span className="font-bold text-gray-700">Total Shift Duration:</span>
-                      <span className="font-black text-base text-[#005696]">
+                      <span className="font-black text-base" style={{ color: brandTheme.secondaryColor }}>
                         {Math.floor(routePreview.totalDurationMins / 60)}h {routePreview.totalDurationMins % 60}m
                         <span className="text-xs text-gray-400 font-normal ml-1">({routePreview.totalDistanceKm} km)</span>
                       </span>
@@ -658,7 +704,7 @@ export const AdminPortal: React.FC<Props> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <RouteIcon className="w-5 h-5 text-[#005696]" />
+                  <RouteIcon className="w-5 h-5" style={{ color: brandTheme.secondaryColor }} />
                   Delivery Routes ({routes.length})
                 </h2>
                 <p className="text-xs text-gray-500">
@@ -685,7 +731,9 @@ export const AdminPortal: React.FC<Props> = ({
                       <div>
                         <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                           <div>
-                            <span className="text-xs font-mono font-black text-[#005696]">{route.routeNumber}</span>
+                            <span className="text-xs font-mono font-black" style={{ color: brandTheme.secondaryColor }}>
+                              {route.routeNumber}
+                            </span>
                             <h3 className="font-bold text-gray-900 text-sm">Delivery Manifest</h3>
                           </div>
                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -698,7 +746,6 @@ export const AdminPortal: React.FC<Props> = ({
                           </span>
                         </div>
 
-                        {/* Shift Breakdown Pills */}
                         <div className="grid grid-cols-4 gap-2 my-3 text-center text-xs">
                           <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
                             <span className="text-gray-400 block text-[10px] font-bold">STOPS</span>
@@ -710,11 +757,11 @@ export const AdminPortal: React.FC<Props> = ({
                           </div>
                           <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
                             <span className="text-gray-400 block text-[10px] font-bold">DWELL TIME</span>
-                            <span className="font-black text-[#FF6B00]">{Math.floor(route.totalDwellMins / 60)}h {route.totalDwellMins % 60}m</span>
+                            <span className="font-black" style={{ color: brandTheme.secondaryColor }}>{Math.floor(route.totalDwellMins / 60)}h {route.totalDwellMins % 60}m</span>
                           </div>
                           <div className="bg-slate-50 p-2 rounded-lg border border-gray-100">
                             <span className="text-gray-400 block text-[10px] font-bold">TOTAL SHIFT</span>
-                            <span className="font-black text-[#005696]">{Math.floor(route.totalEstimatedMins / 60)}h {route.totalEstimatedMins % 60}m</span>
+                            <span className="font-black text-emerald-700">{Math.floor(route.totalEstimatedMins / 60)}h {route.totalEstimatedMins % 60}m</span>
                           </div>
                         </div>
 
@@ -743,13 +790,13 @@ export const AdminPortal: React.FC<Props> = ({
                       <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between gap-3">
                         <div className="flex-1">
                           <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1 flex items-center gap-1">
-                            <UserCheck className="w-3 h-3 text-[#005696]" />
+                            <UserCheck className="w-3 h-3" style={{ color: brandTheme.secondaryColor }} />
                             Assign Driver to Route:
                           </label>
                           <select
                             value={route.driverId || ''}
                             onChange={(e) => onAssignDriverToRoute(route.id, e.target.value)}
-                            className="w-full text-xs font-semibold rounded-lg border-gray-300 p-2 border focus:ring-[#005696]"
+                            className="w-full text-xs font-semibold rounded-lg border-gray-300 p-2 border focus:ring-blue-500"
                           >
                             <option value="">-- Unassigned (Choose Driver) --</option>
                             {drivers.map((drv) => (
@@ -763,7 +810,8 @@ export const AdminPortal: React.FC<Props> = ({
                         {route.driverId && (
                           <button
                             onClick={() => onSwitchToDriver(route.driverId!)}
-                            className="mt-4 py-2 px-3 bg-blue-50 hover:bg-blue-100 text-[#005696] font-bold text-xs rounded-lg transition shrink-0"
+                            className="mt-4 py-2 px-3 bg-blue-50 hover:bg-blue-100 font-bold text-xs rounded-lg transition shrink-0"
+                            style={{ color: brandTheme.secondaryColor }}
                           >
                             Open Driver View 📱
                           </button>
@@ -791,7 +839,7 @@ export const AdminPortal: React.FC<Props> = ({
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
             <div className="pb-4 border-b border-gray-100">
               <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-[#FF6B00]" />
+                <Sliders className="w-5 h-5 text-amber-500" />
                 Dwell Times per Product SKU
               </h3>
               <p className="text-xs text-gray-500">
@@ -812,7 +860,7 @@ export const AdminPortal: React.FC<Props> = ({
                 <tbody className="divide-y divide-gray-100">
                   {skuCatalog.map((item, index) => (
                     <tr key={item.sku} className="hover:bg-slate-50">
-                      <td className="p-3 font-mono font-bold text-[#005696]">{item.sku}</td>
+                      <td className="p-3 font-mono font-bold" style={{ color: brandTheme.secondaryColor }}>{item.sku}</td>
                       <td className="p-3 font-semibold text-gray-800">{item.name}</td>
                       <td className="p-3 text-center">
                         <span className="bg-amber-50 text-amber-900 border border-amber-200 px-3 py-1 rounded font-bold">
@@ -839,7 +887,7 @@ export const AdminPortal: React.FC<Props> = ({
             {/* Add New SKU Form */}
             <form onSubmit={handleAddSku} className="mt-6 p-4 bg-slate-50 rounded-xl border border-gray-200">
               <h4 className="text-xs font-bold text-gray-700 uppercase mb-3 flex items-center gap-1">
-                <Plus className="w-4 h-4 text-[#005696]" />
+                <Plus className="w-4 h-4" style={{ color: brandTheme.secondaryColor }} />
                 Add Product SKU & Dwell Time
               </h4>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -876,7 +924,8 @@ export const AdminPortal: React.FC<Props> = ({
               </div>
               <button
                 type="submit"
-                className="mt-3 px-4 py-2 bg-[#005696] text-white text-xs font-bold rounded-lg shadow"
+                className="mt-3 px-4 py-2 text-white text-xs font-bold rounded-lg shadow"
+                style={{ backgroundColor: brandTheme.primaryColor }}
               >
                 Save Product Dwell Time
               </button>
@@ -884,7 +933,150 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 5: POD RECORDS */}
+        {/* TAB 5: WHITE-LABEL BRANDING & CUSTOMIZATION SETTINGS */}
+        {activeTab === 'branding' && (
+          <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
+            <div className="pb-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Palette className="w-5 h-5 text-indigo-600" />
+                  White-Label Branding & Company Customization
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Instantly rebrand the entire application for Kalsi Plastics or customize it to sell to other enterprise clients.
+                </p>
+              </div>
+            </div>
+
+            {/* Presets Grid */}
+            <div>
+              <h4 className="text-xs font-bold text-gray-700 uppercase mb-3">1-Click Brand Presets:</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                {Object.entries(PRESET_THEMES).map(([key, preset]) => {
+                  const isActive = brandTheme.companyName === preset.companyName;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => onUpdateBrandTheme(preset)}
+                      className={`p-3.5 rounded-xl border text-left transition flex flex-col justify-between ${
+                        isActive
+                          ? 'border-indigo-600 ring-2 ring-indigo-500 bg-indigo-50/40 shadow-sm'
+                          : 'hover:bg-slate-50 border-gray-200'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-bold text-xs text-gray-900">{preset.companyName}</span>
+                          {isActive && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                        </div>
+                        <p className="text-[10px] text-gray-500 line-clamp-2">{preset.tagline}</p>
+                      </div>
+
+                      <div className="flex gap-1.5 mt-3">
+                        <span className="w-4 h-4 rounded-full border shadow-2xs" style={{ backgroundColor: preset.primaryColor }}></span>
+                        <span className="w-4 h-4 rounded-full border shadow-2xs" style={{ backgroundColor: preset.secondaryColor }}></span>
+                        <span className="w-4 h-4 rounded-full border shadow-2xs" style={{ backgroundColor: preset.accentColor }}></span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Custom Branding Controls */}
+            <div className="p-5 bg-slate-50 rounded-2xl border border-gray-200 space-y-4">
+              <h4 className="text-xs font-bold text-gray-700 uppercase">Custom Theme & Color Pickers:</h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Company / Brand Name</label>
+                  <input
+                    type="text"
+                    value={brandTheme.companyName}
+                    onChange={(e) => onUpdateBrandTheme({ ...brandTheme, companyName: e.target.value })}
+                    className="w-full text-xs font-semibold p-2 border rounded-lg bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Logo Badge Text</label>
+                  <input
+                    type="text"
+                    value={brandTheme.logoText}
+                    onChange={(e) => onUpdateBrandTheme({ ...brandTheme, logoText: e.target.value })}
+                    className="w-full text-xs font-semibold p-2 border rounded-lg bg-white uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">System Tagline</label>
+                  <input
+                    type="text"
+                    value={brandTheme.tagline}
+                    onChange={(e) => onUpdateBrandTheme({ ...brandTheme, tagline: e.target.value })}
+                    className="w-full text-xs font-semibold p-2 border rounded-lg bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Primary Header Color</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={brandTheme.primaryColor}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, primaryColor: e.target.value })}
+                      className="w-8 h-8 rounded border cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={brandTheme.primaryColor}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, primaryColor: e.target.value })}
+                      className="flex-1 text-xs font-mono p-1.5 border rounded-lg bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Brand Accent Color (Buttons & Badges)</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={brandTheme.secondaryColor}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, secondaryColor: e.target.value })}
+                      className="w-8 h-8 rounded border cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={brandTheme.secondaryColor}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, secondaryColor: e.target.value })}
+                      className="flex-1 text-xs font-mono p-1.5 border rounded-lg bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Status / Secondary Accent</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={brandTheme.accentColor}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, accentColor: e.target.value })}
+                      className="w-8 h-8 rounded border cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={brandTheme.accentColor}
+                      onChange={(e) => onUpdateBrandTheme({ ...brandTheme, accentColor: e.target.value })}
+                      className="flex-1 text-xs font-mono p-1.5 border rounded-lg bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 6: POD RECORDS */}
         {activeTab === 'pods' && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -916,11 +1108,11 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 6: WEBHOOK SIMULATOR */}
+        {/* TAB 7: WEBHOOK SIMULATOR */}
         {activeTab === 'new_order_sim' && (
           <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 p-6 w-full">
             <h2 className="text-lg font-bold text-gray-900 pb-3 border-b border-gray-100 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-[#FF6B00]" />
+              <Sparkles className="w-5 h-5 text-amber-500" />
               Inbound Webhook Simulator
             </h2>
 
@@ -1028,7 +1220,8 @@ export const AdminPortal: React.FC<Props> = ({
 
               <button
                 type="submit"
-                className="w-full py-3 bg-[#FF6B00] hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow transition mt-3"
+                className="w-full py-3 text-white font-bold text-xs rounded-xl shadow transition mt-3"
+                style={{ backgroundColor: brandTheme.secondaryColor }}
               >
                 Simulate Inbound Order Webhook
               </button>
