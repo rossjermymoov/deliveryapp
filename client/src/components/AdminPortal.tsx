@@ -6,7 +6,7 @@ import { MorningDashboard } from './MorningDashboard';
 import { ScanToVanModal } from './ScanToVanModal';
 import { OrdersManager } from './OrdersManager';
 import { RoutesManager } from './RoutesManager';
-import { SettingsModal } from './SettingsModal';
+import { SettingsPage } from './SettingsPage';
 import { 
   Package, 
   Route as RouteIcon, 
@@ -31,6 +31,7 @@ interface Props {
   currentUser: UserAccount;
   onSwitchUser: (userId: string) => void;
   onUpdateUsers: (users: UserAccount[]) => void;
+  onUpdateDrivers: (drivers: Driver[]) => void;
   onUpdateBrandTheme: (theme: BrandTheme) => void;
   onUpdateDepots: (depots: Depot[]) => void;
   onCreateRoute: (route: DeliveryRoute) => void;
@@ -55,6 +56,7 @@ export const AdminPortal: React.FC<Props> = ({
   currentUser,
   onSwitchUser,
   onUpdateUsers,
+  onUpdateDrivers,
   onUpdateBrandTheme,
   onUpdateDepots,
   onCreateRoute,
@@ -77,8 +79,8 @@ export const AdminPortal: React.FC<Props> = ({
     ? selectedDepotId
     : (currentUser.assignedDepotId || depots[0]?.id || 'depot-bhm');
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map'>('dashboard');
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // Navigation tab (including full-page settings)
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map' | 'settings'>('dashboard');
 
   // Scan to Van modal state
   const [loadingRoute, setLoadingRoute] = useState<DeliveryRoute | null>(null);
@@ -95,7 +97,6 @@ export const AdminPortal: React.FC<Props> = ({
   const handleAutoBatchDepot = () => {
     const maxPerVan = currentDepot.maxOrdersPerVan || 6;
 
-    // Filter to only qualifying unassigned orders for this depot
     const pendingOrders = activeOrders.filter((o) => o.status === 'PENDING' && !o.belowRouteCriteria);
     if (pendingOrders.length === 0) return;
 
@@ -156,24 +157,7 @@ export const AdminPortal: React.FC<Props> = ({
         />
       )}
 
-      {/* Unified Settings & User Access Modal */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        brandTheme={brandTheme}
-        onUpdateBrandTheme={onUpdateBrandTheme}
-        skuCatalog={skuCatalog}
-        onUpdateSkuCatalog={onUpdateSkuCatalog}
-        depots={depots}
-        onUpdateDepots={onUpdateDepots}
-        shiftParams={shiftParams}
-        onUpdateShiftParams={setShiftParams}
-        users={users}
-        onUpdateUsers={onUpdateUsers}
-        currentUser={currentUser}
-      />
-
-      {/* Top Header with Role & User Switcher */}
+      {/* Top Header */}
       <header
         className="text-white px-6 py-4 shadow-sm border-b transition-colors duration-300 sticky top-0 z-40"
         style={{ backgroundColor: brandTheme.primaryColour, borderColor: 'rgba(255,255,255,0.1)' }}
@@ -201,7 +185,7 @@ export const AdminPortal: React.FC<Props> = ({
                 )}
               </div>
               <p className="text-xs opacity-80">
-                {isHeadOfficeAdmin ? 'National Fleet Overview & Depot Administration' : `Locked strictly to ${currentDepot.name}`}
+                {isHeadOfficeAdmin ? 'National Fleet Overview & System Administration' : `Locked strictly to ${currentDepot.name}`}
               </p>
             </div>
           </div>
@@ -209,7 +193,7 @@ export const AdminPortal: React.FC<Props> = ({
           {/* Right Top Controls: Role Switcher & Depot Selector */}
           <div className="flex items-center space-x-3 flex-wrap">
             
-            {/* Quick User Account Role Switcher */}
+            {/* User Switcher */}
             <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/20 flex items-center gap-2 text-xs">
               <UserCheck className="w-3.5 h-3.5 text-amber-300" />
               <div className="flex flex-col">
@@ -256,15 +240,6 @@ export const AdminPortal: React.FC<Props> = ({
                 </span>
               </div>
             )}
-
-            {/* Settings Button */}
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-2 transition"
-            >
-              <Settings className="w-4 h-4 text-amber-400" />
-              Settings
-            </button>
           </div>
         </div>
       </header>
@@ -272,7 +247,7 @@ export const AdminPortal: React.FC<Props> = ({
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full flex flex-col gap-6">
         
-        {/* Navigation Tabs */}
+        {/* Navigation Tabs (Dashboard, Orders, Routes, Telematics, and Full Settings Page) */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-3">
           <div className="flex space-x-2 flex-wrap gap-y-2">
             <button
@@ -325,6 +300,20 @@ export const AdminPortal: React.FC<Props> = ({
             >
               <Radio className="w-4 h-4 text-emerald-600 animate-pulse" />
               Live Telematics
+            </button>
+
+            {/* FULL-PAGE SETTINGS TAB */}
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`px-4 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-2 ${
+                activeTab === 'settings'
+                  ? 'text-white shadow-sm'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+              style={{ backgroundColor: activeTab === 'settings' ? brandTheme.secondaryColour : undefined }}
+            >
+              <Settings className="w-4 h-4 text-amber-500" />
+              Settings & Fleet Admin
             </button>
           </div>
 
@@ -399,6 +388,25 @@ export const AdminPortal: React.FC<Props> = ({
             drivers={drivers}
             routes={routes}
             onSelectDriverToView={onSwitchToDriver}
+          />
+        )}
+
+        {/* TAB 4: FULL-PAGE SETTINGS & FLEET ADMIN */}
+        {activeTab === 'settings' && (
+          <SettingsPage
+            brandTheme={brandTheme}
+            onUpdateBrandTheme={onUpdateBrandTheme}
+            skuCatalog={skuCatalog}
+            onUpdateSkuCatalog={onUpdateSkuCatalog}
+            depots={depots}
+            onUpdateDepots={onUpdateDepots}
+            shiftParams={shiftParams}
+            onUpdateShiftParams={setShiftParams}
+            users={users}
+            onUpdateUsers={onUpdateUsers}
+            drivers={drivers}
+            onUpdateDrivers={onUpdateDrivers}
+            currentUser={currentUser}
           />
         )}
       </main>

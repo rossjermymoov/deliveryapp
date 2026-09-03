@@ -13,7 +13,7 @@ export const App: React.FC = () => {
   const [brandTheme, setBrandTheme] = useState<BrandTheme>(KALSI_BRAND_THEME);
   const [users, setUsers] = useState<UserAccount[]>(INITIAL_USERS);
 
-  // Active Signed-In User State (default to Head Office Admin, switchable to Depot Controllers)
+  // Active Signed-In User State
   const [currentUserId, setCurrentUserId] = useState<string>(INITIAL_USERS[0].id);
 
   const [viewMode, setViewMode] = useState<'admin' | 'driver'>('admin');
@@ -276,6 +276,7 @@ export const App: React.FC = () => {
           currentUser={currentUser}
           onSwitchUser={setCurrentUserId}
           onUpdateUsers={setUsers}
+          onUpdateDrivers={setDrivers}
           onUpdateBrandTheme={setBrandTheme}
           onUpdateDepots={setDepots}
           onCreateRoute={handleCreateRoute}
