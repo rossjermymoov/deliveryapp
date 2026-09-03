@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, Driver } from '../types';
+import { SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, Driver, VanVehicle } from '../types';
 import { PRESET_THEMES } from '../data/initialData';
 import {
   Sliders,
@@ -15,7 +15,8 @@ import {
   Users,
   ShieldCheck,
   ArrowRightLeft,
-  Warehouse
+  Warehouse,
+  Barcode
 } from 'lucide-react';
 
 interface Props {
@@ -31,6 +32,8 @@ interface Props {
   onUpdateUsers: (users: UserAccount[]) => void;
   drivers: Driver[];
   onUpdateDrivers: (drivers: Driver[]) => void;
+  vans: VanVehicle[];
+  onUpdateVans: (vans: VanVehicle[]) => void;
   currentUser: UserAccount;
 }
 
@@ -47,6 +50,8 @@ export const SettingsPage: React.FC<Props> = ({
   onUpdateUsers,
   drivers,
   onUpdateDrivers,
+  vans,
+  onUpdateVans,
   currentUser,
 }) => {
   const isHeadOffice = currentUser.role === 'HEAD_OFFICE_ADMIN';
@@ -54,7 +59,7 @@ export const SettingsPage: React.FC<Props> = ({
   const currentDepot = depots.find((d) => d.id === assignedDepotId) || depots[0];
 
   // If Head Office: default to 'staff'; If Depot Controller: default to 'my_drivers'
-  const [activeTab, setActiveTab] = useState<'staff' | 'all_drivers' | 'my_drivers' | 'depots' | 'my_depot' | 'dwell' | 'shift' | 'branding'>(
+  const [activeTab, setActiveTab] = useState<'staff' | 'all_drivers' | 'my_drivers' | 'all_vans' | 'my_vans' | 'depots' | 'my_depot' | 'dwell' | 'shift' | 'branding'>(
     isHeadOffice ? 'staff' : 'my_drivers'
   );
 
@@ -70,18 +75,30 @@ export const SettingsPage: React.FC<Props> = ({
     assignedDepotId: depots[0]?.id || 'depot-bhm',
   });
 
-  // New Driver Form State
+  // New Driver Form State (Decoupled from van)
   const [newDriver, setNewDriver] = useState<Partial<Driver>>({
     name: '',
     phone: '',
-    vehicleReg: '',
     depotId: isHeadOffice ? (depots[0]?.id || 'depot-bhm') : assignedDepotId,
+  });
+
+  // New Van Form State
+  const [newVan, setNewVan] = useState<Partial<VanVehicle>>({
+    registration: '',
+    model: 'Mercedes Sprinter 3.5t Long-Wheelbase',
+    barcode: '',
+    depotId: isHeadOffice ? (depots[0]?.id || 'depot-bhm') : assignedDepotId,
+    maxPayloadKg: 1350,
   });
 
   // Filtered lists for Depot Controller
   const visibleDrivers = isHeadOffice
     ? drivers
     : drivers.filter((d) => d.depotId === assignedDepotId);
+
+  const visibleVans = isHeadOffice
+    ? vans
+    : vans.filter((v) => v.depotId === assignedDepotId);
 
   // Transfer Staff Member between Depots (Head Office Admin Only)
   const handleTransferStaff = (userId: string, targetDepotId: string) => {
@@ -93,7 +110,7 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Transfer Driver & Vehicle between Depots (Head Office Admin Only)
+  // Transfer Driver between Depots (Head Office Admin Only)
   const handleTransferDriver = (driverId: string, targetDepotId: string) => {
     if (!isHeadOffice) return;
     const targetDepot = depots.find((d) => d.id === targetDepotId);
@@ -108,7 +125,17 @@ export const SettingsPage: React.FC<Props> = ({
         : d
     );
     onUpdateDrivers(updated);
-    setSaveBanner(`✓ Transferred driver & vehicle to ${targetDepot?.name || targetDepotId}`);
+    setSaveBanner(`✓ Transferred driver to ${targetDepot?.name || targetDepotId}`);
+    setTimeout(() => setSaveBanner(''), 3000);
+  };
+
+  // Transfer Van Vehicle between Depots (Head Office Admin Only)
+  const handleTransferVan = (vanId: string, targetDepotId: string) => {
+    if (!isHeadOffice) return;
+    const targetDepot = depots.find((d) => d.id === targetDepotId);
+    const updated = vans.map((v) => (v.id === vanId ? { ...v, depotId: targetDepotId } : v));
+    onUpdateVans(updated);
+    setSaveBanner(`✓ Transferred vehicle to ${targetDepot?.name || targetDepotId}`);
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
@@ -136,10 +163,10 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Add Driver Handler (Controller can add to their own depot; Admin can add to any)
+  // Add Driver Handler (Decoupled from Van)
   const handleAddDriver = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDriver.name || !newDriver.vehicleReg) return;
+    if (!newDriver.name) return;
 
     const targetDepotId = isHeadOffice ? (newDriver.depotId || 'depot-bhm') : assignedDepotId;
     const assignedDepot = depots.find((d) => d.id === targetDepotId) || currentDepot;
@@ -148,7 +175,6 @@ export const SettingsPage: React.FC<Props> = ({
       id: `drv-${Date.now()}`,
       name: newDriver.name,
       phone: newDriver.phone || '07700 900000',
-      vehicleReg: newDriver.vehicleReg.toUpperCase(),
       depotId: targetDepotId,
       currentLat: assignedDepot.lat,
       currentLng: assignedDepot.lng,
@@ -160,10 +186,40 @@ export const SettingsPage: React.FC<Props> = ({
     setNewDriver({
       name: '',
       phone: '',
-      vehicleReg: '',
       depotId: isHeadOffice ? depots[0]?.id : assignedDepotId,
     });
-    setSaveBanner(`✓ Registered driver "${createdDriver.name}" to ${assignedDepot.name}!`);
+    setSaveBanner(`✓ Registered driver "${createdDriver.name}" at ${assignedDepot.name}!`);
+    setTimeout(() => setSaveBanner(''), 3000);
+  };
+
+  // Add Van Vehicle Handler
+  const handleAddVan = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVan.registration) return;
+
+    const reg = newVan.registration.toUpperCase();
+    const targetDepotId = isHeadOffice ? (newVan.depotId || 'depot-bhm') : assignedDepotId;
+    const assignedDepot = depots.find((d) => d.id === targetDepotId) || currentDepot;
+
+    const createdVan: VanVehicle = {
+      id: `van-${Date.now()}`,
+      registration: reg,
+      depotId: targetDepotId,
+      model: newVan.model || 'Mercedes Sprinter 3.5t Long-Wheelbase',
+      barcode: newVan.barcode?.toUpperCase() || `VAN-${reg.replace(/\s+/g, '')}`,
+      status: 'AVAILABLE',
+      maxPayloadKg: newVan.maxPayloadKg || 1350,
+    };
+
+    onUpdateVans([...vans, createdVan]);
+    setNewVan({
+      registration: '',
+      model: 'Mercedes Sprinter 3.5t Long-Wheelbase',
+      barcode: '',
+      depotId: isHeadOffice ? depots[0]?.id : assignedDepotId,
+      maxPayloadKg: 1350,
+    });
+    setSaveBanner(`✓ Registered vehicle "${createdVan.registration}" at ${assignedDepot.name}!`);
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
@@ -175,8 +231,14 @@ export const SettingsPage: React.FC<Props> = ({
   };
 
   const handleDeleteDriver = (driverId: string) => {
-    if (confirm('Remove this driver record from the depot fleet?')) {
+    if (confirm('Remove this driver record from the depot?')) {
       onUpdateDrivers(drivers.filter((d) => d.id !== driverId));
+    }
+  };
+
+  const handleDeleteVan = (vanId: string) => {
+    if (confirm('Remove this van from the fleet?')) {
+      onUpdateVans(vans.filter((v) => v.id !== vanId));
     }
   };
 
@@ -233,16 +295,16 @@ export const SettingsPage: React.FC<Props> = ({
               {isHeadOffice ? 'Head Office Administration' : `${currentDepot.city} Depot Settings`}
             </span>
             <span className="text-xs text-slate-400 font-bold">
-              • {isHeadOffice ? 'Global Access & Fleet Management' : 'Local Depot Fleet & Driver Records'}
+              • {isHeadOffice ? 'Global Access & Fleet Management' : 'Local Depot Drivers & Van Fleet'}
             </span>
           </div>
           <h2 className="text-xl font-black text-slate-900 mt-1">
-            {isHeadOffice ? 'Global Operations Settings' : `${currentDepot.name} Configuration`}
+            {isHeadOffice ? 'Global Operations Settings' : `${currentDepot.name} Fleet Configuration`}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {isHeadOffice
-              ? 'Head Office Administration • Manage staff transfers, driver allocations, global depot capacities, SKUs and branding.'
-              : `Managing local drivers and vehicle registrations for ${currentDepot.name}.`}
+              ? 'Head Office Administration • Manage staff transfers, decoupled driver rosters, physical van inventory, SKUs and branding.'
+              : `Managing decoupled drivers and vehicle fleet pool for ${currentDepot.name}.`}
           </p>
         </div>
       </div>
@@ -254,7 +316,7 @@ export const SettingsPage: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Role-Based Navigation Tabs */}
+      {/* Navigation Tabs */}
       <div className="flex bg-white rounded-2xl border border-gray-200 p-1.5 gap-1.5 overflow-x-auto shadow-sm text-xs">
         
         {/* HEAD OFFICE ADMIN TABS */}
@@ -280,8 +342,20 @@ export const SettingsPage: React.FC<Props> = ({
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <Truck className="w-4 h-4 text-emerald-400" />
-              All UK Drivers & Transfers ({drivers.length})
+              <Users className="w-4 h-4 text-emerald-400" />
+              All Drivers ({drivers.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('all_vans')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'all_vans'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Truck className="w-4 h-4 text-blue-400" />
+              All UK Van Fleet ({vans.length})
             </button>
 
             <button
@@ -333,7 +407,7 @@ export const SettingsPage: React.FC<Props> = ({
             </button>
           </>
         ) : (
-          /* DEPOT CONTROLLER TABS (STRICTLY LOCAL) */
+          /* DEPOT CONTROLLER TABS */
           <>
             <button
               onClick={() => setActiveTab('my_drivers')}
@@ -343,8 +417,20 @@ export const SettingsPage: React.FC<Props> = ({
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <Truck className="w-4 h-4 text-emerald-400" />
-              {currentDepot.city} Drivers & Vans ({visibleDrivers.length})
+              <Users className="w-4 h-4 text-emerald-400" />
+              {currentDepot.city} Drivers ({visibleDrivers.length})
+            </button>
+
+            <button
+              onClick={() => setActiveTab('my_vans')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'my_vans'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Truck className="w-4 h-4 text-blue-400" />
+              {currentDepot.city} Van Fleet ({visibleVans.length})
             </button>
 
             <button
@@ -378,7 +464,6 @@ export const SettingsPage: React.FC<Props> = ({
               </p>
             </div>
 
-            {/* Staff Table */}
             <div className="border border-gray-200 rounded-2xl overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
@@ -420,7 +505,6 @@ export const SettingsPage: React.FC<Props> = ({
                           </span>
                         </td>
 
-                        {/* Current Assigned Depot */}
                         <td className="p-3.5 font-bold text-slate-800">
                           {isHeadOfficeUser ? (
                             <span className="text-purple-700 font-black">All 22 UK Depots</span>
@@ -432,7 +516,6 @@ export const SettingsPage: React.FC<Props> = ({
                           )}
                         </td>
 
-                        {/* Transfer Depot Selector */}
                         <td className="p-3.5 text-center">
                           {!isHeadOfficeUser && (
                             <div className="flex items-center justify-center gap-1.5">
@@ -536,34 +619,33 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 2A: ALL UK DRIVERS & FLEET TRANSFERS (HEAD OFFICE ADMIN ONLY) */}
-        {activeTab === 'all_drivers' && isHeadOffice && (
+        {/* PANEL 2: DRIVER ROSTER (DECOUPLED FROM VEHICLES) */}
+        {(activeTab === 'all_drivers' || activeTab === 'my_drivers') && (
           <div className="space-y-6">
             <div>
               <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Truck className="w-5 h-5 text-emerald-600" />
-                All UK Drivers & Inter-Depot Fleet Transfers
+                <Users className="w-5 h-5 text-emerald-600" />
+                {isHeadOffice ? 'All UK Drivers' : `${currentDepot.city} Drivers`}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Head Office Admin control to reallocate drivers and delivery vehicles across UK depots.
+                Driver personnel roster. Drivers are decoupled from vehicles and can be assigned to any available van each morning.
               </p>
             </div>
 
-            {/* All Drivers Table */}
             <div className="border border-gray-200 rounded-2xl overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
                   <tr>
                     <th className="p-3.5">Driver Name</th>
-                    <th className="p-3.5">Contact Phone</th>
-                    <th className="p-3.5">Vehicle Reg</th>
-                    <th className="p-3.5">Current Depot</th>
-                    <th className="p-3.5 text-center">Transfer Depot</th>
+                    <th className="p-3.5">Phone Number</th>
+                    <th className="p-3.5">Assigned Depot</th>
+                    <th className="p-3.5">Status</th>
+                    {isHeadOffice && <th className="p-3.5 text-center">Transfer Depot</th>}
                     <th className="p-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {drivers.map((drv) => {
+                  {visibleDrivers.map((drv) => {
                     const assignedDepot = depots.find((d) => d.id === drv.depotId);
 
                     return (
@@ -580,13 +662,6 @@ export const SettingsPage: React.FC<Props> = ({
 
                         <td className="p-3.5 font-mono text-slate-700 font-bold">{drv.phone}</td>
 
-                        <td className="p-3.5">
-                          <span className="font-mono font-black text-xs px-2.5 py-1 rounded bg-amber-100 text-amber-950 border border-amber-300">
-                            {drv.vehicleReg}
-                          </span>
-                        </td>
-
-                        {/* Current Depot */}
                         <td className="p-3.5 font-bold text-slate-900">
                           <span className="flex items-center gap-1.5">
                             <Warehouse className="w-3.5 h-3.5 text-blue-600" />
@@ -594,23 +669,30 @@ export const SettingsPage: React.FC<Props> = ({
                           </span>
                         </td>
 
-                        {/* Transfer Depot Select */}
-                        <td className="p-3.5 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <ArrowRightLeft className="w-3.5 h-3.5 text-slate-400" />
-                            <select
-                              value={drv.depotId}
-                              onChange={(e) => handleTransferDriver(drv.id, e.target.value)}
-                              className="text-xs font-bold p-1.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                            >
-                              {depots.map((d) => (
-                                <option key={d.id} value={d.id}>
-                                  {d.code} - {d.city}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                        <td className="p-3.5">
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-blue-50 text-blue-800 border border-blue-200">
+                            {drv.status}
+                          </span>
                         </td>
+
+                        {isHeadOffice && (
+                          <td className="p-3.5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <ArrowRightLeft className="w-3.5 h-3.5 text-slate-400" />
+                              <select
+                                value={drv.depotId}
+                                onChange={(e) => handleTransferDriver(drv.id, e.target.value)}
+                                className="text-xs font-bold p-1.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                              >
+                                {depots.map((d) => (
+                                  <option key={d.id} value={d.id}>
+                                    {d.code} - {d.city}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+                        )}
 
                         <td className="p-3.5 text-right">
                           <button
@@ -627,147 +709,7 @@ export const SettingsPage: React.FC<Props> = ({
               </table>
             </div>
 
-            {/* Add New Driver Form */}
-            <form
-              onSubmit={handleAddDriver}
-              className="p-5 bg-slate-50 rounded-2xl border border-gray-200 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end"
-            >
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Driver Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Liam Foster"
-                  value={newDriver.name}
-                  onChange={(e) => setNewDriver({ ...newDriver, name: e.target.value })}
-                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Mobile Phone</label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="07700 900222"
-                  value={newDriver.phone}
-                  onChange={(e) => setNewDriver({ ...newDriver, phone: e.target.value })}
-                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Vehicle Registration</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. KL73 BHM"
-                  value={newDriver.vehicleReg}
-                  onChange={(e) => setNewDriver({ ...newDriver, vehicleReg: e.target.value })}
-                  className="w-full text-xs font-black uppercase p-2.5 border rounded-xl bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Assign Initial Depot</label>
-                <select
-                  value={newDriver.depotId}
-                  onChange={(e) => setNewDriver({ ...newDriver, depotId: e.target.value })}
-                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
-                >
-                  {depots.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.code} - {d.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                className="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow flex items-center justify-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" /> Add Driver
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* PANEL 2B: LOCAL DEPOT DRIVERS (FOR DEPOT CONTROLLER) */}
-        {activeTab === 'my_drivers' && !isHeadOffice && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Truck className="w-5 h-5 text-emerald-600" />
-                {currentDepot.city} Depot Drivers & Fleet
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Manage delivery drivers and vehicle registrations assigned to {currentDepot.name}.
-              </p>
-            </div>
-
-            {/* Local Drivers Table (No cross-depot transfer controls) */}
-            <div className="border border-gray-200 rounded-2xl overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
-                  <tr>
-                    <th className="p-3.5">Driver Name</th>
-                    <th className="p-3.5">Contact Phone</th>
-                    <th className="p-3.5">Vehicle Reg</th>
-                    <th className="p-3.5">Status</th>
-                    <th className="p-3.5 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {visibleDrivers.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-400 font-bold">
-                        No drivers registered yet for this depot. Add a driver below.
-                      </td>
-                    </tr>
-                  ) : (
-                    visibleDrivers.map((drv) => (
-                      <tr key={drv.id} className="hover:bg-slate-50">
-                        <td className="p-3.5 font-bold text-slate-900 flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-black text-xs">
-                            {drv.name.charAt(0)}
-                          </div>
-                          <div>
-                            <span className="font-black text-slate-900 block">{drv.name}</span>
-                            <span className="text-[10px] text-slate-400">ID: {drv.id}</span>
-                          </div>
-                        </td>
-
-                        <td className="p-3.5 font-mono text-slate-700 font-bold">{drv.phone}</td>
-
-                        <td className="p-3.5">
-                          <span className="font-mono font-black text-xs px-2.5 py-1 rounded bg-amber-100 text-amber-950 border border-amber-300">
-                            {drv.vehicleReg}
-                          </span>
-                        </td>
-
-                        <td className="p-3.5">
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-blue-50 text-blue-800 border border-blue-200">
-                            {drv.status}
-                          </span>
-                        </td>
-
-                        <td className="p-3.5 text-right">
-                          <button
-                            onClick={() => handleDeleteDriver(drv.id)}
-                            className="text-rose-600 hover:text-rose-800 p-1 font-bold text-xs"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Add Local Driver Form */}
+            {/* Add Driver Form */}
             <form
               onSubmit={handleAddDriver}
               className="p-5 bg-slate-50 rounded-2xl border border-gray-200 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end"
@@ -785,7 +727,7 @@ export const SettingsPage: React.FC<Props> = ({
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Mobile Phone</label>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Phone</label>
                 <input
                   type="tel"
                   required
@@ -796,29 +738,192 @@ export const SettingsPage: React.FC<Props> = ({
                 />
               </div>
 
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Vehicle Registration</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. KL73 BHM"
-                  value={newDriver.vehicleReg}
-                  onChange={(e) => setNewDriver({ ...newDriver, vehicleReg: e.target.value })}
-                  className="w-full text-xs font-black uppercase p-2.5 border rounded-xl bg-white"
-                />
-              </div>
+              {isHeadOffice && (
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Initial Depot</label>
+                  <select
+                    value={newDriver.depotId}
+                    onChange={(e) => setNewDriver({ ...newDriver, depotId: e.target.value })}
+                    className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
+                  >
+                    {depots.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.code} - {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <button
                 type="submit"
                 className="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow flex items-center justify-center gap-1.5"
               >
-                <Plus className="w-4 h-4" /> Register Depot Driver
+                <Plus className="w-4 h-4" /> Add Driver to Roster
               </button>
             </form>
           </div>
         )}
 
-        {/* PANEL 3A: ALL UK DEPOTS & VAN CAPACITIES (HEAD OFFICE ADMIN ONLY) */}
+        {/* PANEL 3: VAN FLEET INVENTORY (DECOUPLED VEHICLES) */}
+        {(activeTab === 'all_vans' || activeTab === 'my_vans') && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Truck className="w-5 h-5 text-blue-600" />
+                {isHeadOffice ? 'All UK Van Fleet Inventory' : `${currentDepot.city} Van Fleet Pool`}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Physical delivery vans and barcodes. If a van is undergoing maintenance or broken, drivers can seamlessly switch to any other van.
+              </p>
+            </div>
+
+            <div className="border border-gray-200 rounded-2xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
+                  <tr>
+                    <th className="p-3.5">Registration Plate</th>
+                    <th className="p-3.5">Vehicle Model</th>
+                    <th className="p-3.5">Barcode / Asset Tag</th>
+                    <th className="p-3.5">Depot Station</th>
+                    <th className="p-3.5">Status</th>
+                    {isHeadOffice && <th className="p-3.5 text-center">Transfer Depot</th>}
+                    <th className="p-3.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {visibleVans.map((v) => {
+                    const assignedDepot = depots.find((d) => d.id === v.depotId);
+
+                    return (
+                      <tr key={v.id} className="hover:bg-slate-50">
+                        <td className="p-3.5">
+                          <span className="font-mono font-black text-xs px-2.5 py-1 rounded bg-amber-100 text-amber-950 border border-amber-300">
+                            {v.registration}
+                          </span>
+                        </td>
+
+                        <td className="p-3.5 font-medium text-slate-800">{v.model}</td>
+
+                        <td className="p-3.5 font-mono text-[11px] font-bold text-blue-700 flex items-center gap-1">
+                          <Barcode className="w-4 h-4 text-slate-400" /> {v.barcode}
+                        </td>
+
+                        <td className="p-3.5 font-bold text-slate-900">
+                          {assignedDepot?.name || v.depotId}
+                        </td>
+
+                        <td className="p-3.5">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                            v.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-800' :
+                            v.status === 'ON_ROUTE' ? 'bg-blue-100 text-blue-800' :
+                            'bg-rose-100 text-rose-800'
+                          }`}>
+                            {v.status}
+                          </span>
+                        </td>
+
+                        {isHeadOffice && (
+                          <td className="p-3.5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <ArrowRightLeft className="w-3.5 h-3.5 text-slate-400" />
+                              <select
+                                value={v.depotId}
+                                onChange={(e) => handleTransferVan(v.id, e.target.value)}
+                                className="text-xs font-bold p-1.5 border border-gray-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                              >
+                                {depots.map((d) => (
+                                  <option key={d.id} value={d.id}>
+                                    {d.code} - {d.city}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </td>
+                        )}
+
+                        <td className="p-3.5 text-right">
+                          <button
+                            onClick={() => handleDeleteVan(v.id)}
+                            className="text-rose-600 hover:text-rose-800 p-1 font-bold text-xs"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Add Van Form */}
+            <form
+              onSubmit={handleAddVan}
+              className="p-5 bg-slate-50 rounded-2xl border border-gray-200 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end"
+            >
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Registration</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. KL24 XYZ"
+                  value={newVan.registration}
+                  onChange={(e) => setNewVan({ ...newVan, registration: e.target.value })}
+                  className="w-full text-xs font-black uppercase p-2.5 border rounded-xl bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Vehicle Model</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mercedes Sprinter LWB"
+                  value={newVan.model}
+                  onChange={(e) => setNewVan({ ...newVan, model: e.target.value })}
+                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Barcode (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. VAN-KL24XYZ"
+                  value={newVan.barcode}
+                  onChange={(e) => setNewVan({ ...newVan, barcode: e.target.value })}
+                  className="w-full text-xs font-mono font-bold p-2.5 border rounded-xl bg-white uppercase"
+                />
+              </div>
+
+              {isHeadOffice && (
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Depot</label>
+                  <select
+                    value={newVan.depotId}
+                    onChange={(e) => setNewVan({ ...newVan, depotId: e.target.value })}
+                    className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
+                  >
+                    {depots.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.code} - {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Add Van to Fleet
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* PANEL 4: ALL UK DEPOTS (HEAD OFFICE ADMIN ONLY) */}
         {activeTab === 'depots' && isHeadOffice && (
           <div className="space-y-6">
             <div>
@@ -838,7 +943,7 @@ export const SettingsPage: React.FC<Props> = ({
                     <th className="p-3.5">Depot Hub</th>
                     <th className="p-3.5">Center Postcode</th>
                     <th className="p-3.5 text-center">Catchment Radius</th>
-                    <th className="p-3.5 text-center bg-blue-50/50 text-blue-900">Max Orders / Van (Editable)</th>
+                    <th className="p-3.5 text-center bg-blue-50/50 text-blue-900">Max Orders / Van</th>
                     <th className="p-3.5 text-center">Min Orders / Route</th>
                     <th className="p-3.5 text-right">Fleet Capacity</th>
                   </tr>
@@ -918,7 +1023,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 3B: LOCAL DEPOT PARAMETERS (FOR DEPOT CONTROLLER) */}
+        {/* PANEL 5: LOCAL DEPOT PARAMETERS (FOR DEPOT CONTROLLER) */}
         {activeTab === 'my_depot' && !isHeadOffice && (
           <div className="space-y-6">
             <div>
@@ -978,7 +1083,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 4: SKU DWELL TIMES (HEAD OFFICE ADMIN ONLY) */}
+        {/* PANEL 6: SKU DWELL TIMES (HEAD OFFICE ADMIN ONLY) */}
         {activeTab === 'dwell' && isHeadOffice && (
           <div className="space-y-6">
             <div>
@@ -1067,7 +1172,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 5: SHIFT & TRAFFIC (HEAD OFFICE ADMIN ONLY) */}
+        {/* PANEL 7: SHIFT & TRAFFIC (HEAD OFFICE ADMIN ONLY) */}
         {activeTab === 'shift' && isHeadOffice && (
           <div className="space-y-6">
             <div>
@@ -1132,7 +1237,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 6: BRANDING (HEAD OFFICE ADMIN ONLY) */}
+        {/* PANEL 8: BRANDING (HEAD OFFICE ADMIN ONLY) */}
         {activeTab === 'branding' && isHeadOffice && (
           <div className="space-y-6">
             <div>

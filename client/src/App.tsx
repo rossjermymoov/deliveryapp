@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME, UK_DEPOTS, INITIAL_USERS } from './data/initialData';
-import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot, UserAccount } from './types';
+import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_VANS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME, UK_DEPOTS, INITIAL_USERS } from './data/initialData';
+import { Order, Driver, VanVehicle, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot, UserAccount } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
 
 export const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
   const [drivers, setDrivers] = useState<Driver[]>(INITIAL_DRIVERS);
+  const [vans, setVans] = useState<VanVehicle[]>(INITIAL_VANS);
   const [routes, setRoutes] = useState<DeliveryRoute[]>(INITIAL_ROUTES);
   const [depots, setDepots] = useState<Depot[]>(UK_DEPOTS);
   const [skuCatalog, setSkuCatalog] = useState<SkuDwellSetting[]>(INITIAL_SKU_SETTINGS);
@@ -56,7 +57,13 @@ export const App: React.FC = () => {
 
     if (targetRoute.driverId) {
       setDrivers((prev) =>
-        prev.map((d) => (d.id === targetRoute.driverId ? { ...d, status: 'IDLE' } : d))
+        prev.map((d) => (d.id === targetRoute.driverId ? { ...d, status: 'IDLE', assignedVanId: undefined, assignedVanReg: undefined } : d))
+      );
+    }
+
+    if (targetRoute.vanId) {
+      setVans((prev) =>
+        prev.map((v) => (v.id === targetRoute.vanId ? { ...v, status: 'AVAILABLE' } : v))
       );
     }
   };
@@ -134,6 +141,27 @@ export const App: React.FC = () => {
     if (driverId) {
       setDrivers((prev) =>
         prev.map((d) => (d.id === driverId ? { ...d, status: 'ON_ROUTE' } : d))
+      );
+    }
+  };
+
+  const handleAssignVanToRoute = (routeId: string, vanId: string) => {
+    const selectedVan = vans.find((v) => v.id === vanId);
+    setRoutes((prev) =>
+      prev.map((r) =>
+        r.id === routeId
+          ? {
+              ...r,
+              vanId: vanId || undefined,
+              vanRegistration: selectedVan ? selectedVan.registration : undefined,
+            }
+          : r
+      )
+    );
+
+    if (vanId) {
+      setVans((prev) =>
+        prev.map((v) => (v.id === vanId ? { ...v, status: 'ON_ROUTE' } : v))
       );
     }
   };
@@ -268,6 +296,7 @@ export const App: React.FC = () => {
         <AdminPortal
           orders={orders}
           drivers={drivers}
+          vans={vans}
           routes={routes}
           depots={depots}
           skuCatalog={skuCatalog}
@@ -277,10 +306,12 @@ export const App: React.FC = () => {
           onSwitchUser={setCurrentUserId}
           onUpdateUsers={setUsers}
           onUpdateDrivers={setDrivers}
+          onUpdateVans={setVans}
           onUpdateBrandTheme={setBrandTheme}
           onUpdateDepots={setDepots}
           onCreateRoute={handleCreateRoute}
           onAssignDriverToRoute={handleAssignDriverToRoute}
+          onAssignVanToRoute={handleAssignVanToRoute}
           onUnassignOrCancelRoute={handleUnassignOrCancelRoute}
           onMoveOrderBetweenRoutes={handleMoveOrderBetweenRoutes}
           onUpdateOrderDwell={handleUpdateOrderDwell}

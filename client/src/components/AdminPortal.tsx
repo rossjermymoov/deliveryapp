@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount } from '../types';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, VanVehicle } from '../types';
 import { DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
 import { MorningDashboard } from './MorningDashboard';
@@ -22,6 +22,7 @@ import {
 interface Props {
   orders: Order[];
   drivers: Driver[];
+  vans: VanVehicle[];
   routes: DeliveryRoute[];
   depots: Depot[];
   skuCatalog: SkuDwellSetting[];
@@ -31,10 +32,12 @@ interface Props {
   onSwitchUser: (userId: string) => void;
   onUpdateUsers: (users: UserAccount[]) => void;
   onUpdateDrivers: (drivers: Driver[]) => void;
+  onUpdateVans: (vans: VanVehicle[]) => void;
   onUpdateBrandTheme: (theme: BrandTheme) => void;
   onUpdateDepots: (depots: Depot[]) => void;
   onCreateRoute: (route: DeliveryRoute) => void;
   onAssignDriverToRoute: (routeId: string, driverId: string) => void;
+  onAssignVanToRoute: (routeId: string, vanId: string) => void;
   onUnassignOrCancelRoute: (routeId: string) => void;
   onMoveOrderBetweenRoutes: (orderId: string, sourceRouteId: string, targetRouteId: string) => void;
   onUpdateOrderDwell: (orderId: string, manualDwell: number) => void;
@@ -47,6 +50,7 @@ interface Props {
 export const AdminPortal: React.FC<Props> = ({
   orders,
   drivers,
+  vans,
   routes,
   depots,
   skuCatalog,
@@ -56,10 +60,12 @@ export const AdminPortal: React.FC<Props> = ({
   onSwitchUser,
   onUpdateUsers,
   onUpdateDrivers,
+  onUpdateVans,
   onUpdateBrandTheme,
   onUpdateDepots,
   onCreateRoute,
   onAssignDriverToRoute,
+  onAssignVanToRoute,
   onUnassignOrCancelRoute,
   onMoveOrderBetweenRoutes,
   onUpdateOrderDwell,
@@ -228,7 +234,6 @@ export const AdminPortal: React.FC<Props> = ({
                 </select>
               </div>
             ) : (
-              /* CLEAN DEPOT BADGE FOR REGIONAL CONTROLLER */
               <div className="bg-blue-900/60 px-3.5 py-1.5 rounded-xl border border-blue-400/30 flex items-center gap-2 text-xs">
                 <Warehouse className="w-3.5 h-3.5 text-blue-300" />
                 <span className="font-bold text-white text-xs">
@@ -361,15 +366,17 @@ export const AdminPortal: React.FC<Props> = ({
           />
         )}
 
-        {/* TAB 2: ROUTES & MANIFESTS */}
+        {/* TAB 2: ROUTES & MANIFESTS WITH DECOUPLED VANS */}
         {activeTab === 'routes' && (
           <RoutesManager
             routes={routes}
             drivers={drivers}
+            vans={vans}
             depots={depots}
             selectedDepotId={effectiveDepotId}
             brandTheme={brandTheme}
             onAssignDriverToRoute={onAssignDriverToRoute}
+            onAssignVanToRoute={onAssignVanToRoute}
             onUnassignOrCancelRoute={onUnassignOrCancelRoute}
             onMoveOrderBetweenRoutes={onMoveOrderBetweenRoutes}
             onOpenScanToVan={(r) => setLoadingRoute(r)}
@@ -401,6 +408,8 @@ export const AdminPortal: React.FC<Props> = ({
             onUpdateUsers={onUpdateUsers}
             drivers={drivers}
             onUpdateDrivers={onUpdateDrivers}
+            vans={vans}
+            onUpdateVans={onUpdateVans}
             currentUser={currentUser}
           />
         )}

@@ -1,3 +1,5 @@
+export type OrderStatus = 'PENDING' | 'ROUTED' | 'LOADED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED' | 'CANCELLED';
+
 export type UserRole = 'HEAD_OFFICE_ADMIN' | 'DEPOT_CONTROLLER' | 'DRIVER';
 
 export interface UserAccount {
@@ -5,75 +7,37 @@ export interface UserAccount {
   name: string;
   email: string;
   role: UserRole;
-  assignedDepotId?: string; // If DEPOT_CONTROLLER, strictly locked to this depot ID
-  driverId?: string; // If DRIVER, linked to driver ID
+  assignedDepotId?: string;
+  driverId?: string;
 }
 
-export interface Depot {
+export interface VanVehicle {
   id: string;
-  code: string;
-  name: string;
-  region: string;
-  city: string;
-  address: string;
-  postcode: string;
-  lat: number;
-  lng: number;
-  activeVansCount: number;
-  maxDeliveryRadiusMiles: number; // e.g. 10 miles for London, 30 miles for Newcastle
-  maxOrdersPerVan: number; // e.g. 5-6 drops max per van for 5m building products
-  maxDailyCapacityOrders: number;
-  trafficMultiplierOverride?: number;
-  
-  // Route threshold feasibility parameters
-  minOrdersPerRoute: number;
-  maxDistancePerDropMiles: number;
-}
-
-export interface BrandTheme {
-  companyName: string;
-  tagline: string;
-  logoText: string;
-  primaryColour: string;
-  secondaryColour: string;
-  accentColour: string;
-  headerBgColour: string;
-  fontFamily?: string;
+  registration: string;
+  depotId: string;
+  model: string;
+  status: 'AVAILABLE' | 'ON_ROUTE' | 'MAINTENANCE';
+  barcode: string;
+  maxPayloadKg?: number;
 }
 
 export interface OrderItem {
   sku: string;
-  name: string;
+  name?: string;
+  description?: string;
   quantity: number;
-  dwellMinsPerUnit: number;
-  loadedOnVan?: boolean;
-  damagedQuantity?: number;
-  damageReason?: string;
-}
-
-export interface SkuDwellSetting {
-  sku: string;
-  name: string;
-  defaultDwellMins: number;
-}
-
-export interface Driver {
-  id: string;
-  name: string;
-  phone: string;
-  vehicleReg: string;
-  depotId: string;
-  currentLat: number;
-  currentLng: number;
-  lastUpdated: string;
-  status: 'IDLE' | 'ON_ROUTE' | 'DELIVERING';
+  weightKg?: number;
+  lengthMetres?: number;
+  dwellMins?: number;
+  dwellMinsPerUnit?: number;
+  scanStatus?: 'PENDING' | 'LOADED_TO_VAN' | 'OFFLOADED' | 'EXCEPTION';
 }
 
 export interface ProofOfDelivery {
   id: string;
   orderId: string;
   recipientName: string;
-  signatureData: string;
+  signatureData?: string;
   photoUrl?: string | null;
   notes?: string | null;
   deliveredLat?: number | null;
@@ -83,15 +47,13 @@ export interface ProofOfDelivery {
   itemExceptionNotes?: string;
 }
 
-export type OrderStatus = 'PENDING' | 'ROUTED' | 'LOADED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED_EXCEPTION';
-
 export interface Order {
   id: string;
   trackingNumber: string;
   depotId: string;
   customerName: string;
-  customerPhone: string;
-  customerEmail: string;
+  customerPhone?: string;
+  customerEmail?: string;
   address: string;
   city: string;
   postcode: string;
@@ -100,16 +62,77 @@ export interface Order {
   items: OrderItem[];
   totalDwellMins: number;
   manualDwellOverrideMins?: number;
+  deliveryWindowStart?: string;
+  deliveryWindowEnd?: string;
   specialNotes?: string;
   status: OrderStatus;
   routeId?: string;
   stopSequence?: number;
-  estimatedDeliveryWindow?: string;
   proofOfDelivery?: ProofOfDelivery;
   createdAt: string;
-  urgency?: 'STANDARD' | 'PRIORITY' | 'EXPRESS_AM';
   belowRouteCriteria?: boolean;
   criteriaReason?: string;
+}
+
+export interface Driver {
+  id: string;
+  name: string;
+  phone: string;
+  depotId: string;
+  assignedVanId?: string;
+  assignedVanReg?: string;
+  vehicleReg?: string; // backwards compatibility fallback
+  currentLat: number;
+  currentLng: number;
+  lastUpdated: string;
+  status: 'IDLE' | 'ON_ROUTE' | 'DELIVERING' | 'OFF_DUTY';
+}
+
+export interface DeliveryRoute {
+  id: string;
+  routeNumber: string;
+  depotId: string;
+  date: string;
+  driverId?: string;
+  driver?: Driver;
+  vanId?: string;
+  vanRegistration?: string;
+  orders: Order[];
+  status: 'DRAFT' | 'UNASSIGNED' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED';
+  totalDwellMins: number;
+  totalDrivingMins: number;
+  breakTimeMins: number;
+  totalEstimatedMins: number;
+  totalDistanceKm: number;
+  shiftUtilisationPct: number;
+  isProblemRoute?: boolean;
+  problemReason?: string;
+  allLoaded?: boolean;
+}
+
+export interface Depot {
+  id: string;
+  code: string;
+  name: string;
+  region: string;
+  address: string;
+  city: string;
+  postcode: string;
+  lat: number;
+  lng: number;
+  contactPhone?: string;
+  maxDeliveryRadiusMiles: number;
+  activeVansCount: number;
+  maxOrdersPerVan?: number;
+  minOrdersPerRoute?: number;
+  maxDistancePerDropMiles?: number;
+  maxDailyCapacityOrders: number;
+}
+
+export interface SkuDwellSetting {
+  sku: string;
+  name: string;
+  defaultDwellMins: number;
 }
 
 export interface ShiftParameters {
@@ -126,24 +149,16 @@ export interface RouteShiftAnalysis {
   maxShiftMins: number;
   fitsInShift: boolean;
   utilisationPct: number;
+  isProblemShift: boolean;
+  problemReason?: string;
 }
 
-export interface DeliveryRoute {
-  id: string;
-  routeNumber: string;
-  depotId: string;
-  date: string;
-  status: 'UNASSIGNED' | 'ASSIGNED' | 'LOADING' | 'IN_PROGRESS' | 'COMPLETED';
-  totalDwellMins: number;
-  totalDrivingMins: number;
-  breakTimeMins: number;
-  totalEstimatedMins: number;
-  totalDistanceKm: number;
-  shiftUtilisationPct: number;
-  allLoaded?: boolean;
-  isProblemRoute?: boolean;
-  problemReason?: string;
-  driverId?: string;
-  driver?: Driver;
-  orders: Order[];
+export interface BrandTheme {
+  companyName: string;
+  logoText: string;
+  tagline: string;
+  primaryColour: string;
+  secondaryColour: string;
+  accentColour: string;
+  supportPhone?: string;
 }

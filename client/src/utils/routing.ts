@@ -1,4 +1,4 @@
-import { Order, ShiftParameters, RouteShiftAnalysis } from '../types';
+import { Order, ShiftParameters, RouteShiftAnalysis, Depot } from '../types';
 
 export const DEPOT_LOCATION = {
   name: 'Kalsi Works (Birmingham Central)',
@@ -51,6 +51,7 @@ export function analyzeRouteShift(
   
   const fitsInShift = totalShiftMins <= maxShiftMins;
   const utilisationPct = Math.min(100, Math.round((totalShiftMins / maxShiftMins) * 100));
+  const isProblemShift = !fitsInShift;
 
   return {
     drivingTimeMins: drivingMins,
@@ -60,95 +61,90 @@ export function analyzeRouteShift(
     maxShiftMins,
     fitsInShift,
     utilisationPct,
+    isProblemShift,
+    problemReason: isProblemShift ? `Exceeds ${params.shiftLengthHours}h legal shift length.` : undefined,
   };
 }
 
 /**
- * Optimises route sequence using TSP Nearest Neighbour with Shift Feasibility & Traffic Analysis.
+ * Heuristic nearest-neighbour sequencer starting from the Depot
  */
-export function optimizeRouteStops(
+export function sequenceOrders(
   orders: Order[],
-  params: ShiftParameters = DEFAULT_SHIFT_PARAMS
-) {
-  if (orders.length === 0) {
-    return {
-      orderedStops: [],
-      totalDistanceKm: 0,
-      totalDurationMins: 0,
-      totalDrivingMins: 0,
-      totalDwellMins: 0,
-      breakTimeMins: 0,
-      shiftAnalysis: analyzeRouteShift(0, 0, params),
-    };
+  depotLat: number = DEPOT_LOCATION.lat,
+  depotLng: number = DEPOT_LOCATION.lng
+): Order[] {
+  if (orders.length <= 1) {
+    return orders.map((o, idx) => ({ ...o, stopSequence: idx + 1 }));
   }
 
   const unvisited = [...orders];
-  const orderedStops: Order[] = [];
-  let currentLocation = { lat: DEPOT_LOCATION.lat, lng: DEPOT_LOCATION.lng };
-  let totalDistanceKm = 0;
-  let totalDrivingMins = 0;
-  let totalDwellMins = 0;
+  const sequenced: Order[] = [];
+  let currentLat = depotLat;
+  let currentLng = depotLng;
 
   while (unvisited.length > 0) {
     let nearestIdx = 0;
-    let shortestDist = calculateDistanceKm(
-      currentLocation.lat,
-      currentLocation.lng,
-      unvisited[0].lat,
-      unvisited[0].lng
-    );
+    let minDistance = Infinity;
 
-    for (let i = 1; i < unvisited.length; i++) {
-      const dist = calculateDistanceKm(
-        currentLocation.lat,
-        currentLocation.lng,
-        unvisited[i].lat,
-        unvisited[i].lng
-      );
-      if (dist < shortestDist) {
-        shortestDist = dist;
+    for (let i = 0; i < unvisited.length; i++) {
+      const dist = calculateDistanceKm(currentLat, currentLng, unvisited[i].lat, unvisited[i].lng);
+      if (dist < minDistance) {
+        minDistance = dist;
         nearestIdx = i;
       }
     }
 
-    const nextStop = unvisited.splice(nearestIdx, 1)[0];
-    const dwell = nextStop.manualDwellOverrideMins !== undefined
-      ? nextStop.manualDwellOverrideMins
-      : (nextStop.totalDwellMins || 15);
-
-    const legDriveMins = estimateDriveTimeMinutes(shortestDist, params.trafficBufferMultiplier);
-
-    totalDistanceKm += shortestDist;
-    totalDrivingMins += legDriveMins;
-    totalDwellMins += dwell;
-
-    orderedStops.push({
-      ...nextStop,
-      stopSequence: orderedStops.length + 1,
+    const [nearestOrder] = unvisited.splice(nearestIdx, 1);
+    sequenced.push({
+      ...nearestOrder,
+      stopSequence: sequenced.length + 1,
     });
-    currentLocation = { lat: nextStop.lat, lng: nextStop.lng };
+    currentLat = nearestOrder.lat;
+    currentLng = nearestOrder.lng;
   }
 
-  // Return to base
-  const returnDist = calculateDistanceKm(
-    currentLocation.lat,
-    currentLocation.lng,
-    DEPOT_LOCATION.lat,
-    DEPOT_LOCATION.lng
-  );
-  const returnDriveMins = estimateDriveTimeMinutes(returnDist, params.trafficBufferMultiplier);
-  totalDistanceKm += returnDist;
-  totalDrivingMins += returnDriveMins;
+  return sequenced;
+}
 
-  const shiftAnalysis = analyzeRouteShift(totalDrivingMins, totalDwellMins, params);
+export function optimizeRouteStops(
+  orders: Order[],
+  params: ShiftParameters = DEFAULT_SHIFT_PARAMS,
+  depot?: Depot
+): {
+  orderedOrders: Order[];
+  totalDistanceKm: number;
+  totalDrivingMinutes: number;
+  totalDwellMinutes: number;
+  shiftAnalysis: RouteShiftAnalysis;
+} {
+  const dLat = depot?.lat || DEPOT_LOCATION.lat;
+  const dLng = depot?.lng || DEPOT_LOCATION.lng;
+
+  const ordered = sequenceOrders(orders, dLat, dLng);
+
+  let totalDist = 0;
+  let prevLat = dLat;
+  let prevLng = dLng;
+
+  for (const o of ordered) {
+    totalDist += calculateDistanceKm(prevLat, prevLng, o.lat, o.lng);
+    prevLat = o.lat;
+    prevLng = o.lng;
+  }
+  // Return leg back to depot
+  totalDist += calculateDistanceKm(prevLat, prevLng, dLat, dLng);
+  totalDist = Math.round(totalDist * 10) / 10;
+
+  const driveMins = estimateDriveTimeMinutes(totalDist, params.trafficBufferMultiplier);
+  const dwellMins = ordered.reduce((sum, o) => sum + (o.manualDwellOverrideMins ?? o.totalDwellMins), 0);
+  const analysis = analyzeRouteShift(driveMins, dwellMins, params);
 
   return {
-    orderedStops,
-    totalDistanceKm: Math.round(totalDistanceKm * 10) / 10,
-    totalDurationMins: shiftAnalysis.totalShiftMins,
-    totalDrivingMins,
-    totalDwellMins,
-    breakTimeMins: shiftAnalysis.breakTimeMins,
-    shiftAnalysis,
+    orderedOrders: ordered,
+    totalDistanceKm: totalDist,
+    totalDrivingMinutes: driveMins,
+    totalDwellMinutes: dwellMins,
+    shiftAnalysis: analysis,
   };
 }
