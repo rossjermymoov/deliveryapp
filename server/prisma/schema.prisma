@@ -1,0 +1,99 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Depot {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  address     String
+  postcode    String
+  lat         Float
+  lng         Float
+  createdAt   DateTime @default(now())
+
+  drivers     Driver[]
+  shipments   Shipment[]
+  routes      DeliveryRoute[]
+}
+
+model Driver {
+  id          String   @id @default(uuid())
+  username    String   @unique
+  name        String
+  phone       String
+  vehicleReg  String
+  depotId     String
+  depot       Depot    @relation(fields: [depotId], references: [id])
+  createdAt   DateTime @default(now())
+
+  routes      DeliveryRoute[]
+}
+
+model Shipment {
+  id               String         @id @default(uuid())
+  trackingNumber   String         @unique
+  externalOrderId  String         // e.g. Shopify #1042, B&Q BQ-9912, eBay EB-3312
+  sourceChannel    String         // "B&Q", "Shopify", "eBay", or "Direct"
+  labelApiRef      String?        // ID from Label API provider
+  customerName     String
+  customerPhone    String?
+  customerEmail    String?
+  address          String
+  city             String
+  postcode         String
+  lat              Float
+  lng              Float
+  itemsDescription String         // e.g. "3x 4m White Fascia Boards, 2x Gutter Packs"
+  specialNotes     String?
+  dwellTimeMins    Int            @default(15) // Expected time to unload at this stop
+  status           String         @default("BUCKET_PENDING") // BUCKET_PENDING, ROUTED, OUT_FOR_DELIVERY, DELIVERED, FAILED
+  depotId          String
+  depot            Depot          @relation(fields: [depotId], references: [id])
+  
+  routeId          String?
+  route            DeliveryRoute? @relation(fields: [routeId], references: [id])
+  stopSequence     Int?
+  
+  proofOfDelivery  ProofOfDelivery?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model DeliveryRoute {
+  id                 String     @id @default(uuid())
+  routeNumber        String     @unique // e.g. ROUTE-BHM-20260903-01
+  date               DateTime   @default(now())
+  status             String     @default("DRAFT") // DRAFT, ASSIGNED, IN_PROGRESS, COMPLETED
+  dwellTimePerStop   Int        @default(15)
+  totalEstimatedMins Int        @default(0)
+  totalDistanceKm    Float      @default(0.0)
+  
+  depotId            String
+  depot              Depot      @relation(fields: [depotId], references: [id])
+  
+  driverId           String?
+  driver             Driver?    @relation(fields: [driverId], references: [id])
+  
+  shipments          Shipment[]
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+model ProofOfDelivery {
+  id              String   @id @default(uuid())
+  shipmentId      String   @unique
+  shipment        Shipment @relation(fields: [shipmentId], references: [id])
+  recipientName   String
+  signatureData   String   // Base64 PNG signature
+  photoUrl        String?  // Photo of delivery / bulky plastics placed
+  notes           String?
+  deliveredLat    Float?
+  deliveredLng    Float?
+  timestamp       DateTime @default(now())
+}

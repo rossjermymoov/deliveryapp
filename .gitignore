@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production build
+dist/
+build/
+.output/
+
+# Logs & DB
+*.log
+*.sqlite
+*.sqlite-journal
+*.db
+*.db-journal
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Flutter / Dart
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/flutter_driver_app/build/
+/flutter_driver_app/.dart_tool/
