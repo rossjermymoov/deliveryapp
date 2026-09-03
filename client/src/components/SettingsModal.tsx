@@ -64,6 +64,12 @@ export const SettingsModal: React.FC<Props> = ({
     onUpdateDepots(updated);
   };
 
+  const handleUpdateMinOrders = (depotId: string, minOrders: number) => {
+    const updated = localDepots.map((d) => (d.id === depotId ? { ...d, minOrdersPerRoute: minOrders } : d));
+    setLocalDepots(updated);
+    onUpdateDepots(updated);
+  };
+
   const handleUpdatePostcode = (depotId: string, pc: string) => {
     const updated = localDepots.map((d) => (d.id === depotId ? { ...d, postcode: pc.toUpperCase() } : d));
     setLocalDepots(updated);
@@ -89,7 +95,7 @@ export const SettingsModal: React.FC<Props> = ({
             </div>
             <div>
               <h2 className="text-base font-black">Global System Settings & Parameters</h2>
-              <p className="text-xs text-slate-400">Manage SKU dwell times, depot radius, shift limits and branding</p>
+              <p className="text-xs text-slate-400">Manage SKU dwell times, depot radius, minimum route thresholds and branding</p>
             </div>
           </div>
           <button
@@ -119,7 +125,7 @@ export const SettingsModal: React.FC<Props> = ({
             }`}
           >
             <Compass className="w-3.5 h-3.5 text-blue-500" />
-            Depots & Radius ({depots.filter(d => d.id !== 'depot-all').length})
+            Depots, Radius & Min Orders ({depots.filter(d => d.id !== 'depot-all').length})
           </button>
 
           <button
@@ -236,12 +242,12 @@ export const SettingsModal: React.FC<Props> = ({
             </div>
           )}
 
-          {/* TAB 2: DEPOTS & RADIUS */}
+          {/* TAB 2: DEPOTS, RADIUS & MIN ORDERS */}
           {activeTab === 'depots' && (
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-black text-slate-900">Depot Hub Catchment & Radius Rules</h3>
-                <p className="text-xs text-slate-500">Configure radius per depot (e.g. 10m London vs 30m Newcastle).</p>
+                <h3 className="text-sm font-black text-slate-900">Depot Hub Catchment & Minimum Route Thresholds</h3>
+                <p className="text-xs text-slate-500">Configure radius and the minimum order threshold required before a van is dispatched.</p>
               </div>
 
               <div className="border border-gray-200 rounded-2xl overflow-hidden">
@@ -251,6 +257,7 @@ export const SettingsModal: React.FC<Props> = ({
                       <th className="p-3">Depot Hub</th>
                       <th className="p-3">Center Postcode</th>
                       <th className="p-3 text-center">Catchment Radius</th>
+                      <th className="p-3 text-center">Min Orders to Route</th>
                       <th className="p-3 text-center">Max Van Capacity</th>
                     </tr>
                   </thead>
@@ -277,11 +284,24 @@ export const SettingsModal: React.FC<Props> = ({
                               max="50"
                               value={depot.maxDeliveryRadiusMiles}
                               onChange={(e) => handleUpdateRadius(depot.id, parseInt(e.target.value) || 10)}
-                              className="w-20 h-1.5 bg-gray-200 rounded cursor-pointer"
+                              className="w-16 h-1.5 bg-gray-200 rounded cursor-pointer"
                             />
-                            <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-slate-100 border">
+                            <span className="font-mono font-bold text-xs px-2 py-0.5 rounded bg-slate-100 border min-w-[50px] inline-block text-center">
                               {depot.maxDeliveryRadiusMiles} mi
                             </span>
+                          </div>
+                        </td>
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={depot.minOrdersPerRoute || 3}
+                              onChange={(e) => handleUpdateMinOrders(depot.id, parseInt(e.target.value) || 3)}
+                              className="w-14 font-bold text-xs p-1 border rounded bg-white text-center"
+                            />
+                            <span className="text-[10px] text-slate-400">orders</span>
                           </div>
                         </td>
                         <td className="p-3 text-center font-bold text-slate-800">

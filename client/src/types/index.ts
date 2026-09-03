@@ -9,9 +9,13 @@ export interface Depot {
   lat: number;
   lng: number;
   activeVansCount: number;
-  maxDeliveryRadiusMiles: number; // e.g. 10 miles for London, 30 miles for Newcastle/Scotland
+  maxDeliveryRadiusMiles: number; // e.g. 10 miles for London, 30 miles for Newcastle
   maxDailyCapacityOrders: number; // e.g. 60 orders max throughput
   trafficMultiplierOverride?: number; // e.g. 1.45x for London urban congestion
+  
+  // Route threshold feasibility parameters
+  minOrdersPerRoute: number; // e.g. minimum 3 orders to justify taking a van out
+  maxDistancePerDropMiles: number; // e.g. max 15-20 miles between stops before flagging as inefficient
 }
 
 export interface BrandTheme {
@@ -102,6 +106,10 @@ export interface Order {
   notifications?: CustomerNotificationLog[];
   createdAt: string;
   urgency?: 'STANDARD' | 'PRIORITY' | 'EXPRESS_AM';
+  
+  // Route eligibility flag
+  belowRouteCriteria?: boolean;
+  criteriaReason?: string;
 }
 
 export interface ShiftParameters {

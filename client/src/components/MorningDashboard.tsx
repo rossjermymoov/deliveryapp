@@ -11,7 +11,8 @@ import {
   Warehouse,
   ChevronRight,
   Route as RouteIcon,
-  Check
+  Check,
+  AlertCircle
 } from 'lucide-react';
 
 interface Props {
@@ -56,11 +57,15 @@ export const MorningDashboard: React.FC<Props> = ({
     ? routes
     : routes.filter((r) => r.depotId === selectedDepotId);
 
-  // 5 Operational Morning Pipeline Buckets
-  const unassignedOrders = activeOrders.filter((o) => o.status === 'PENDING');
-  const routedOrders = activeOrders.filter((o) => o.status === 'ROUTED' || o.status === 'LOADED');
-  const inTransitOrders = activeOrders.filter((o) => o.status === 'OUT_FOR_DELIVERY');
-  const deliveredOrders = activeOrders.filter((o) => o.status === 'DELIVERED');
+  // Operational Pipeline Metrics
+  // Split unassigned orders into: ready for routing vs below criteria threshold
+  const unassignedAll = activeOrders.filter((o) => o.status === 'PENDING');
+  const unassignedReady = unassignedAll.filter((o) => !o.belowRouteCriteria);
+  const belowCriteriaOrders = unassignedAll.filter((o) => o.belowRouteCriteria);
+
+  const routedOrdersCount = activeOrders.filter((o) => o.status === 'ROUTED' || o.status === 'LOADED').length;
+  const inTransitOrdersCount = activeOrders.filter((o) => o.status === 'OUT_FOR_DELIVERY').length;
+  const deliveredOrdersCount = activeOrders.filter((o) => o.status === 'DELIVERED').length;
   const totalOrdersCount = activeOrders.length;
 
   const problemRoutes = activeRoutes.filter((r) => r.isProblemRoute || r.totalEstimatedMins > (shiftParams.shiftLengthHours * 60));
@@ -73,7 +78,7 @@ export const MorningDashboard: React.FC<Props> = ({
   };
 
   const handleCalculateRoute = () => {
-    const selected = unassignedOrders.filter((o) => selectedOrderIds.includes(o.id));
+    const selected = unassignedAll.filter((o) => selectedOrderIds.includes(o.id));
     if (selected.length === 0) return;
 
     const opt = optimizeRouteStops(selected, shiftParams);
@@ -135,7 +140,7 @@ export const MorningDashboard: React.FC<Props> = ({
             {activeDepot.name}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Postcode: <strong>{activeDepot.postcode}</strong> • Catchment Radius: <strong>{activeDepot.maxDeliveryRadiusMiles} miles</strong> • Active Fleet: <strong>{activeDriversCount} Vans</strong>
+            Postcode: <strong>{activeDepot.postcode}</strong> • Catchment Radius: <strong>{activeDepot.maxDeliveryRadiusMiles} miles</strong> • Min Orders / Route: <strong>{activeDepot.minOrdersPerRoute || 3} orders</strong> • Active Fleet: <strong>{activeDriversCount} Vans</strong>
           </p>
         </div>
 
@@ -158,49 +163,51 @@ export const MorningDashboard: React.FC<Props> = ({
 
           <button
             onClick={onAutoBatchDepot}
-            disabled={unassignedOrders.length === 0}
+            disabled={unassignedReady.length === 0}
             className="px-5 py-3 text-white text-xs font-black rounded-2xl shadow-md transition flex items-center gap-2 hover:opacity-95 disabled:opacity-50"
             style={{ backgroundColor: brandTheme.secondaryColour }}
           >
             <Sparkles className="w-4 h-4 text-amber-300" />
-            Auto-Batch {unassignedOrders.length} Unassigned Orders
+            Auto-Batch {unassignedReady.length} Qualifying Orders
           </button>
         </div>
       </div>
 
-      {/* 5-Metric Operations Pipeline Cards */}
+      {/* 5-Metric Operations Pipeline Cards with Accurate Labels */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        {/* Unassigned Bucket */}
+        {/* Unassigned Orders */}
         <div
           onClick={() => onNavigateToTab('orders')}
           className="bg-white p-4 rounded-2xl border border-amber-200 shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between"
         >
           <div className="flex items-center justify-between text-amber-600">
-            <span className="text-[11px] font-black uppercase tracking-wider">Unassigned</span>
+            <span className="text-[11px] font-black uppercase tracking-wider">Unassigned Orders</span>
             <Clock className="w-4 h-4" />
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-black text-amber-950">{unassignedOrders.length}</span>
-            <span className="text-[10px] text-amber-700 block font-bold">Needs Routing</span>
+            <span className="text-2xl font-black text-amber-950">{unassignedAll.length}</span>
+            <span className="text-[10px] text-amber-700 block font-bold">
+              {unassignedReady.length} ready • {belowCriteriaOrders.length} below criteria
+            </span>
           </div>
         </div>
 
-        {/* Assigned Manifests */}
+        {/* Assigned Routes */}
         <div
           onClick={() => onNavigateToTab('routes')}
           className="bg-white p-4 rounded-2xl border border-indigo-200 shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between"
         >
           <div className="flex items-center justify-between text-indigo-600">
-            <span className="text-[11px] font-black uppercase tracking-wider">Assigned Manifests</span>
+            <span className="text-[11px] font-black uppercase tracking-wider">Assigned Routes</span>
             <RouteIcon className="w-4 h-4" />
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-black text-indigo-950">{routedOrders.length}</span>
-            <span className="text-[10px] text-indigo-700 block font-bold">{activeRoutes.length} Manifests</span>
+            <span className="text-2xl font-black text-indigo-950">{activeRoutes.length}</span>
+            <span className="text-[10px] text-indigo-700 block font-bold">{routedOrdersCount} orders assigned</span>
           </div>
         </div>
 
-        {/* Out in Transit */}
+        {/* In Transit */}
         <div
           onClick={() => onNavigateToTab('map')}
           className="bg-white p-4 rounded-2xl border border-blue-200 shadow-2xs hover:shadow-md transition cursor-pointer flex flex-col justify-between"
@@ -210,8 +217,8 @@ export const MorningDashboard: React.FC<Props> = ({
             <Radio className="w-4 h-4 animate-pulse text-blue-600" />
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-black text-blue-950">{inTransitOrders.length}</span>
-            <span className="text-[10px] text-blue-700 block font-bold">Live On Van</span>
+            <span className="text-2xl font-black text-blue-950">{inTransitOrdersCount}</span>
+            <span className="text-[10px] text-blue-700 block font-bold">Orders currently being delivered</span>
           </div>
         </div>
 
@@ -225,12 +232,12 @@ export const MorningDashboard: React.FC<Props> = ({
             <CheckCircle2 className="w-4 h-4" />
           </div>
           <div className="mt-2">
-            <span className="text-2xl font-black text-emerald-950">{deliveredOrders.length}</span>
-            <span className="text-[10px] text-emerald-700 block font-bold">Verified PODs</span>
+            <span className="text-2xl font-black text-emerald-950">{deliveredOrdersCount}</span>
+            <span className="text-[10px] text-emerald-700 block font-bold">Successfully delivered</span>
           </div>
         </div>
 
-        {/* Total Day Volume */}
+        {/* Total Volume */}
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-[11px] font-black uppercase tracking-wider">Total Volume</span>
@@ -238,10 +245,34 @@ export const MorningDashboard: React.FC<Props> = ({
           </div>
           <div className="mt-2">
             <span className="text-2xl font-black text-slate-900">{totalOrdersCount}</span>
-            <span className="text-[10px] text-slate-500 block font-bold">Orders Scheduled</span>
+            <span className="text-[10px] text-slate-500 block font-bold">Total depot orders today</span>
           </div>
         </div>
       </div>
+
+      {/* Orders That Don't Meet Route Criteria Banner / Watchdog */}
+      {belowCriteriaOrders.length > 0 && (
+        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-300 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn">
+          <div className="flex items-start gap-2.5">
+            <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="font-black text-amber-950 text-xs">
+                {belowCriteriaOrders.length} Order(s) Do Not Meet Depot Route Threshold (Awaiting Consolidation)
+              </h4>
+              <p className="text-[11px] text-amber-800 mt-0.5">
+                These orders are either isolated single drops (&gt;{activeDepot.maxDistancePerDropMiles || 15} miles from the nearest drop) or the volume is below the depot minimum threshold ({activeDepot.minOrdersPerRoute || 3} drops). Held for future consolidation to prevent empty van miles.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => onNavigateToTab('orders')}
+            className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow transition shrink-0"
+          >
+            View Held Orders ➔
+          </button>
+        </div>
+      )}
 
       {/* Problem Route Watchdog Alert */}
       {problemRoutes.length > 0 && (
@@ -270,7 +301,7 @@ export const MorningDashboard: React.FC<Props> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-black text-base text-slate-900">
-                Unassigned Orders ({unassignedOrders.length})
+                Unassigned Orders ({unassignedAll.length})
               </span>
               <span className="text-xs text-slate-400 font-bold">
                 Select orders to calculate optimal route based on dwell times, traffic & rest breaks.
@@ -280,10 +311,10 @@ export const MorningDashboard: React.FC<Props> = ({
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
-              onClick={() => setSelectedOrderIds(unassignedOrders.map((o) => o.id))}
+              onClick={() => setSelectedOrderIds(unassignedReady.map((o) => o.id))}
               className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl transition"
             >
-              Select All
+              Select Qualifying ({unassignedReady.length})
             </button>
             <button
               onClick={() => setSelectedOrderIds([])}
@@ -295,7 +326,7 @@ export const MorningDashboard: React.FC<Props> = ({
         </div>
 
         {/* Unassigned Orders Table */}
-        {unassignedOrders.length === 0 ? (
+        {unassignedAll.length === 0 ? (
           <div className="py-12 text-center text-slate-400 text-xs">
             <Check className="w-8 h-8 mx-auto text-emerald-500 mb-2" />
             <p className="font-bold text-slate-700 text-sm">All orders assigned for this depot!</p>
@@ -311,13 +342,14 @@ export const MorningDashboard: React.FC<Props> = ({
                   <th className="p-3">Customer & Destination</th>
                   <th className="p-3">Products / SKUs</th>
                   <th className="p-3 text-center">Dwell Time</th>
-                  <th className="p-3 text-center">Status</th>
+                  <th className="p-3 text-center">Route Feasibility Criteria</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {unassignedOrders.map((ord) => {
+                {unassignedAll.map((ord) => {
                   const isSelected = selectedOrderIds.includes(ord.id);
                   const effectiveDwell = ord.manualDwellOverrideMins ?? ord.totalDwellMins;
+                  const isBelowCriteria = ord.belowRouteCriteria;
 
                   return (
                     <tr
@@ -361,10 +393,19 @@ export const MorningDashboard: React.FC<Props> = ({
                         </span>
                       </td>
 
+                      {/* Route Criteria Status */}
                       <td className="p-3 text-center">
-                        <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-amber-100 text-amber-900">
-                          {ord.status}
-                        </span>
+                        {isBelowCriteria ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1" title={ord.criteriaReason}>
+                            <AlertCircle className="w-3 h-3 text-amber-700" />
+                            Below Route Criteria (Consolidate)
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            Qualifies for Route
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -375,10 +416,10 @@ export const MorningDashboard: React.FC<Props> = ({
         )}
 
         {/* Route Calculation Action Row */}
-        {unassignedOrders.length > 0 && (
+        {unassignedAll.length > 0 && (
           <div className="pt-3 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
             <span className="text-xs text-slate-500 font-bold">
-              {selectedOrderIds.length} orders selected for routing
+              {selectedOrderIds.length} orders selected for routing {selectedOrderIds.length > 0 && selectedOrderIds.length < (activeDepot.minOrdersPerRoute || 3) && `(⚠️ Below depot min threshold of ${activeDepot.minOrdersPerRoute || 3} orders)`}
             </span>
 
             <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -446,7 +487,7 @@ export const MorningDashboard: React.FC<Props> = ({
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200 space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-gray-100">
           <div>
-            <h3 className="font-black text-slate-900 text-base">Active Manifest Routes ({activeRoutes.length})</h3>
+            <h3 className="font-black text-slate-900 text-base">Assigned Delivery Routes ({activeRoutes.length})</h3>
             <p className="text-xs text-slate-400">Current assigned van manifests scheduled for delivery today</p>
           </div>
           <button

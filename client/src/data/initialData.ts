@@ -23,7 +23,9 @@ export const UK_DEPOTS: Depot[] = [
     lng: -1.8904, 
     activeVansCount: 48,
     maxDeliveryRadiusMiles: 25,
-    maxDailyCapacityOrders: 800
+    maxDailyCapacityOrders: 800,
+    minOrdersPerRoute: 3,
+    maxDistancePerDropMiles: 20
   },
   { 
     id: 'depot-bhm', 
@@ -38,7 +40,9 @@ export const UK_DEPOTS: Depot[] = [
     activeVansCount: 8,
     maxDeliveryRadiusMiles: 18,
     maxDailyCapacityOrders: 85,
-    trafficMultiplierOverride: 1.25
+    trafficMultiplierOverride: 1.25,
+    minOrdersPerRoute: 3, // Min 3 drops to justify rolling a van
+    maxDistancePerDropMiles: 12 // If drops are >12 miles apart, hold for consolidation
   },
   { 
     id: 'depot-lon-n', 
@@ -53,7 +57,9 @@ export const UK_DEPOTS: Depot[] = [
     activeVansCount: 7,
     maxDeliveryRadiusMiles: 10,
     maxDailyCapacityOrders: 65,
-    trafficMultiplierOverride: 1.45
+    trafficMultiplierOverride: 1.45,
+    minOrdersPerRoute: 4, // Higher threshold in high density
+    maxDistancePerDropMiles: 6 // London drops should be tight within 6 miles
   },
   { 
     id: 'depot-lon-s', 
@@ -68,7 +74,9 @@ export const UK_DEPOTS: Depot[] = [
     activeVansCount: 6,
     maxDeliveryRadiusMiles: 10,
     maxDailyCapacityOrders: 55,
-    trafficMultiplierOverride: 1.40
+    trafficMultiplierOverride: 1.40,
+    minOrdersPerRoute: 4,
+    maxDistancePerDropMiles: 6
   },
   { 
     id: 'depot-ncl', 
@@ -83,7 +91,9 @@ export const UK_DEPOTS: Depot[] = [
     activeVansCount: 5,
     maxDeliveryRadiusMiles: 30,
     maxDailyCapacityOrders: 45,
-    trafficMultiplierOverride: 1.15
+    trafficMultiplierOverride: 1.15,
+    minOrdersPerRoute: 2, // In rural North East, 2 drops can justify route if distance is manageable
+    maxDistancePerDropMiles: 25
   },
   { 
     id: 'depot-man', 
@@ -98,7 +108,9 @@ export const UK_DEPOTS: Depot[] = [
     activeVansCount: 6,
     maxDeliveryRadiusMiles: 16,
     maxDailyCapacityOrders: 70,
-    trafficMultiplierOverride: 1.30
+    trafficMultiplierOverride: 1.30,
+    minOrdersPerRoute: 3,
+    maxDistancePerDropMiles: 12
   },
   { 
     id: 'depot-lee', 
@@ -113,7 +125,9 @@ export const UK_DEPOTS: Depot[] = [
     activeVansCount: 5,
     maxDeliveryRadiusMiles: 22,
     maxDailyCapacityOrders: 50,
-    trafficMultiplierOverride: 1.20
+    trafficMultiplierOverride: 1.20,
+    minOrdersPerRoute: 3,
+    maxDistancePerDropMiles: 15
   },
   { 
     id: 'depot-cov', 
@@ -128,7 +142,9 @@ export const UK_DEPOTS: Depot[] = [
     activeVansCount: 4,
     maxDeliveryRadiusMiles: 20,
     maxDailyCapacityOrders: 40,
-    trafficMultiplierOverride: 1.20
+    trafficMultiplierOverride: 1.20,
+    minOrdersPerRoute: 3,
+    maxDistancePerDropMiles: 14
   },
   { 
     id: 'depot-not', 
@@ -143,7 +159,9 @@ export const UK_DEPOTS: Depot[] = [
     activeVansCount: 4,
     maxDeliveryRadiusMiles: 22,
     maxDailyCapacityOrders: 40,
-    trafficMultiplierOverride: 1.20
+    trafficMultiplierOverride: 1.20,
+    minOrdersPerRoute: 3,
+    maxDistancePerDropMiles: 15
   },
   { 
     id: 'depot-bri', 
@@ -158,7 +176,9 @@ export const UK_DEPOTS: Depot[] = [
     activeVansCount: 4,
     maxDeliveryRadiusMiles: 25,
     maxDailyCapacityOrders: 45,
-    trafficMultiplierOverride: 1.25
+    trafficMultiplierOverride: 1.25,
+    minOrdersPerRoute: 3,
+    maxDistancePerDropMiles: 18
   },
   { 
     id: 'depot-sou', 
@@ -173,7 +193,9 @@ export const UK_DEPOTS: Depot[] = [
     activeVansCount: 4,
     maxDeliveryRadiusMiles: 24,
     maxDailyCapacityOrders: 40,
-    trafficMultiplierOverride: 1.20
+    trafficMultiplierOverride: 1.20,
+    minOrdersPerRoute: 3,
+    maxDistancePerDropMiles: 16
   },
 ];
 
@@ -237,7 +259,6 @@ export const INITIAL_DRIVERS: Driver[] = [
   { id: 'drv-6', name: 'Alan Armstrong', phone: '07700 900106', vehicleReg: 'KN24 NCL', depotId: 'depot-ncl', currentLat: 54.9350, currentLng: -1.6150, lastUpdated: '08:20 AM', status: 'IDLE' },
 ];
 
-// Rich set of realistic UK nationwide orders for true OMS demonstration
 export function generateLargeOrderDataset(): Order[] {
   const seedData = [
     // Birmingham Hub (BHM)
@@ -248,7 +269,8 @@ export function generateLargeOrderDataset(): Order[] {
     { name: 'Arthur Pendelton (Midlands Cladding)', phone: '07633 889900', email: 'arthur@midlandsclad.co.uk', addr: '102 Walsall Rd, Perry Barr', city: 'Birmingham', pc: 'B42 1SG', lat: 52.5204, lng: -1.9056, depot: 'depot-bhm', status: 'PENDING' },
     { name: 'David Miller (Miller Gutters)', phone: '07412 884411', email: 'dave@millers.co.uk', addr: '19 Harborne High St', city: 'Birmingham', pc: 'B17 9NT', lat: 52.4590, lng: -1.9442, depot: 'depot-bhm', status: 'PENDING' },
     { name: 'Keith Reynolds (Brum Fascias)', phone: '07700 882211', email: 'keith@brumfascias.co.uk', addr: '77 Kingsbury Rd', city: 'Birmingham', pc: 'B24 8QQ', lat: 52.5180, lng: -1.8320, depot: 'depot-bhm', status: 'PENDING' },
-    { name: 'Darren Cox (Aston Developments)', phone: '07700 994433', email: 'darren@astondev.co.uk', addr: '5 Licenced St', city: 'Birmingham', pc: 'B6 5TX', lat: 52.4980, lng: -1.8890, depot: 'depot-bhm', status: 'PENDING' },
+    // Isolated distant order that falls below route criteria
+    { name: 'Darren Cox (Telford Far Outpost)', phone: '07700 994433', email: 'darren@telforddev.co.uk', addr: '88 Wrekin View, Telford', city: 'Telford', pc: 'TF1 2AA', lat: 52.6780, lng: -2.4490, depot: 'depot-bhm', status: 'PENDING', belowRouteCriteria: true, criteriaReason: 'Isolated single stop (32 miles from depot cluster). Awaiting order consolidation.' },
 
     // London North Hub (LON-N)
     { name: 'Graham Walker (Enfield Drainage)', phone: '07700 556677', email: 'graham@enfielddrain.co.uk', addr: '10 Innova Way, Enfield', city: 'London', pc: 'EN3 7FL', lat: 51.6680, lng: -0.0350, depot: 'depot-lon-n', status: 'PENDING' },
@@ -299,6 +321,8 @@ export function generateLargeOrderDataset(): Order[] {
       ],
       totalDwellMins: item1.defaultDwellMins + (idx % 2 === 0 ? 5 : 0),
       status: (isDelivered ? 'DELIVERED' : isOut ? 'OUT_FOR_DELIVERY' : isRouted ? 'ROUTED' : 'PENDING') as any,
+      belowRouteCriteria: (s as any).belowRouteCriteria || false,
+      criteriaReason: (s as any).criteriaReason,
       createdAt: new Date(Date.now() - (idx * 7200000)).toISOString(),
       proofOfDelivery: isDelivered ? {
         id: `pod-oms-${idx + 1}`,
