@@ -10,7 +10,7 @@ export const KALSI_BRAND_THEME: BrandTheme = {
   headerBgColour: '#0F1E36',
 };
 
-// Clean list of actual physical UK Depots (NO FAKE "NATIONAL" DEPOT)
+// Clean list of actual physical UK Depots
 export const UK_DEPOTS: Depot[] = [
   { 
     id: 'depot-bhm', 
@@ -254,13 +254,21 @@ export const INITIAL_DRIVERS: Driver[] = [
   { id: 'drv-6', name: 'Alan Armstrong', phone: '07700 900106', vehicleReg: 'KN24 NCL', depotId: 'depot-ncl', currentLat: 54.9350, currentLng: -1.6150, lastUpdated: '08:20 AM', status: 'IDLE' },
 ];
 
+// High-resolution realistic heavy trade / big parcel / building materials delivery photos
+const REALISTIC_POD_PHOTOS = [
+  'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80', // Heavy bundled parcel goods
+  'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=800&q=80', // Industrial packaged cargo on site
+  'https://images.unsplash.com/photo-1578575437130-527eed3abbec?auto=format&fit=crop&w=800&q=80', // Palletized trade goods & large parcels
+  'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?auto=format&fit=crop&w=800&q=80', // Warehouse yard & building supplies
+];
+
 export function generateLargeOrderDataset(): Order[] {
   const seedData = [
     // Birmingham Hub (BHM)
-    { name: 'Marcus Evans (Apex Builders)', phone: '07711 223344', email: 'm.evans@apex.co.uk', addr: '42 Highfield Rd, Edgbaston', city: 'Birmingham', pc: 'B15 3DZ', lat: 52.4688, lng: -1.9325, depot: 'depot-bhm', status: 'DELIVERED', date: 'Today 08:15 AM', deliveredBy: 'Dave Jenkins (KL24 BHM)', notes: 'Signed at trade counter' },
+    { name: 'Marcus Evans (Apex Builders)', phone: '07711 223344', email: 'm.evans@apex.co.uk', addr: '42 Highfield Rd, Edgbaston', city: 'Birmingham', pc: 'B15 3DZ', lat: 52.4688, lng: -1.9325, depot: 'depot-bhm', status: 'DELIVERED', date: 'Today 08:15 AM', deliveredBy: 'Dave Jenkins (KL24 BHM)', notes: 'Signed at trade counter', photoIdx: 0 },
     { name: 'Janet Wood (Wood Renovations)', phone: '07822 334455', email: 'janet@wood.co.uk', addr: '15 Sutton Rd, Erdington', city: 'Birmingham', pc: 'B23 6QJ', lat: 52.5273, lng: -1.8411, depot: 'depot-bhm', status: 'OUT_FOR_DELIVERY' },
     { name: 'Liam Patterson (Patterson Plastics)', phone: '07933 445566', email: 'liam@patterson.co.uk', addr: 'Unit 4 Redfern Estate, Tyseley', city: 'Birmingham', pc: 'B11 2BE', lat: 52.4578, lng: -1.8415, depot: 'depot-bhm', status: 'ROUTED' },
-    { name: 'Claire Smith (Shirley Roofing)', phone: '07544 112233', email: 'claire@shirleyroof.co.uk', addr: '88 Solihull Rd, Shirley', city: 'Solihull', pc: 'B90 3HG', lat: 52.4144, lng: -1.8211, depot: 'depot-bhm', status: 'DELIVERED', date: 'Today 08:35 AM', deliveredBy: 'Dave Jenkins (KL24 BHM)', notes: 'Left inside front side gate' },
+    { name: 'Claire Smith (Shirley Roofing)', phone: '07544 112233', email: 'claire@shirleyroof.co.uk', addr: '88 Solihull Rd, Shirley', city: 'Solihull', pc: 'B90 3HG', lat: 52.4144, lng: -1.8211, depot: 'depot-bhm', status: 'DELIVERED', date: 'Today 08:35 AM', deliveredBy: 'Dave Jenkins (KL24 BHM)', notes: 'Large parcel pack placed securely behind front gate', photoIdx: 1 },
     { name: 'Arthur Pendelton (Midlands Cladding)', phone: '07633 889900', email: 'arthur@midlandsclad.co.uk', addr: '102 Walsall Rd, Perry Barr', city: 'Birmingham', pc: 'B42 1SG', lat: 52.5204, lng: -1.9056, depot: 'depot-bhm', status: 'PENDING' },
     { name: 'David Miller (Miller Gutters)', phone: '07412 884411', email: 'dave@millers.co.uk', addr: '19 Harborne High St', city: 'Birmingham', pc: 'B17 9NT', lat: 52.4590, lng: -1.9442, depot: 'depot-bhm', status: 'PENDING' },
     { name: 'Keith Reynolds (Brum Fascias)', phone: '07700 882211', email: 'keith@brumfascias.co.uk', addr: '77 Kingsbury Rd', city: 'Birmingham', pc: 'B24 8QQ', lat: 52.5180, lng: -1.8320, depot: 'depot-bhm', status: 'PENDING' },
@@ -270,12 +278,12 @@ export function generateLargeOrderDataset(): Order[] {
     { name: 'Graham Walker (Enfield Drainage)', phone: '07700 556677', email: 'graham@enfielddrain.co.uk', addr: '10 Innova Way, Enfield', city: 'London', pc: 'EN3 7FL', lat: 51.6680, lng: -0.0350, depot: 'depot-lon-n', status: 'PENDING' },
     { name: 'Toby Marshall (Tottenham Timber & Plastic)', phone: '07700 667788', email: 'toby@tottenhamtp.co.uk', addr: '44 High Rd, Tottenham', city: 'London', pc: 'N17 9TA', lat: 51.5980, lng: -0.0710, depot: 'depot-lon-n', status: 'PENDING' },
     { name: 'Oliver King (Barnet Building Supplies)', phone: '07700 778899', email: 'oliver@barnetbuild.co.uk', addr: '12 Wood St, Barnet', city: 'London', pc: 'EN5 4BP', lat: 51.6540, lng: -0.2010, depot: 'depot-lon-n', status: 'PENDING' },
-    { name: 'Dean Harris (Islington Civils)', phone: '07700 889911', email: 'dean@islingtoncivils.co.uk', addr: '82 Upper St, Islington', city: 'London', pc: 'N1 0NU', lat: 51.5380, lng: -0.1030, depot: 'depot-lon-n', status: 'DELIVERED', date: 'Yesterday 15:40', deliveredBy: 'Tom Henderson (KL71 LON)', notes: 'Direct delivery to site store' },
+    { name: 'Dean Harris (Islington Civils)', phone: '07700 889911', email: 'dean@islingtoncivils.co.uk', addr: '82 Upper St, Islington', city: 'London', pc: 'N1 0NU', lat: 51.5380, lng: -0.1030, depot: 'depot-lon-n', status: 'DELIVERED', date: 'Yesterday 15:40', deliveredBy: 'Tom Henderson (KL71 LON)', notes: 'Heavy parcel cargo offloaded into site store', photoIdx: 2 },
 
     // London South Hub (LON-S)
     { name: 'Steven Clark (Croydon Roofing)', phone: '07700 443322', email: 'steven@croydonroof.co.uk', addr: '94 Purley Way', city: 'Croydon', pc: 'CR0 4XJ', lat: 51.3780, lng: -0.1190, depot: 'depot-lon-s', status: 'PENDING' },
     { name: 'Ray Campbell (Bromley Plastics)', phone: '07700 332211', email: 'ray@bromleyplastics.co.uk', addr: '28 Masons Hill', city: 'Bromley', pc: 'BR2 9HG', lat: 51.3980, lng: 0.0190, depot: 'depot-lon-s', status: 'PENDING' },
-    { name: 'Lewis Finch (Mitcham Civils)', phone: '07700 221100', email: 'lewis@mitcham.co.uk', addr: '14 London Rd', city: 'Mitcham', pc: 'CR4 2YR', lat: 51.4020, lng: -0.1680, depot: 'depot-lon-s', status: 'DELIVERED', date: 'Yesterday 11:20', deliveredBy: 'Sarah Miller (KP23 BHM)', notes: 'Forklift offload at depot' },
+    { name: 'Lewis Finch (Mitcham Civils)', phone: '07700 221100', email: 'lewis@mitcham.co.uk', addr: '14 London Rd', city: 'Mitcham', pc: 'CR4 2YR', lat: 51.4020, lng: -0.1680, depot: 'depot-lon-s', status: 'DELIVERED', date: 'Yesterday 11:20', deliveredBy: 'Sarah Miller (KP23 BHM)', notes: 'Palletized trade goods delivered at loading bay', photoIdx: 3 },
 
     // Newcastle & North East (NCL)
     { name: 'Ian Robson (Tyne Valley Plastics)', phone: '07700 665544', email: 'ian@tyneplastics.co.uk', addr: '34 Team Valley Way', city: 'Gateshead', pc: 'NE11 0QA', lat: 54.9350, lng: -1.6150, depot: 'depot-ncl', status: 'PENDING' },
@@ -322,9 +330,9 @@ export function generateLargeOrderDataset(): Order[] {
         id: `pod-oms-${idx + 1}`,
         orderId: `ord-oms-${idx + 1}`,
         recipientName: s.name.split(' ')[0] + ' ' + s.name.split(' ')[1],
-        signatureData: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="140" height="35"><text y="24" font-family="cursive" font-size="20" fill="%230F1E36">Verified Signee</text></svg>',
-        photoUrl: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=400&q=80',
-        notes: (s as any).notes || 'Delivered to site',
+        signatureData: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="40"><text y="28" font-family="cursive" font-size="22" fill="%230F1E36">Verified Signee</text></svg>',
+        photoUrl: REALISTIC_POD_PHOTOS[(s as any).photoIdx ?? 0],
+        notes: (s as any).notes || 'Large parcel goods delivered to site',
         deliveredLat: s.lat + 0.0001,
         deliveredLng: s.lng + 0.0001,
         timestamp: (s as any).date || 'Today 08:30 AM',

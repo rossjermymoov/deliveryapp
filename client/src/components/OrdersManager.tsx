@@ -14,7 +14,9 @@ import {
   Navigation,
   FileCheck2,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Package,
+  Truck
 } from 'lucide-react';
 
 interface Props {
@@ -42,10 +44,8 @@ export const OrdersManager: React.FC<Props> = ({
   const [sortField, setSortField] = useState<'createdAt' | 'customerName' | 'status' | 'dwell'>('createdAt');
   const [sortAsc, setSortAsc] = useState(false);
 
-  // Filter orders by active depot & status
-  const depotOrders = selectedDepotId === 'depot-all'
-    ? orders
-    : orders.filter((o) => o.depotId === selectedDepotId);
+  // Filter orders strictly by active depot
+  const depotOrders = orders.filter((o) => o.depotId === selectedDepotId);
 
   const filteredOrders = depotOrders.filter((o) => {
     // Status filter
@@ -112,7 +112,7 @@ export const OrdersManager: React.FC<Props> = ({
                 : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
             }`}
           >
-            All Orders ({depotOrders.length})
+            All Depot Orders ({depotOrders.length})
           </button>
 
           <button
@@ -345,9 +345,9 @@ export const OrdersManager: React.FC<Props> = ({
                             e.stopPropagation();
                             setSelectedOrder(ord);
                           }}
-                          className="px-3 py-1 bg-slate-100 hover:bg-slate-200 font-bold text-[11px] text-slate-800 rounded-lg transition"
+                          className="px-3 py-1 bg-slate-100 hover:bg-slate-200 font-bold text-[11px] text-slate-800 rounded-lg transition shadow-2xs"
                         >
-                          {isDelivered ? 'View Delivery & POD 📸' : 'Inspect Order ➔'}
+                          {isDelivered ? 'View POD & Audit 📸' : 'Inspect Order ➔'}
                         </button>
                       </td>
                     </tr>
@@ -359,174 +359,219 @@ export const OrdersManager: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ORDER INSPECTION / COMPLETED ORDER POD MODAL */}
+      {/* WIDE FULL-SCREEN POD & DELIVERY AUDIT MODAL (NO SCROLL REQUIRED) */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-6 flex flex-col max-h-[90vh] overflow-y-auto space-y-5">
-            {/* Modal Header */}
-            <div className="flex items-start justify-between pb-4 border-b border-gray-100">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-base font-black" style={{ color: brandTheme.secondaryColour }}>
-                    {selectedOrder.trackingNumber}
-                  </span>
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                      selectedOrder.status === 'DELIVERED'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : selectedOrder.belowRouteCriteria
-                        ? 'bg-orange-100 text-orange-900'
-                        : 'bg-amber-100 text-amber-900'
-                    }`}
-                  >
-                    {selectedOrder.status}
-                  </span>
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
+          <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] overflow-hidden">
+            
+            {/* Top Modal Header */}
+            <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-white/10 text-emerald-400">
+                  <FileCheck2 className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-black text-slate-900 mt-1">{selectedOrder.customerName}</h3>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-base font-black text-amber-400">
+                      {selectedOrder.trackingNumber}
+                    </span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                        selectedOrder.status === 'DELIVERED'
+                          ? 'bg-emerald-500 text-white'
+                          : selectedOrder.status === 'OUT_FOR_DELIVERY'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-amber-500 text-slate-900'
+                      }`}
+                    >
+                      {selectedOrder.status}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-white mt-0.5">
+                    {selectedOrder.customerName} • {selectedOrder.address}, {selectedOrder.city} ({selectedOrder.postcode})
+                  </h3>
+                </div>
               </div>
 
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold"
+                className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white font-bold text-sm transition"
               >
                 ✕
               </button>
             </div>
 
-            {selectedOrder.belowRouteCriteria && selectedOrder.criteriaReason && (
-              <div className="p-3 bg-orange-50 rounded-xl border border-orange-200 text-xs text-orange-900 font-medium flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-orange-600 shrink-0" />
-                <span><strong>Routing Criteria Note:</strong> {selectedOrder.criteriaReason}</span>
-              </div>
-            )}
+            {/* Modal Body: Left to Right 2-Column Wide Grid */}
+            <div className="p-6 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start bg-slate-50/50">
+              
+              {/* Left Column (5 Cols): Order Info, Items & Customer */}
+              <div className="lg:col-span-5 space-y-4">
+                {/* Customer Details Box */}
+                <div className="p-4 bg-white rounded-2xl border border-gray-200 shadow-2xs space-y-2 text-xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Customer & Destination
+                  </span>
+                  <p className="font-bold text-slate-900 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-blue-600" />
+                    {selectedOrder.customerPhone}
+                  </p>
+                  <p className="font-medium text-slate-600 flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-slate-400" />
+                    {selectedOrder.customerEmail}
+                  </p>
+                  <p className="font-bold text-slate-900 flex items-start gap-1.5 pt-1 border-t border-gray-100">
+                    <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                    <span>{selectedOrder.address}, {selectedOrder.city} <strong>{selectedOrder.postcode}</strong></span>
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Depot: <strong>{matchedDepot?.name || 'Regional Hub'}</strong>
+                  </p>
+                </div>
 
-            {/* Customer & Delivery Coordinates Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="p-3.5 bg-slate-50 rounded-2xl border border-gray-200 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Customer Contact & Site:
-                </span>
-                <p className="font-bold text-slate-900 flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-blue-600" />
-                  {selectedOrder.customerPhone}
-                </p>
-                <p className="font-medium text-slate-600 flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-slate-400" />
-                  {selectedOrder.customerEmail}
-                </p>
-              </div>
+                {/* Products / SKUs List */}
+                <div className="p-4 bg-white rounded-2xl border border-gray-200 shadow-2xs space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-1">
+                    <Package className="w-3.5 h-3.5 text-slate-600" />
+                    Order Line Items ({selectedOrder.items.length})
+                  </span>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {selectedOrder.items.map((item, idx) => (
+                      <div key={idx} className="p-2.5 bg-slate-50 rounded-xl border border-gray-100 text-xs flex justify-between items-center">
+                        <div>
+                          <span className="font-mono font-bold text-[11px] block text-blue-700">
+                            {item.sku}
+                          </span>
+                          <span className="font-semibold text-slate-800">{item.name}</span>
+                        </div>
+                        <span className="font-black text-xs bg-white text-slate-900 px-2.5 py-1 rounded border border-gray-300">
+                          Qty: {item.quantity}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
-              <div className="p-3.5 bg-slate-50 rounded-2xl border border-gray-200 space-y-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Destination Address & Depot:
-                </span>
-                <p className="font-bold text-slate-900 flex items-start gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
-                  <span>{selectedOrder.address}, {selectedOrder.city} <strong>{selectedOrder.postcode}</strong></span>
-                </p>
-                <p className="text-[11px] text-slate-500">
-                  Depot: <strong>{matchedDepot?.name || 'Regional Hub'}</strong>
-                </p>
-              </div>
-            </div>
-
-            {/* Order Items List */}
-            <div>
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-2">
-                Order Line Items:
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {selectedOrder.items.map((item, idx) => (
-                  <div key={idx} className="p-3 bg-slate-50 rounded-xl border border-gray-200 text-xs flex items-center justify-between">
+                {/* Driver & Assignment Details */}
+                <div className="p-4 bg-white rounded-2xl border border-gray-200 shadow-2xs space-y-2 text-xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block flex items-center gap-1">
+                    <Truck className="w-3.5 h-3.5 text-slate-600" /> Assigned Fleet & Driver
+                  </span>
+                  <div className="flex items-center justify-between">
                     <div>
-                      <span className="font-mono font-bold text-[11px] block" style={{ color: brandTheme.secondaryColour }}>
-                        {item.sku}
-                      </span>
-                      <span className="font-medium text-slate-800">{item.name}</span>
+                      <p className="font-bold text-slate-900">{matchedDriver?.name || 'Dave Jenkins'}</p>
+                      <p className="text-[11px] text-slate-500 font-mono font-bold">
+                        Vehicle: {matchedDriver?.vehicleReg || 'KL24 BHM'}
+                      </p>
                     </div>
-                    <span className="font-black text-xs px-2.5 py-1 bg-white border border-gray-200 rounded">
-                      Qty: {item.quantity}
+                    <span className="px-2.5 py-1 bg-slate-100 text-slate-700 font-black rounded-lg text-[10px]">
+                      {matchedRoute?.routeNumber || 'Route 1'}
                     </span>
                   </div>
-                ))}
+                </div>
+              </div>
+
+              {/* Right Column (7 Cols): Large Parcel On-Site Goods Picture, Customer Signature & Telematics */}
+              <div className="lg:col-span-7 space-y-4">
+                {selectedOrder.status === 'DELIVERED' && selectedOrder.proofOfDelivery ? (
+                  <div className="p-5 bg-emerald-50 rounded-2xl border border-emerald-300 space-y-4 shadow-2xs">
+                    {/* Timestamp and Geo-stamp */}
+                    <div className="flex items-center justify-between pb-3 border-b border-emerald-200">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+                        <span className="font-black text-xs text-emerald-950 uppercase">
+                          Verified Delivery Handover Record
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" /> {selectedOrder.proofOfDelivery.timestamp}
+                      </span>
+                    </div>
+
+                    {/* Left/Right Split for Big Goods Picture & Signature Canvas */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Big Parcel / Trade Goods On-Site Picture */}
+                      <div className="bg-white p-3 rounded-2xl border border-emerald-200 text-center flex flex-col justify-between">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5 flex items-center justify-center gap-1">
+                          <Camera className="w-3.5 h-3.5 text-emerald-600" /> On-Site Goods Delivery Picture:
+                        </span>
+                        {selectedOrder.proofOfDelivery.photoUrl ? (
+                          <div className="relative group overflow-hidden rounded-xl border border-gray-200">
+                            <img
+                              src={selectedOrder.proofOfDelivery.photoUrl}
+                              alt="On-site delivery parcels"
+                              className="w-full h-44 object-cover group-hover:scale-105 transition duration-300"
+                            />
+                            <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[10px] font-mono py-1">
+                              GPS: {selectedOrder.proofOfDelivery.deliveredLat?.toFixed(4)}, {selectedOrder.proofOfDelivery.deliveredLng?.toFixed(4)}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="py-12 text-slate-400 text-xs italic">No photo attached</div>
+                        )}
+                      </div>
+
+                      {/* Customer Digital Signature & Signee */}
+                      <div className="bg-white p-3 rounded-2xl border border-emerald-200 text-center flex flex-col justify-between">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1.5 flex items-center justify-center gap-1">
+                          <PenTool className="w-3.5 h-3.5 text-emerald-600" /> Customer Digital Signature:
+                        </span>
+                        
+                        <div className="p-3 bg-slate-50 rounded-xl border border-gray-200 flex flex-col items-center justify-center min-h-[110px]">
+                          {selectedOrder.proofOfDelivery.signatureData ? (
+                            <img
+                              src={selectedOrder.proofOfDelivery.signatureData}
+                              alt="Customer signature"
+                              className="max-h-16 object-contain"
+                            />
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Signature on Glass</span>
+                          )}
+                        </div>
+
+                        <div className="pt-2 text-left text-xs border-t border-gray-100">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Signee Name:</span>
+                          <span className="font-black text-slate-900">{selectedOrder.proofOfDelivery.recipientName}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Delivery Notes & GPS Coordinates */}
+                    <div className="p-3 bg-white rounded-xl border border-emerald-200 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Delivery Driver Notes:</span>
+                        <p className="font-medium text-slate-800 italic">"{selectedOrder.proofOfDelivery.notes || 'Goods verified and delivered in good order'}"</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">Geofence Coordinates:</span>
+                        <p className="font-mono font-bold text-slate-800 flex items-center gap-1">
+                          <Navigation className="w-3.5 h-3.5 text-blue-600" />
+                          {selectedOrder.proofOfDelivery.deliveredLat?.toFixed(4)}, {selectedOrder.proofOfDelivery.deliveredLng?.toFixed(4)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Order Not Delivered Yet State */
+                  <div className="p-12 bg-white rounded-2xl border border-gray-200 text-center text-slate-400 space-y-2">
+                    <Clock className="w-10 h-10 mx-auto text-amber-500" />
+                    <h4 className="font-bold text-slate-800 text-sm">Delivery In Progress / Scheduled</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Once the driver reaches the customer, captures the on-site parcel photo, and collects the signature on glass, the verified POD audit will populate here automatically.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* COMPLETED ORDER DELIVERY AUDIT TRAIL: DRIVER, GEO, PHOTO, SIGNATURE */}
-            {selectedOrder.status === 'DELIVERED' && selectedOrder.proofOfDelivery ? (
-              <div className="p-5 bg-emerald-50 rounded-2xl border border-emerald-300 space-y-4">
-                <div className="flex items-center justify-between pb-2 border-b border-emerald-200">
-                  <span className="font-black text-xs text-emerald-950 flex items-center gap-1.5">
-                    <FileCheck2 className="w-4 h-4 text-emerald-600" />
-                    Completed Order Delivery Audit Trail
-                  </span>
-                  <span className="text-xs font-bold text-emerald-800 flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5" /> Delivered: {selectedOrder.proofOfDelivery.timestamp}
-                  </span>
-                </div>
-
-                {/* Driver & Telematics */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="bg-white p-3 rounded-xl border border-emerald-200 space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">Delivery Driver & Van:</span>
-                    <p className="font-bold text-slate-900">
-                      {matchedDriver?.name || 'Dave Jenkins'} ({matchedDriver?.vehicleReg || 'KL24 BHM'})
-                    </p>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block pt-1">Signee Name:</span>
-                    <p className="font-bold text-slate-900">{selectedOrder.proofOfDelivery.recipientName}</p>
-                  </div>
-
-                  <div className="bg-white p-3 rounded-xl border border-emerald-200 space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block">GPS Delivery Coordinates:</span>
-                    <p className="font-mono font-bold text-slate-900 flex items-center gap-1">
-                      <Navigation className="w-3.5 h-3.5 text-blue-600" />
-                      {selectedOrder.proofOfDelivery.deliveredLat?.toFixed(4)}, {selectedOrder.proofOfDelivery.deliveredLng?.toFixed(4)}
-                    </p>
-                    {selectedOrder.proofOfDelivery.notes && (
-                      <p className="text-[11px] text-slate-600 italic pt-1">
-                        Notes: "{selectedOrder.proofOfDelivery.notes}"
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Proof Photos & Signature Canvas Images */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {/* Photo of goods on site */}
-                  <div className="bg-white p-3 rounded-xl border border-emerald-200 space-y-1 text-center">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block flex items-center justify-center gap-1">
-                      <Camera className="w-3 h-3 text-emerald-600" /> On-Site Goods Picture:
-                    </span>
-                    {selectedOrder.proofOfDelivery.photoUrl ? (
-                      <img
-                        src={selectedOrder.proofOfDelivery.photoUrl}
-                        alt="Goods on site"
-                        className="rounded-lg max-h-36 object-cover mx-auto border border-gray-200 mt-1"
-                      />
-                    ) : (
-                      <div className="p-4 text-slate-400 text-xs italic">No photo recorded</div>
-                    )}
-                  </div>
-
-                  {/* Customer Signature */}
-                  <div className="bg-white p-3 rounded-xl border border-emerald-200 space-y-1 text-center flex flex-col justify-between">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block flex items-center justify-center gap-1">
-                      <PenTool className="w-3 h-3 text-emerald-600" /> Customer Signature:
-                    </span>
-                    {selectedOrder.proofOfDelivery.signatureData ? (
-                      <img
-                        src={selectedOrder.proofOfDelivery.signatureData}
-                        alt="Customer signature"
-                        className="max-h-20 object-contain mx-auto mt-2"
-                      />
-                    ) : (
-                      <div className="p-4 text-slate-400 text-xs italic">No signature recorded</div>
-                    )}
-                    <span className="text-[10px] text-emerald-800 font-bold">Verified Direct Handover</span>
-                  </div>
-                </div>
-              </div>
-            ) : null}
+            {/* Footer */}
+            <div className="bg-slate-100 p-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="px-5 py-2 text-xs font-black text-slate-800 bg-white hover:bg-slate-200 rounded-xl border border-gray-300 shadow-2xs"
+              >
+                Close Audit Window
+              </button>
+            </div>
           </div>
         </div>
       )}
