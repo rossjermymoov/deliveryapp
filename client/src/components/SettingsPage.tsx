@@ -14,7 +14,6 @@ import {
   Truck,
   Users,
   ShieldCheck,
-  Lock,
   ArrowRightLeft,
   Warehouse
 } from 'lucide-react';
@@ -228,8 +227,8 @@ export const SettingsPage: React.FC<Props> = ({
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
             {isHeadOffice
-              ? 'Head Office Master Administration • Manage staff transfers, driver allocations, depot capacities and branding.'
-              : `Depot Configuration • Viewing authorized depot settings for ${currentUser.name}`}
+              ? 'Head Office Administration • Manage staff transfers, driver allocations, depot capacities and branding.'
+              : `Depot Configuration • Viewing settings for ${currentUser.name}`}
           </p>
         </div>
       </div>
@@ -338,7 +337,7 @@ export const SettingsPage: React.FC<Props> = ({
                 Staff Accounts & Inter-Depot Transfers
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Assign depot controllers to specific regional hubs or transfer staff between depots (e.g. move a controller from London North to London South).
+                Assign depot controllers to specific regional hubs or transfer staff between depots.
               </p>
             </div>
 
@@ -379,7 +378,7 @@ export const SettingsPage: React.FC<Props> = ({
                                 : 'bg-blue-100 text-blue-900 border border-blue-300'
                             }`}
                           >
-                            {isHeadOfficeUser ? <ShieldCheck className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
+                            {isHeadOfficeUser && <ShieldCheck className="w-3 h-3" />}
                             {usr.role.replace(/_/g, ' ')}
                           </span>
                         </td>
@@ -469,7 +468,7 @@ export const SettingsPage: React.FC<Props> = ({
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value as any })}
                   className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
                 >
-                  <option value="DEPOT_CONTROLLER">Depot Controller (Locked)</option>
+                  <option value="DEPOT_CONTROLLER">Depot Controller</option>
                   <option value="HEAD_OFFICE_ADMIN">Head Office Admin</option>
                 </select>
               </div>
@@ -509,7 +508,7 @@ export const SettingsPage: React.FC<Props> = ({
                 Driver Records & Fleet Transfers
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Manage all delivery drivers, vehicle registrations, telematics status, and transfer drivers and vans between depots.
+                Manage delivery drivers, vehicle registrations, telematics status, and transfer drivers and vans between depots.
               </p>
             </div>
 
