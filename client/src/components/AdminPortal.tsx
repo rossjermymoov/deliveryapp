@@ -4,10 +4,11 @@ import { optimizeRouteStops, DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
 import { MorningDashboard } from './MorningDashboard';
 import { ScanToVanModal } from './ScanToVanModal';
+import { CustomerServiceLookup } from './CustomerServiceLookup';
 import { PRESET_THEMES, UK_DEPOTS } from '../data/initialData';
 import { 
   Package, 
-  MapPin, 
+  MapPin,
   Route as RouteIcon, 
   Sparkles, 
   CheckCircle2, 
@@ -33,7 +34,8 @@ import {
   LayoutDashboard,
   Warehouse,
   Barcode,
-  ExternalLink
+  ExternalLink,
+  Headphones
 } from 'lucide-react';
 
 interface Props {
@@ -68,7 +70,7 @@ export const AdminPortal: React.FC<Props> = ({
   onOpenCustomerTracker,
   onConfirmRouteLoaded,
 }) => {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map' | 'sku_dwell' | 'pods' | 'branding'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'routes' | 'map' | 'cs_lookup' | 'sku_dwell' | 'pods' | 'branding'>('dashboard');
   const [selectedDepotId, setSelectedDepotId] = useState<string>('depot-all');
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [editingDwellId, setEditingDwellId] = useState<string | null>(null);
@@ -238,7 +240,7 @@ export const AdminPortal: React.FC<Props> = ({
         />
       )}
 
-      {/* Top Header - White Label Theme Enabled */}
+      {/* Top Header */}
       <header
         className="text-white px-6 py-4 shadow-sm border-b transition-colors duration-300"
         style={{ backgroundColor: brandTheme.primaryColour, borderColor: 'rgba(255,255,255,0.1)' }}
@@ -252,13 +254,13 @@ export const AdminPortal: React.FC<Props> = ({
               {brandTheme.logoText}
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">{brandTheme.companyName} Logistics</h1>
-              <p className="text-xs opacity-80">{brandTheme.tagline}</p>
+              <h1 className="text-xl font-bold tracking-tight">{brandTheme.companyName} Operations Hub</h1>
+              <p className="text-xs opacity-80">Planning, Telematics & Customer Service Backend</p>
             </div>
           </div>
 
           <div className="flex items-center space-x-3">
-            {/* Quick Depot Selector Pill in Header */}
+            {/* Depot Selector */}
             <div className="bg-white/10 px-3 py-1.5 rounded-xl border border-white/20 flex items-center gap-2 text-xs">
               <Warehouse className="w-3.5 h-3.5 text-blue-200" />
               <select
@@ -279,7 +281,7 @@ export const AdminPortal: React.FC<Props> = ({
               className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-2 transition"
             >
               <ExternalLink className="w-4 h-4 text-amber-300" />
-              Customer Tracker 🌐
+              Customer Tracking 🌐
             </button>
 
             <button
@@ -287,14 +289,14 @@ export const AdminPortal: React.FC<Props> = ({
               className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-2 transition"
             >
               <Palette className="w-4 h-4 text-emerald-400" />
-              White-Label Settings
+              White-Label
             </button>
             <button
               onClick={() => setActiveTab('map')}
               className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold text-white flex items-center gap-2 transition"
             >
               <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
-              Live Fleet Map
+              Telematics Map
             </button>
           </div>
         </div>
@@ -303,7 +305,7 @@ export const AdminPortal: React.FC<Props> = ({
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-1 w-full flex flex-col gap-6">
         
-        {/* Navigation Tabs with Morning Dashboard at Front */}
+        {/* Navigation Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 pb-3">
           <div className="flex space-x-2 flex-wrap gap-y-2">
             <button
@@ -320,6 +322,19 @@ export const AdminPortal: React.FC<Props> = ({
             </button>
 
             <button
+              onClick={() => setActiveTab('cs_lookup')}
+              className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
+                activeTab === 'cs_lookup'
+                  ? 'text-white shadow-sm'
+                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+              style={{ backgroundColor: activeTab === 'cs_lookup' ? brandTheme.secondaryColour : undefined }}
+            >
+              <Headphones className="w-4 h-4 text-emerald-500" />
+              Customer Service & Telematics
+            </button>
+
+            <button
               onClick={() => setActiveTab('orders')}
               className={`px-4 py-2 rounded-lg font-bold text-xs transition-all flex items-center gap-2 ${
                 activeTab === 'orders'
@@ -329,7 +344,7 @@ export const AdminPortal: React.FC<Props> = ({
               style={{ backgroundColor: activeTab === 'orders' ? brandTheme.secondaryColour : undefined }}
             >
               <Package className="w-4 h-4" />
-              Unassigned Orders ({pendingOrders.length})
+              Orders ({pendingOrders.length})
             </button>
 
             <button
@@ -355,7 +370,7 @@ export const AdminPortal: React.FC<Props> = ({
               style={{ backgroundColor: activeTab === 'map' ? brandTheme.secondaryColour : undefined }}
             >
               <Radio className="w-4 h-4 text-emerald-600" />
-              Live Driver Map
+              Live Telematics
             </button>
 
             <button
@@ -381,7 +396,7 @@ export const AdminPortal: React.FC<Props> = ({
               style={{ backgroundColor: activeTab === 'pods' ? brandTheme.secondaryColour : undefined }}
             >
               <FileCheck2 className="w-4 h-4 text-emerald-600" />
-              Proof of Delivery ({completedOrders.length})
+              POD Archive ({completedOrders.length})
             </button>
 
             <button
@@ -394,20 +409,20 @@ export const AdminPortal: React.FC<Props> = ({
               style={{ backgroundColor: activeTab === 'branding' ? brandTheme.secondaryColour : undefined }}
             >
               <Palette className="w-4 h-4 text-indigo-500" />
-              White-Label Settings
+              White-Label
             </button>
           </div>
 
-          {/* Quick Launch Driver Views */}
+          {/* Launch Driver App Direct Workflow */}
           {drivers.length > 0 && (
-            <div className="flex items-center gap-2 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
-              <Truck className="w-4 h-4" style={{ color: brandTheme.secondaryColour }} />
-              <span className="text-xs font-semibold text-slate-700">Driver View:</span>
+            <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs">
+              <Truck className="w-4 h-4 text-emerald-700" />
+              <span className="text-xs font-black text-emerald-900">Launch Driver Mobile App:</span>
               {drivers.slice(0, 3).map((drv) => (
                 <button
                   key={drv.id}
                   onClick={() => onSwitchToDriver(drv.id)}
-                  className="text-xs bg-white text-slate-800 font-bold px-2 py-0.5 rounded shadow-xs hover:bg-slate-800 hover:text-white border border-gray-300 transition"
+                  className="text-xs bg-white text-slate-800 font-black px-2.5 py-1 rounded-lg shadow-xs hover:bg-emerald-600 hover:text-white border border-gray-200 transition"
                 >
                   {drv.name.split(' ')[0]} 📱
                 </button>
@@ -426,13 +441,24 @@ export const AdminPortal: React.FC<Props> = ({
             selectedDepotId={selectedDepotId}
             brandTheme={brandTheme}
             onSelectDepot={setSelectedDepotId}
-            onNavigateToTab={setActiveTab}
+            onNavigateToTab={(t) => setActiveTab(t as any)}
             onSelectRoute={() => setActiveTab('routes')}
             onAutoBatchDepot={handleAutoBatchDepot}
           />
         )}
 
-        {/* TAB 1: ORDER MANAGEMENT SYSTEM */}
+        {/* TAB 1: CUSTOMER SERVICE & TELEMATICS LOOKUP */}
+        {activeTab === 'cs_lookup' && (
+          <CustomerServiceLookup
+            orders={orders}
+            routes={routes}
+            drivers={drivers}
+            brandTheme={brandTheme}
+            onOpenCustomerTracker={onOpenCustomerTracker}
+          />
+        )}
+
+        {/* TAB 2: ORDER MANAGEMENT SYSTEM */}
         {activeTab === 'orders' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col">
@@ -481,7 +507,6 @@ export const AdminPortal: React.FC<Props> = ({
                       : order.totalDwellMins;
                     const isOverridden = order.manualDwellOverrideMins !== undefined;
 
-                    // Alternating distinctive high-contrast border colours
                     const borderColours = [
                       'border-l-[#0072CE]',
                       'border-l-[#16A34A]',
@@ -781,7 +806,7 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 2: ROUTES & DRIVER ASSIGNMENT */}
+        {/* TAB 3: ROUTES & MANIFESTS */}
         {activeTab === 'routes' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -943,7 +968,7 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 3: REAL MAP */}
+        {/* TAB 4: REAL MAP */}
         {activeTab === 'map' && (
           <DriverLiveMap
             drivers={drivers}
@@ -952,7 +977,7 @@ export const AdminPortal: React.FC<Props> = ({
           />
         )}
 
-        {/* TAB 4: DWELL TIMES PER PRODUCT */}
+        {/* TAB 5: DWELL TIMES PER PRODUCT */}
         {activeTab === 'sku_dwell' && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
             <div className="pb-4 border-b border-gray-100">
@@ -1051,7 +1076,7 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 5: WHITE-LABEL BRANDING & CUSTOMISATION SETTINGS */}
+        {/* TAB 6: WHITE-LABEL BRANDING & CUSTOMISATION SETTINGS */}
         {activeTab === 'branding' && (
           <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
             <div className="pb-4 border-b border-gray-100 flex items-center justify-between">
@@ -1194,7 +1219,7 @@ export const AdminPortal: React.FC<Props> = ({
           </div>
         )}
 
-        {/* TAB 6: POD RECORDS */}
+        {/* TAB 7: POD RECORDS */}
         {activeTab === 'pods' && (
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">

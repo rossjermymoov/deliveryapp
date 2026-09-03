@@ -107,6 +107,15 @@ export const App: React.FC = () => {
     );
   };
 
+  const handleCompleteRoute = (routeId: string) => {
+    setRoutes((prev) =>
+      prev.map((r) => (r.id === routeId ? { ...r, status: 'COMPLETED' } : r))
+    );
+    setDrivers((prev) =>
+      prev.map((d) => (d.id === activeDriverId ? { ...d, status: 'IDLE' } : d))
+    );
+  };
+
   const handleCompletePod = (orderId: string, podData: Partial<ProofOfDelivery>) => {
     const fullPod: ProofOfDelivery = {
       id: `pod-${Date.now()}`,
@@ -202,8 +211,12 @@ export const App: React.FC = () => {
           driver={currentDriver}
           brandTheme={brandTheme}
           activeRoute={driverActiveRoute}
-          onCompletePod={handleCompletePod}
+          allAvailableRoutes={routes.filter((r) => r.status === 'UNASSIGNED' || r.driverId === activeDriverId)}
+          onClaimRoute={handleAssignDriverToRoute}
+          onConfirmRouteLoaded={handleConfirmRouteLoaded}
           onStartRoute={handleStartRoute}
+          onCompletePod={handleCompletePod}
+          onCompleteRoute={handleCompleteRoute}
           onBackToAdmin={() => setViewMode('admin')}
           onOpenCustomerTracker={(trk) => {
             setActiveCustomerTracking(trk);
