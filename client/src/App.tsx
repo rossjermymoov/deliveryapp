@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
-import { INITIAL_DEPOTS, INITIAL_DRIVERS, INITIAL_SHIPMENTS, INITIAL_ROUTES, INITIAL_SKU_RULES, DEFAULT_DEPOT_SETTINGS } from './data/initialData';
-import { Depot, Driver, Shipment, DeliveryRoute, ProofOfDelivery, SkuDwellRule, DepotSettings } from './types';
+import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_ROUTES, KALSI_PRODUCT_CATALOG, DEFAULT_SETTINGS } from './data/initialData';
+import { Order, Driver, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, GlobalSettings } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
 
 export const App: React.FC = () => {
-  const [depots] = useState<Depot[]>(INITIAL_DEPOTS);
-  const [drivers] = useState<Driver[]>(INITIAL_DRIVERS);
-  const [shipments, setShipments] = useState<Shipment[]>(INITIAL_SHIPMENTS);
+  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const [drivers, setDrivers] = useState<Driver[]>(INITIAL_DRIVERS);
   const [routes, setRoutes] = useState<DeliveryRoute[]>(INITIAL_ROUTES);
-  const [skuRules, setSkuRules] = useState<SkuDwellRule[]>(INITIAL_SKU_RULES);
-  const [depotSettings, setDepotSettings] = useState<DepotSettings>(DEFAULT_DEPOT_SETTINGS);
+  const [skuCatalog, setSkuCatalog] = useState<SkuDwellSetting[]>(KALSI_PRODUCT_CATALOG);
+  const [settings, setSettings] = useState<GlobalSettings>(DEFAULT_SETTINGS);
 
-  const [selectedDepotId, setSelectedDepotId] = useState<string>(INITIAL_DEPOTS[0].id);
   const [viewMode, setViewMode] = useState<'admin' | 'driver'>('admin');
   const [activeDriverId, setActiveDriverId] = useState<string>(INITIAL_DRIVERS[0].id);
 
@@ -20,18 +18,18 @@ export const App: React.FC = () => {
   const handleCreateRoute = (newRoute: DeliveryRoute) => {
     setRoutes((prev) => [newRoute, ...prev]);
 
-    setShipments((prev) =>
-      prev.map((s) => {
-        const found = newRoute.shipments.find((ns) => ns.id === s.id);
+    setOrders((prev) =>
+      prev.map((o) => {
+        const found = newRoute.orders.find((no) => no.id === o.id);
         if (found) {
           return {
-            ...s,
+            ...o,
             routeId: newRoute.id,
             status: 'ROUTED',
             stopSequence: found.stopSequence,
           };
         }
-        return s;
+        return o;
       })
     );
   };
@@ -41,23 +39,23 @@ export const App: React.FC = () => {
 
     const routedMap = new Map<string, { routeId: string; sequence: number }>();
     newRoutes.forEach((r) => {
-      r.shipments.forEach((s) => {
-        routedMap.set(s.id, { routeId: r.id, sequence: s.stopSequence || 1 });
+      r.orders.forEach((o) => {
+        routedMap.set(o.id, { routeId: r.id, sequence: o.stopSequence || 1 });
       });
     });
 
-    setShipments((prev) =>
-      prev.map((s) => {
-        if (routedMap.has(s.id)) {
-          const info = routedMap.get(s.id)!;
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (routedMap.has(o.id)) {
+          const info = routedMap.get(o.id)!;
           return {
-            ...s,
+            ...o,
             routeId: info.routeId,
             status: 'ROUTED',
             stopSequence: info.sequence,
           };
         }
-        return s;
+        return o;
       })
     );
   };
@@ -76,57 +74,60 @@ export const App: React.FC = () => {
           : r
       )
     );
+
+    // Update driver active status
+    if (driverId) {
+      setDrivers((prev) =>
+        prev.map((d) => (d.id === driverId ? { ...d, status: 'ON_ROUTE' } : d))
+      );
+    }
   };
 
-  const handleUpdateShipmentDwell = (shipmentId: string, manualDwell: number) => {
-    setShipments((prev) =>
-      prev.map((s) =>
-        s.id === shipmentId ? { ...s, manualDwellOverrideMins: manualDwell } : s
+  const handleUpdateOrderDwell = (orderId: string, manualDwell: number) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId ? { ...o, manualDwellOverrideMins: manualDwell } : o
       )
     );
   };
 
-  const handleSimulateWebhook = (newShipmentData: Partial<Shipment>) => {
-    const fullShipment: Shipment = {
-      id: newShipmentData.id || `shp-${Date.now()}`,
-      trackingNumber: newShipmentData.trackingNumber || `KAL-UK-${Math.floor(1000 + Math.random() * 9000)}`,
-      externalOrderId: newShipmentData.externalOrderId || `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
-      sourceChannel: newShipmentData.sourceChannel || 'Shopify',
-      labelApiRef: newShipmentData.labelApiRef || 'lbl_ext_auto',
-      customerName: newShipmentData.customerName || 'UK Customer',
-      customerPhone: newShipmentData.customerPhone || '+44 7700 900999',
-      address: newShipmentData.address || '10 Main Road',
-      city: newShipmentData.city || 'Birmingham',
-      postcode: newShipmentData.postcode || 'B1 1AA',
-      lat: newShipmentData.lat || 52.4862,
-      lng: newShipmentData.lng || -1.8904,
-      itemsDescription: newShipmentData.itemsDescription || '4x Plastic Fascia Boards',
-      itemsList: newShipmentData.itemsList || [],
-      specialNotes: newShipmentData.specialNotes || undefined,
-      calculatedDwellMins: newShipmentData.calculatedDwellMins || 15,
-      manualDwellOverrideMins: newShipmentData.manualDwellOverrideMins,
-      vanCapacityUnits: newShipmentData.vanCapacityUnits || 2,
-      status: 'BUCKET_PENDING',
-      depotId: newShipmentData.depotId || selectedDepotId,
+  const handleSimulateNewOrder = (newOrderData: Partial<Order>) => {
+    const fullOrder: Order = {
+      id: newOrderData.id || `ord-${Date.now()}`,
+      trackingNumber: newOrderData.trackingNumber || `KAL-${Math.floor(880000 + Math.random() * 90000)}`,
+      customerName: newOrderData.customerName || 'UK Merchant Customer',
+      customerPhone: newOrderData.customerPhone || '+44 7700 900999',
+      address: newOrderData.address || '10 Trade Park Way',
+      city: newOrderData.city || 'Birmingham',
+      postcode: newOrderData.postcode || 'B7 5EX',
+      lat: newOrderData.lat || 52.4862,
+      lng: newOrderData.lng || -1.8904,
+      items: newOrderData.items || [],
+      totalItemCount: newOrderData.totalItemCount || 4,
+      totalVanUnits: newOrderData.totalVanUnits || 4,
+      calculatedDwellMins: newOrderData.calculatedDwellMins || 20,
+      manualDwellOverrideMins: newOrderData.manualDwellOverrideMins,
+      specialNotes: newOrderData.specialNotes || undefined,
+      status: 'PENDING_DISPATCH',
       createdAt: new Date().toISOString(),
     };
 
-    setShipments((prev) => [fullShipment, ...prev]);
+    setOrders((prev) => [fullOrder, ...prev]);
   };
 
   const handleStartRoute = (routeId: string) => {
     setRoutes((prev) =>
       prev.map((r) => (r.id === routeId ? { ...r, status: 'IN_PROGRESS' } : r))
     );
-    setShipments((prev) =>
-      prev.map((s) => (s.routeId === routeId ? { ...s, status: 'OUT_FOR_DELIVERY' } : s))
+    setOrders((prev) =>
+      prev.map((o) => (o.routeId === routeId ? { ...o, status: 'OUT_FOR_DELIVERY' } : o))
     );
   };
 
-  const handleCompletePod = (shipmentId: string, podData: Partial<ProofOfDelivery>) => {
+  const handleCompletePod = (orderId: string, podData: Partial<ProofOfDelivery>) => {
     const fullPod: ProofOfDelivery = {
       id: `pod-${Date.now()}`,
-      shipmentId,
+      shipmentId: orderId,
       recipientName: podData.recipientName || 'Customer',
       signatureData: podData.signatureData || '',
       photoUrl: podData.photoUrl || null,
@@ -136,34 +137,50 @@ export const App: React.FC = () => {
       timestamp: podData.timestamp || new Date().toISOString(),
     };
 
-    setShipments((prev) =>
-      prev.map((s) => {
-        if (s.id === shipmentId) {
+    setOrders((prev) =>
+      prev.map((o) => {
+        if (o.id === orderId) {
           return {
-            ...s,
+            ...o,
             status: 'DELIVERED',
             proofOfDelivery: fullPod,
           };
         }
-        return s;
+        return o;
       })
     );
 
     setRoutes((prev) =>
       prev.map((r) => {
-        const updatedShipments = r.shipments.map((s) =>
-          s.id === shipmentId
-            ? { ...s, status: 'DELIVERED' as const, proofOfDelivery: fullPod }
-            : s
+        const updatedOrders = r.orders.map((o) =>
+          o.id === orderId
+            ? { ...o, status: 'DELIVERED' as const, proofOfDelivery: fullPod }
+            : o
         );
-        const allDone = updatedShipments.every((s) => s.status === 'DELIVERED');
+        const allDone = updatedOrders.every((o) => o.status === 'DELIVERED');
         return {
           ...r,
-          shipments: updatedShipments,
+          orders: updatedOrders,
           status: allDone ? 'COMPLETED' : r.status,
         };
       })
     );
+
+    // Update driver GPS location to delivery point
+    if (podData.deliveredLat && podData.deliveredLng) {
+      setDrivers((prev) =>
+        prev.map((d) =>
+          d.id === activeDriverId
+            ? {
+                ...d,
+                currentLat: podData.deliveredLat!,
+                currentLng: podData.deliveredLng!,
+                lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              }
+            : d
+        )
+      );
+    }
   };
 
   const currentDriver = drivers.find((d) => d.id === activeDriverId) || drivers[0];
@@ -175,21 +192,18 @@ export const App: React.FC = () => {
     <div className="w-full min-h-screen">
       {viewMode === 'admin' ? (
         <AdminPortal
-          depots={depots}
+          orders={orders}
           drivers={drivers}
-          shipments={shipments}
           routes={routes}
-          skuRules={skuRules}
-          depotSettings={depotSettings}
-          selectedDepotId={selectedDepotId}
-          onSelectDepot={setSelectedDepotId}
+          skuCatalog={skuCatalog}
+          settings={settings}
           onCreateRoute={handleCreateRoute}
           onBatchCreateRoutes={handleBatchCreateRoutes}
           onAssignDriverToRoute={handleAssignDriverToRoute}
-          onUpdateShipmentDwell={handleUpdateShipmentDwell}
-          onUpdateSkuRules={setSkuRules}
-          onUpdateSettings={setDepotSettings}
-          onSimulateWebhook={handleSimulateWebhook}
+          onUpdateOrderDwell={handleUpdateOrderDwell}
+          onUpdateSkuCatalog={setSkuCatalog}
+          onUpdateSettings={setSettings}
+          onSimulateNewOrder={handleSimulateNewOrder}
           onSwitchToDriver={(driverId) => {
             setActiveDriverId(driverId);
             setViewMode('driver');

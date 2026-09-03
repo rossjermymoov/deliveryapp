@@ -1,46 +1,35 @@
-import { OrderItem, SkuDwellRule, DepotSettings } from '../types';
+import { OrderItem, SkuDwellSetting } from '../types';
 
-/**
- * Calculates dwell time & van volume capacity units for an order based on customer SKU rules & mode.
- */
-export function calculateOrderMetrics(
+export function calculateOrderDwellAndUnits(
   items: OrderItem[],
-  skuRules: SkuDwellRule[],
-  settings: DepotSettings
-): { calculatedDwellMins: number; vanCapacityUnits: number } {
+  catalog: SkuDwellSetting[]
+): { calculatedDwellMins: number; totalVanUnits: number; totalItemCount: number } {
   if (!items || items.length === 0) {
-    return { calculatedDwellMins: 15, vanCapacityUnits: 2 };
+    return { calculatedDwellMins: 15, totalVanUnits: 3, totalItemCount: 1 };
   }
 
-  let totalCapacity = 0;
+  let totalUnits = 0;
+  let totalCount = 0;
   const dwellTimes: number[] = [];
 
   for (const item of items) {
-    const matchedRule = skuRules.find((r) => r.skuCode === item.sku);
-    const itemDwell = matchedRule ? matchedRule.dwellMins : (item.individualDwellMins || 10);
-    const itemCapacity = matchedRule ? matchedRule.vanUnits : (item.unitSize || 1);
+    const matched = catalog.find((c) => c.sku === item.sku);
+    const dwell = matched ? matched.defaultDwellMins : (item.individualDwellMins || 15);
+    const units = matched ? matched.vanSpaceUnits : (item.vanSpaceUnits || 2);
 
-    dwellTimes.push(itemDwell);
-    totalCapacity += itemCapacity;
+    dwellTimes.push(dwell);
+    totalUnits += units;
+    totalCount += item.quantity;
   }
 
-  let finalDwell = 15;
-
-  if (settings.dwellCalculationMode === 'SUM') {
-    // Total sum of all dwell times
-    finalDwell = dwellTimes.reduce((a, b) => a + b, 0);
-  } else if (settings.dwellCalculationMode === 'MAX_PLUS_BUFFER') {
-    // Highest dwell SKU + buffer per additional bulky line
-    const maxDwell = Math.max(...dwellTimes, 10);
-    const extraLines = Math.max(0, dwellTimes.length - 1);
-    finalDwell = maxDwell + extraLines * settings.baseBufferMins;
-  } else if (settings.dwellCalculationMode === 'AVERAGE') {
-    const sum = dwellTimes.reduce((a, b) => a + b, 0);
-    finalDwell = Math.round(sum / dwellTimes.length);
-  }
+  // Primary bulky product dwell + 5 min buffer per additional bulky line
+  const maxDwell = Math.max(...dwellTimes, 10);
+  const extraLines = Math.max(0, items.length - 1);
+  const calculatedDwell = maxDwell + extraLines * 5;
 
   return {
-    calculatedDwellMins: Math.max(5, finalDwell),
-    vanCapacityUnits: Math.max(1, totalCapacity),
+    calculatedDwellMins: calculatedDwell,
+    totalVanUnits: totalUnits,
+    totalItemCount: totalCount,
   };
 }

@@ -1,4 +1,12 @@
-import { Depot, Shipment, DepotSettings } from '../types';
+import { Order, GlobalSettings } from '../types';
+
+// Depot base point (Kalsi Birmingham Main Works)
+export const DEPOT_LOCATION = {
+  name: 'Kalsi Plastics Works',
+  address: 'Nechells Parkway, Birmingham B7 5EX',
+  lat: 52.4938,
+  lng: -1.8687,
+};
 
 export function calculateDistanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -20,42 +28,37 @@ export function estimateDriveTimeMinutes(distanceKm: number): number {
 }
 
 /**
- * Splits unassigned bucket shipments into multiple van route batches/waves based on:
- * - Max van capacity units (e.g. 16 units)
- * - Max stops per route (e.g. 6-8 stops)
+ * Splits orders into van batches based on van volume capacity & max stops.
  */
-export function autoBatchRoutesByVanCapacity(
-  _depot: Depot,
-  shipments: Shipment[],
-  settings: DepotSettings
-): { batches: Shipment[][] } {
-  if (shipments.length === 0) return { batches: [] };
+export function autoBatchOrdersByVanCapacity(
+  orders: Order[],
+  settings: GlobalSettings
+): { batches: Order[][] } {
+  if (orders.length === 0) return { batches: [] };
 
-  const remaining = [...shipments];
-  const batches: Shipment[][] = [];
+  const remaining = [...orders];
+  const batches: Order[][] = [];
 
   while (remaining.length > 0) {
-    const currentBatch: Shipment[] = [];
+    const currentBatch: Order[] = [];
     let currentCapacity = 0;
 
     for (let i = 0; i < remaining.length; i++) {
-      const s = remaining[i];
-      const sCapacity = s.vanCapacityUnits || 2;
+      const ord = remaining[i];
+      const ordCapacity = ord.totalVanUnits || 3;
 
-      // Check constraints
-      const wouldExceedCapacity = currentCapacity + sCapacity > settings.maxVanCapacityUnits && currentBatch.length > 0;
-      const wouldExceedStops = currentBatch.length >= settings.maxStopsPerRun;
+      const wouldExceedCapacity = currentCapacity + ordCapacity > settings.maxVanCapacityUnits && currentBatch.length > 0;
+      const wouldExceedStops = currentBatch.length >= settings.maxStopsPerVan;
 
       if (!wouldExceedCapacity && !wouldExceedStops) {
-        currentBatch.push(s);
-        currentCapacity += sCapacity;
+        currentBatch.push(ord);
+        currentCapacity += ordCapacity;
         remaining.splice(i, 1);
         i--;
       }
     }
 
     if (currentBatch.length === 0 && remaining.length > 0) {
-      // Force at least 1 heavy order if a single order exceeds max capacity
       currentBatch.push(remaining.shift()!);
     }
 
@@ -66,19 +69,16 @@ export function autoBatchRoutesByVanCapacity(
 }
 
 /**
- * Optimizes a single route wave using TSP Nearest Neighbor.
+ * Optimizes route sequence using TSP Nearest Neighbor.
  */
-export function optimizeRouteStops(
-  depot: Depot,
-  shipments: Shipment[]
-) {
-  if (shipments.length === 0) {
+export function optimizeRouteStops(orders: Order[]) {
+  if (orders.length === 0) {
     return { orderedStops: [], totalDistanceKm: 0, totalDurationMins: 0, totalDrivingMins: 0, totalDwellMins: 0, totalCapacityUnits: 0 };
   }
 
-  const unvisited = [...shipments];
-  const orderedStops: Shipment[] = [];
-  let currentLocation = { lat: depot.lat, lng: depot.lng };
+  const unvisited = [...orders];
+  const orderedStops: Order[] = [];
+  let currentLocation = { lat: DEPOT_LOCATION.lat, lng: DEPOT_LOCATION.lng };
   let totalDistanceKm = 0;
   let totalDrivingMins = 0;
   let totalDwellMins = 0;
@@ -114,21 +114,21 @@ export function optimizeRouteStops(
     totalDistanceKm += shortestDist;
     totalDrivingMins += estimateDriveTimeMinutes(shortestDist);
     totalDwellMins += dwell;
-    totalCapacityUnits += (nextStop.vanCapacityUnits || 2);
+    totalCapacityUnits += (nextStop.totalVanUnits || 3);
 
     orderedStops.push({
       ...nextStop,
-      stopSequence: orderedStops.length + 1
+      stopSequence: orderedStops.length + 1,
     });
     currentLocation = { lat: nextStop.lat, lng: nextStop.lng };
   }
 
-  // Return to depot
+  // Return to base
   const returnDist = calculateDistanceKm(
     currentLocation.lat,
     currentLocation.lng,
-    depot.lat,
-    depot.lng
+    DEPOT_LOCATION.lat,
+    DEPOT_LOCATION.lng
   );
   totalDistanceKm += returnDist;
   totalDrivingMins += estimateDriveTimeMinutes(returnDist);

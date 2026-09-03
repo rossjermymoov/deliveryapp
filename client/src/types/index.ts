@@ -1,38 +1,31 @@
-export type ChannelType = 'B&Q' | 'Shopify' | 'eBay' | 'Direct';
-
-export interface SkuDwellRule {
-  skuCode: string;
-  name: string;
-  dwellMins: number;
-  vanUnits: number; // Space unit consumption (e.g. 1 unit = 1 standard parcel, 4 units = 5m Fascia)
-}
-
 export interface OrderItem {
   sku: string;
+  category: 'Aquacel Roofline' | 'Duraklad Cladding' | 'Aquaflow Drainage' | 'Underground Soil/Waste' | 'Panelling & MDPE';
   name: string;
+  dimensions: string; // e.g., "5m Length x 225mm Width"
   quantity: number;
   individualDwellMins: number;
-  unitSize: number;
+  vanSpaceUnits: number; // Volume unit score in the delivery van
 }
 
-export interface Depot {
-  id: string;
-  code: string;
+export interface SkuDwellSetting {
+  sku: string;
   name: string;
-  address: string;
-  postcode: string;
-  lat: number;
-  lng: number;
-  drivers?: Driver[];
+  category: string;
+  dimensions: string;
+  defaultDwellMins: number;
+  vanSpaceUnits: number;
 }
 
 export interface Driver {
   id: string;
-  username: string;
   name: string;
   phone: string;
   vehicleReg: string;
-  depotId: string;
+  currentLat: number;
+  currentLng: number;
+  lastUpdated: string;
+  status: 'IDLE' | 'ON_ROUTE' | 'DELIVERING' | 'OFF_DUTY';
 }
 
 export interface ProofOfDelivery {
@@ -47,12 +40,9 @@ export interface ProofOfDelivery {
   timestamp: string;
 }
 
-export interface Shipment {
+export interface Order {
   id: string;
-  trackingNumber: string;
-  externalOrderId: string;
-  sourceChannel: ChannelType;
-  labelApiRef?: string;
+  trackingNumber: string; // Sequential tracking e.g. KAL-889101
   customerName: string;
   customerPhone?: string;
   customerEmail?: string;
@@ -61,41 +51,36 @@ export interface Shipment {
   postcode: string;
   lat: number;
   lng: number;
-  itemsDescription: string;
-  itemsList?: OrderItem[];
+  items: OrderItem[];
+  totalItemCount: number;
+  totalVanUnits: number;
+  calculatedDwellMins: number;
+  manualDwellOverrideMins?: number;
   specialNotes?: string;
-  calculatedDwellMins: number; // Dynamic calculated from SKUs
-  manualDwellOverrideMins?: number; // Dispatcher override
-  vanCapacityUnits: number; // Calculated volume consumption
-  status: 'BUCKET_PENDING' | 'ROUTED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED';
-  depotId: string;
+  status: 'PENDING_DISPATCH' | 'ROUTED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED';
   routeId?: string;
   stopSequence?: number;
   proofOfDelivery?: ProofOfDelivery;
   createdAt: string;
 }
 
-export interface DepotSettings {
-  maxVanCapacityUnits: number; // e.g., 20 capacity units per van run
-  maxStopsPerRun: number;       // e.g., 8 stops max
-  dwellCalculationMode: 'SUM' | 'MAX_PLUS_BUFFER' | 'AVERAGE'; // Formula logic
-  baseBufferMins: number;
-}
-
 export interface DeliveryRoute {
   id: string;
-  routeNumber: string;
-  name?: string; // e.g. "Route Wave #1 - North Birmingham"
+  routeNumber: string; // e.g. ROUTE-01
   date: string;
   status: 'UNASSIGNED' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED';
   dwellTimeTotalMins: number;
   totalEstimatedMins: number;
   totalDistanceKm: number;
-  totalVanCapacityUsed: number;
+  totalVanUnitsUsed: number;
   maxVanCapacity: number;
-  depotId: string;
   driverId?: string;
-  depot?: Depot;
   driver?: Driver;
-  shipments: Shipment[];
+  orders: Order[];
+}
+
+export interface GlobalSettings {
+  maxVanCapacityUnits: number;
+  maxStopsPerVan: number;
+  baseStopBufferMins: number;
 }
