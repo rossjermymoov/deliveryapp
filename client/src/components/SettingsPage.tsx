@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, Driver, VanVehicle, VehicleFaultReport } from '../types';
+import { SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, Driver, VanVehicle, VehicleFaultReport, VanStatus } from '../types';
 import { PRESET_THEMES } from '../data/initialData';
 import {
   Sliders,
@@ -154,6 +154,14 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
+  // Change Van Operational / Fleet Status
+  const handleUpdateVanStatus = (vanId: string, newStatus: VanStatus) => {
+    const updated = vans.map((v) => (v.id === vanId ? { ...v, status: newStatus } : v));
+    onUpdateVans(updated);
+    setSaveBanner(`✓ Vehicle status updated to "${newStatus.replace(/_/g, ' ')}"`);
+    setTimeout(() => setSaveBanner(''), 3000);
+  };
+
   // Update MOT / Service date on existing van
   const handleUpdateVanCompliance = (vanId: string, field: 'motExpiryDate' | 'nextServiceDueDate' | 'mileage', val: any) => {
     const updated = vans.map((v) => (v.id === vanId ? { ...v, [field]: val } : v));
@@ -165,13 +173,17 @@ export const SettingsPage: React.FC<Props> = ({
     const updated = faults.map((f) => (f.id === faultId ? { ...f, status: newStatus } : f));
     onUpdateFaults(updated);
 
-    // If marked repaired, update van status back to AVAILABLE if it was grounded
-    if (newStatus === 'REPAIRED') {
-      const fault = faults.find((f) => f.id === faultId);
-      if (fault) {
-        onUpdateVans(vans.map((v) => (v.id === fault.vanId && v.status === 'GROUNDED' ? { ...v, status: 'AVAILABLE' } : v)));
+    const targetFault = faults.find((f) => f.id === faultId);
+    if (targetFault) {
+      if (newStatus === 'REPAIRED') {
+        onUpdateVans(vans.map((v) => (v.id === targetFault.vanId ? { ...v, status: 'AVAILABLE' } : v)));
+      } else if (newStatus === 'GROUNDED') {
+        onUpdateVans(vans.map((v) => (v.id === targetFault.vanId ? { ...v, status: 'GROUNDED' } : v)));
+      } else if (newStatus === 'OPEN' || newStatus === 'INVESTIGATING') {
+        onUpdateVans(vans.map((v) => (v.id === targetFault.vanId && v.status === 'AVAILABLE' ? { ...v, status: 'FAULT_REPORTED' } : v)));
       }
     }
+
     setSaveBanner(`✓ Updated fault status to ${newStatus}`);
     setTimeout(() => setSaveBanner(''), 3000);
   };
@@ -350,7 +362,7 @@ export const SettingsPage: React.FC<Props> = ({
             {isHeadOffice ? 'Global Operations & Fleet Compliance' : `${currentDepot.name} Fleet & Workshop`}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Track statutory MOT dates, periodic service intervals, and driver defect reports in real-time.
+            Track statutory MOT dates, periodic service intervals, and interactive fleet statuses (`AVAILABLE`, `ON_ROUTE`, `FAULT_REPORTED`, `MAINTENANCE`, `GROUNDED`).
           </p>
         </div>
 
@@ -623,16 +635,16 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 1: VAN FLEET, MOTS & SERVICE DATES */}
+        {/* PANEL 1: VAN FLEET, MOTS & INTERACTIVE STATUS CONTROLS */}
         {(activeTab === 'all_vans' || activeTab === 'my_vans') && (
           <div className="space-y-6">
             <div>
               <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                 <Truck className="w-5 h-5 text-blue-600" />
-                {isHeadOffice ? 'All UK Van Fleet • MOT & Service Schedule' : `${currentDepot.city} Van Fleet • MOT & Service Schedule`}
+                {isHeadOffice ? 'All UK Van Fleet • MOT & Vehicle Status Manager' : `${currentDepot.city} Van Fleet • MOT & Vehicle Status Manager`}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Manage vehicle compliance dates, statutory MOT expiries, service due dates, and mileage.
+                Manage vehicle compliance dates, statutory MOT expiries, service due dates, and dynamically change operational status (`AVAILABLE`, `ON_ROUTE`, `FAULT_REPORTED`, `MAINTENANCE`, `GROUNDED`).
               </p>
             </div>
 
@@ -645,7 +657,7 @@ export const SettingsPage: React.FC<Props> = ({
                     <th className="p-3.5">MOT Expiry Date</th>
                     <th className="p-3.5">Next Service Due</th>
                     <th className="p-3.5">Mileage</th>
-                    <th className="p-3.5">Status</th>
+                    <th className="p-3.5 text-center">Operational Status</th>
                     {isHeadOffice && <th className="p-3.5 text-center">Transfer Depot</th>}
                     <th className="p-3.5 text-right">Actions</th>
                   </tr>
@@ -704,15 +716,25 @@ export const SettingsPage: React.FC<Props> = ({
                           <span className="text-[10px] text-slate-400 ml-1">mi</span>
                         </td>
 
-                        {/* Status */}
-                        <td className="p-3.5">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                            v.status === 'AVAILABLE' ? 'bg-emerald-100 text-emerald-800' :
-                            v.status === 'ON_ROUTE' ? 'bg-blue-100 text-blue-800' :
-                            'bg-rose-100 text-rose-800'
-                          }`}>
-                            {v.status}
-                          </span>
+                        {/* INTERACTIVE OPERATIONAL STATUS SELECTOR */}
+                        <td className="p-3.5 text-center">
+                          <select
+                            value={v.status}
+                            onChange={(e) => handleUpdateVanStatus(v.id, e.target.value as VanStatus)}
+                            className={`text-xs font-black p-1.5 rounded-xl border focus:ring-2 cursor-pointer ${
+                              v.status === 'AVAILABLE' ? 'bg-emerald-50 text-emerald-900 border-emerald-300 focus:ring-emerald-500' :
+                              v.status === 'ON_ROUTE' ? 'bg-blue-50 text-blue-900 border-blue-300 focus:ring-blue-500' :
+                              v.status === 'FAULT_REPORTED' ? 'bg-amber-100 text-amber-950 border-amber-400 focus:ring-amber-500' :
+                              v.status === 'MAINTENANCE' ? 'bg-purple-50 text-purple-900 border-purple-300 focus:ring-purple-500' :
+                              'bg-rose-100 text-rose-950 border-rose-400 focus:ring-rose-500'
+                            }`}
+                          >
+                            <option value="AVAILABLE">✓ AVAILABLE</option>
+                            <option value="ON_ROUTE">🚚 ON ROUTE</option>
+                            <option value="FAULT_REPORTED">⚠️ FAULT REPORTED</option>
+                            <option value="MAINTENANCE">🔧 MAINTENANCE</option>
+                            <option value="GROUNDED">⛔ GROUNDED</option>
+                          </select>
                         </td>
 
                         {isHeadOffice && (

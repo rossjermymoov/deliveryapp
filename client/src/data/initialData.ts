@@ -184,7 +184,7 @@ export const UK_DEPOTS: Depot[] = [
   },
 ];
 
-// DECOUPLED FLEET OF VANS WITH MOT, SERVICE DATES & MILEAGE
+// DECOUPLED FLEET OF VANS WITH INTERACTIVE STATUSES & FAULT REPORTED STATE
 export const INITIAL_VANS: VanVehicle[] = [
   {
     id: 'van-1',
@@ -205,7 +205,7 @@ export const INITIAL_VANS: VanVehicle[] = [
     registration: 'KP23 BHM',
     depotId: 'depot-bhm',
     model: 'Ford Transit 350 Leader Jumbo',
-    status: 'ON_ROUTE',
+    status: 'FAULT_REPORTED',
     barcode: 'VAN-KP23BHM',
     maxPayloadKg: 1280,
     motExpiryDate: '2026-10-10',

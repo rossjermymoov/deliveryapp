@@ -13,6 +13,8 @@ export interface UserAccount {
 
 export type VanFaultSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL_GROUND_VEHICLE';
 
+export type VanStatus = 'AVAILABLE' | 'ON_ROUTE' | 'FAULT_REPORTED' | 'MAINTENANCE' | 'GROUNDED';
+
 export interface VehicleFaultReport {
   id: string;
   vanId: string;
@@ -33,7 +35,7 @@ export interface VanVehicle {
   registration: string;
   depotId: string;
   model: string;
-  status: 'AVAILABLE' | 'ON_ROUTE' | 'MAINTENANCE' | 'GROUNDED';
+  status: VanStatus;
   barcode: string;
   maxPayloadKg?: number;
   // Fleet Compliance Dates
