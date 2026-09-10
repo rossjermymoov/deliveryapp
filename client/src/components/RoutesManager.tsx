@@ -126,8 +126,13 @@ export const RoutesManager: React.FC<Props> = ({
             const isAssignedDriver = !!route.driverId;
             const isAssignedVan = !!route.vanId;
             const isProblem = route.isProblemRoute;
-            const isFull = route.orders.length >= (currentDepot.maxOrdersPerVan || 6);
+            const maxVanCapacity = currentDepot.maxOrdersPerVan || 6;
+            const isFull = route.orders.length >= maxVanCapacity;
             const assignedVan = vans.find((v) => v.id === route.vanId);
+            const completedStopsCount = route.orders.filter((o) => o.status === 'DELIVERED').length;
+            const totalRouteStops = route.orders.length;
+            const allStopsCompleted = totalRouteStops > 0 && completedStopsCount === totalRouteStops;
+            const effectiveStatus = allStopsCompleted ? 'COMPLETED' : route.status;
 
             return (
               <div
@@ -137,8 +142,10 @@ export const RoutesManager: React.FC<Props> = ({
                 className={`bg-white rounded-3xl p-5 shadow-sm border-2 transition relative flex flex-col ${
                   isProblem
                     ? 'border-rose-300 bg-rose-50/10'
+                    : effectiveStatus === 'COMPLETED'
+                    ? 'border-emerald-300 bg-emerald-50/10'
                     : isAssignedDriver && isAssignedVan
-                    ? 'border-emerald-300 bg-emerald-50/5'
+                    ? 'border-blue-300 bg-blue-50/5'
                     : 'border-gray-200'
                 }`}
               >
@@ -158,40 +165,41 @@ export const RoutesManager: React.FC<Props> = ({
                       )}
                     </div>
                     <span className="text-[11px] text-slate-400 block mt-0.5">
-                      Depot: <strong>{currentDepot.city}</strong> • {route.orders.length} Drops ({route.totalDistanceKm} km)
+                      Depot: <strong>{currentDepot.city}</strong> • {completedStopsCount} of {totalRouteStops} Drops Delivered ({route.totalDistanceKm} km)
                     </span>
                   </div>
 
                   <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                    {route.allLoaded && (
+                    {route.allLoaded && effectiveStatus !== 'COMPLETED' && (
                       <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Loaded
                       </span>
                     )}
 
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase flex items-center gap-1 ${
                         isProblem
                           ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                          : route.status === 'COMPLETED'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : route.status === 'IN_PROGRESS'
+                          : effectiveStatus === 'COMPLETED'
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 font-black'
+                          : effectiveStatus === 'IN_PROGRESS'
                           ? 'bg-blue-100 text-blue-800 animate-pulse'
                           : isAssignedDriver && isAssignedVan
                           ? 'bg-indigo-100 text-indigo-800'
                           : 'bg-amber-100 text-amber-900'
                       }`}
                     >
-                      {isProblem ? 'Problem (>8h)' : route.status}
+                      {effectiveStatus === 'COMPLETED' && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+                      {isProblem ? 'Problem (>8h)' : effectiveStatus}
                     </span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-4 gap-2 my-3.5 text-center text-xs">
-                  <div className="bg-slate-50 p-2 rounded-xl border border-gray-100">
-                    <span className="text-slate-400 block text-[9px] font-bold">STOPS</span>
-                    <span className="font-black text-slate-800">
-                      {route.orders.length} / {currentDepot.maxOrdersPerVan || 6}
+                  <div className={`p-2 rounded-xl border ${effectiveStatus === 'COMPLETED' ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-gray-100'}`}>
+                    <span className="text-slate-400 block text-[9px] font-bold uppercase">Drops Progress</span>
+                    <span className={`font-black ${effectiveStatus === 'COMPLETED' ? 'text-emerald-800' : 'text-slate-800'}`}>
+                      {completedStopsCount} / {totalRouteStops} <span className="text-[10px] text-slate-400 font-normal">done</span>
                     </span>
                   </div>
                   <div className="bg-slate-50 p-2 rounded-xl border border-gray-100">
@@ -204,7 +212,7 @@ export const RoutesManager: React.FC<Props> = ({
                   </div>
                   <div className="bg-slate-50 p-2 rounded-xl border border-gray-100">
                     <span className="text-slate-400 block text-[9px] font-bold">TOTAL SHIFT</span>
-                    <span className={`font-black ${isProblem ? 'text-rose-700' : 'text-emerald-700'}`}>
+                    <span className={`font-black ${isProblem ? 'text-rose-700' : effectiveStatus === 'COMPLETED' ? 'text-emerald-700' : 'text-slate-800'}`}>
                       {Math.floor(route.totalEstimatedMins / 60)}h {route.totalEstimatedMins % 60}m
                     </span>
                   </div>
@@ -219,7 +227,7 @@ export const RoutesManager: React.FC<Props> = ({
 
                 <div className="space-y-2 mt-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block flex items-center justify-between">
-                    <span>Manifest Stops (Drag to rebalance):</span>
+                    <span>Manifest Stops ({totalRouteStops} total drops, {maxVanCapacity} max van capacity):</span>
                     {isFull && <span className="text-amber-700 font-black">Max Van Capacity Reached</span>}
                   </span>
 
@@ -229,11 +237,17 @@ export const RoutesManager: React.FC<Props> = ({
                         key={order.id}
                         draggable
                         onDragStart={() => handleDragStart(order.id, route.id)}
-                        className="p-2.5 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-gray-200 flex items-center justify-between text-xs cursor-grab active:cursor-grabbing transition"
+                        className={`p-2.5 rounded-xl border flex items-center justify-between text-xs cursor-grab active:cursor-grabbing transition ${
+                          order.status === 'DELIVERED'
+                            ? 'bg-emerald-50/60 border-emerald-200 text-slate-800'
+                            : 'bg-slate-50 hover:bg-slate-100/80 border-gray-200'
+                        }`}
                       >
                         <div className="flex items-center gap-2">
                           <GripVertical className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="w-5 h-5 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[10px] shrink-0">
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 text-white ${
+                            order.status === 'DELIVERED' ? 'bg-emerald-600' : 'bg-slate-900'
+                          }`}>
                             {idx + 1}
                           </span>
                           <div>
@@ -249,7 +263,10 @@ export const RoutesManager: React.FC<Props> = ({
                           <span className="font-mono text-slate-700 text-[10px] font-bold block">
                             {order.manualDwellOverrideMins ?? order.totalDwellMins}m dwell
                           </span>
-                          <span className={`text-[9px] font-bold uppercase ${order.status === 'DELIVERED' ? 'text-emerald-700' : 'text-slate-400'}`}>
+                          <span className={`text-[9px] font-black uppercase inline-flex items-center gap-0.5 ${
+                            order.status === 'DELIVERED' ? 'text-emerald-700' : 'text-slate-400'
+                          }`}>
+                            {order.status === 'DELIVERED' && <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />}
                             {order.status}
                           </span>
                         </div>
