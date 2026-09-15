@@ -70,7 +70,14 @@ export const SettingsPage: React.FC<Props> = ({
     isHeadOffice ? 'staff' : 'my_drivers'
   );
 
-  const [newSku, setNewSku] = useState({ sku: '', name: '', defaultDwellMins: 15 });
+  const [newSku, setNewSku] = useState<Partial<SkuDwellSetting>>({
+    sku: '',
+    name: '',
+    defaultDwellMins: 15,
+    allowLeaveSafe: true,
+    requiresAgeVerification: false,
+  });
+
   const [localDepots, setLocalDepots] = useState<Depot[]>(depots);
   const [saveBanner, setSaveBanner] = useState('');
 
@@ -82,14 +89,14 @@ export const SettingsPage: React.FC<Props> = ({
     assignedDepotId: depots[0]?.id || 'depot-bhm',
   });
 
-  // New Driver Form State (Decoupled from van)
+  // New Driver Form State
   const [newDriver, setNewDriver] = useState<Partial<Driver>>({
     name: '',
     phone: '',
     depotId: isHeadOffice ? (depots[0]?.id || 'depot-bhm') : assignedDepotId,
   });
 
-  // New Van Form State (Including MOT & Service Dates)
+  // New Van Form State
   const [newVan, setNewVan] = useState<Partial<VanVehicle>>({
     registration: '',
     model: 'Mercedes Sprinter 3.5t Long-Wheelbase',
@@ -115,7 +122,7 @@ export const SettingsPage: React.FC<Props> = ({
     ? faults
     : faults.filter((f) => f.depotId === assignedDepotId);
 
-  // Transfer Staff Member between Depots (Head Office Admin Only)
+  // Transfer Staff Member
   const handleTransferStaff = (userId: string, targetDepotId: string) => {
     if (!isHeadOffice) return;
     const updated = users.map((u) => (u.id === userId ? { ...u, assignedDepotId: targetDepotId } : u));
@@ -125,7 +132,7 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Transfer Driver between Depots (Head Office Admin Only)
+  // Transfer Driver
   const handleTransferDriver = (driverId: string, targetDepotId: string) => {
     if (!isHeadOffice) return;
     const targetDepot = depots.find((d) => d.id === targetDepotId);
@@ -144,7 +151,7 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Transfer Van Vehicle between Depots (Head Office Admin Only)
+  // Transfer Van
   const handleTransferVan = (vanId: string, targetDepotId: string) => {
     if (!isHeadOffice) return;
     const targetDepot = depots.find((d) => d.id === targetDepotId);
@@ -154,8 +161,7 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Change Van Operational / Fleet Status manually (AVAILABLE, FAULT_REPORTED, MAINTENANCE, GROUNDED)
-  // Note: ON_ROUTE is dynamic and set automatically by driver movement / route start
+  // Change Van Status
   const handleUpdateVanStatus = (vanId: string, newStatus: VanStatus) => {
     const updated = vans.map((v) => (v.id === vanId ? { ...v, status: newStatus } : v));
     onUpdateVans(updated);
@@ -163,13 +169,13 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Update MOT / Service date on existing van
+  // Update MOT / Service date
   const handleUpdateVanCompliance = (vanId: string, field: 'motExpiryDate' | 'nextServiceDueDate' | 'mileage', val: any) => {
     const updated = vans.map((v) => (v.id === vanId ? { ...v, [field]: val } : v));
     onUpdateVans(updated);
   };
 
-  // Resolve / Update Defect Status
+  // Resolve Fault Status
   const handleUpdateFaultStatus = (faultId: string, newStatus: VehicleFaultReport['status']) => {
     const updated = faults.map((f) => (f.id === faultId ? { ...f, status: newStatus } : f));
     onUpdateFaults(updated);
@@ -189,7 +195,7 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Add Staff User Handler (Admin Only)
+  // Add Staff User
   const handleAddUser = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isHeadOffice || !newUser.name || !newUser.email) return;
@@ -213,7 +219,7 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Add Driver Handler (Decoupled from Van)
+  // Add Driver
   const handleAddDriver = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDriver.name) return;
@@ -242,7 +248,7 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  // Add Van Vehicle Handler (with MOT & Service Dates)
+  // Add Van
   const handleAddVan = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newVan.registration) return;
@@ -282,30 +288,27 @@ export const SettingsPage: React.FC<Props> = ({
     setTimeout(() => setSaveBanner(''), 3000);
   };
 
-  const handleDeleteUser = (userId: string) => {
+  // Toggle Leave-Safe & Age-Verification on SKU
+  const handleToggleSkuProperty = (skuCode: string, field: 'allowLeaveSafe' | 'requiresAgeVerification') => {
     if (!isHeadOffice) return;
-    if (confirm('Delete this staff account?')) {
-      onUpdateUsers(users.filter((u) => u.id !== userId));
-    }
-  };
-
-  const handleDeleteDriver = (driverId: string) => {
-    if (confirm('Remove this driver record from the depot?')) {
-      onUpdateDrivers(drivers.filter((d) => d.id !== driverId));
-    }
-  };
-
-  const handleDeleteVan = (vanId: string) => {
-    if (confirm('Remove this van from the fleet?')) {
-      onUpdateVans(vans.filter((v) => v.id !== vanId));
-    }
+    const updated = skuCatalog.map((s) => (s.sku === skuCode ? { ...s, [field]: !s[field] } : s));
+    onUpdateSkuCatalog(updated);
   };
 
   const handleAddSku = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isHeadOffice || !newSku.sku) return;
-    onUpdateSkuCatalog([...skuCatalog, { ...newSku, sku: newSku.sku.toUpperCase() }]);
-    setNewSku({ sku: '', name: '', defaultDwellMins: 15 });
+    const created: SkuDwellSetting = {
+      sku: newSku.sku.toUpperCase(),
+      name: newSku.name || newSku.sku.toUpperCase(),
+      defaultDwellMins: newSku.defaultDwellMins || 15,
+      allowLeaveSafe: newSku.allowLeaveSafe ?? true,
+      requiresAgeVerification: newSku.requiresAgeVerification ?? false,
+    };
+    onUpdateSkuCatalog([...skuCatalog, created]);
+    setNewSku({ sku: '', name: '', defaultDwellMins: 15, allowLeaveSafe: true, requiresAgeVerification: false });
+    setSaveBanner(`✓ Added SKU rule "${created.sku}"!`);
+    setTimeout(() => setSaveBanner(''), 3000);
   };
 
   const handleDeleteSku = (skuToDelete: string) => {
@@ -313,32 +316,34 @@ export const SettingsPage: React.FC<Props> = ({
     onUpdateSkuCatalog(skuCatalog.filter((s) => s.sku !== skuToDelete));
   };
 
-  const handleUpdateRadius = (depotId: string, radiusMiles: number) => {
-    const updated = localDepots.map((d) => (d.id === depotId ? { ...d, maxDeliveryRadiusMiles: radiusMiles } : d));
-    setLocalDepots(updated);
-    onUpdateDepots(updated);
-  };
-
-  const handleUpdateMaxPerVan = (depotId: string, maxOrders: number) => {
-    const updated = localDepots.map((d) => (d.id === depotId ? {
-      ...d,
-      maxOrdersPerVan: maxOrders,
-      maxDailyCapacityOrders: maxOrders * d.activeVansCount
-    } : d));
-    setLocalDepots(updated);
-    onUpdateDepots(updated);
-  };
-
-  const handleUpdateMinOrders = (depotId: string, minOrders: number) => {
-    const updated = localDepots.map((d) => (d.id === depotId ? { ...d, minOrdersPerRoute: minOrders } : d));
-    setLocalDepots(updated);
-    onUpdateDepots(updated);
-  };
-
   const handleUpdatePostcode = (depotId: string, pc: string) => {
     const updated = localDepots.map((d) => (d.id === depotId ? { ...d, postcode: pc.toUpperCase() } : d));
     setLocalDepots(updated);
     onUpdateDepots(updated);
+  };
+
+  const handleUpdateDepotPolicy = (depotId: string, field: 'allowSameDayReschedule' | 'allowInFlightSafePlace' | 'sameDayCutoffTime', val: any) => {
+    const updated = localDepots.map((d) => {
+      if (d.id === depotId) {
+        const policy = d.policySettings || {
+          allowSameDayReschedule: true,
+          sameDayCutoffTime: '09:00',
+          allowInFlightSafePlace: true,
+        };
+        return {
+          ...d,
+          policySettings: {
+            ...policy,
+            [field]: val,
+          }
+        };
+      }
+      return d;
+    });
+    setLocalDepots(updated);
+    onUpdateDepots(updated);
+    setSaveBanner('✓ Depot policy settings updated.');
+    setTimeout(() => setSaveBanner(''), 2500);
   };
 
   const openFaultsCount = visibleFaults.filter((f) => f.status !== 'REPAIRED').length;
@@ -356,14 +361,14 @@ export const SettingsPage: React.FC<Props> = ({
               {isHeadOffice ? 'Head Office Administration' : `${currentDepot.city} Depot Settings`}
             </span>
             <span className="text-xs text-slate-400 font-bold">
-              • MOT Compliance, Fleet Maintenance & Safety Reports
+              • SKU Leave-Safe, 18+ Age Verification & Reschedule Controls
             </span>
           </div>
           <h2 className="text-xl font-black text-slate-900 mt-1">
-            {isHeadOffice ? 'Global Operations & Fleet Compliance' : `${currentDepot.name} Fleet & Workshop`}
+            {isHeadOffice ? 'Global Operations & SKU Compliance' : `${currentDepot.name} Operating Policies`}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Track statutory MOT dates, periodic service intervals, and operational fleet statuses (`AVAILABLE`, `FAULT_REPORTED`, `MAINTENANCE`, `GROUNDED`). <em>Note: "ON ROUTE" is triggered dynamically by live driver GPS movement.</em>
+            Configure product leave-safe permissions, age-restricted solvent rules, same-day customer rescheduling, and fleet compliance.
           </p>
         </div>
 
@@ -384,7 +389,6 @@ export const SettingsPage: React.FC<Props> = ({
 
       {/* Navigation Tabs */}
       <div className="flex bg-white rounded-2xl border border-gray-200 p-1.5 gap-1.5 overflow-x-auto shadow-sm text-xs">
-        
         {/* FAULT REPORTS TAB */}
         <button
           onClick={() => setActiveTab('faults')}
@@ -407,6 +411,18 @@ export const SettingsPage: React.FC<Props> = ({
         {isHeadOffice ? (
           <>
             <button
+              onClick={() => setActiveTab('dwell')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'dwell'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Sliders className="w-4 h-4 text-amber-400" />
+              SKU Rules & Leave-Safe ({skuCatalog.length})
+            </button>
+
+            <button
               onClick={() => setActiveTab('all_vans')}
               className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
                 activeTab === 'all_vans'
@@ -427,7 +443,7 @@ export const SettingsPage: React.FC<Props> = ({
               }`}
             >
               <Users className="w-4 h-4 text-indigo-400" />
-              Staff & Depot Transfers ({users.length})
+              Staff Accounts ({users.length})
             </button>
 
             <button
@@ -451,19 +467,7 @@ export const SettingsPage: React.FC<Props> = ({
               }`}
             >
               <Compass className="w-4 h-4 text-blue-400" />
-              Depots ({depots.length})
-            </button>
-
-            <button
-              onClick={() => setActiveTab('dwell')}
-              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
-                activeTab === 'dwell'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <Sliders className="w-4 h-4 text-amber-400" />
-              SKU Dwells ({skuCatalog.length})
+              Depots & Reschedule Policies ({depots.length})
             </button>
 
             <button
@@ -494,6 +498,18 @@ export const SettingsPage: React.FC<Props> = ({
           /* DEPOT CONTROLLER TABS */
           <>
             <button
+              onClick={() => setActiveTab('my_depot')}
+              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
+                activeTab === 'my_depot'
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+            >
+              <Compass className="w-4 h-4 text-blue-400" />
+              {currentDepot.city} Depot & Reschedule Policy
+            </button>
+
+            <button
               onClick={() => setActiveTab('my_vans')}
               className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
                 activeTab === 'my_vans'
@@ -502,7 +518,7 @@ export const SettingsPage: React.FC<Props> = ({
               }`}
             >
               <Truck className="w-4 h-4 text-blue-400" />
-              {currentDepot.city} Van Fleet & MOTs ({visibleVans.length})
+              {currentDepot.city} Van Fleet ({visibleVans.length})
             </button>
 
             <button
@@ -516,18 +532,6 @@ export const SettingsPage: React.FC<Props> = ({
               <Users className="w-4 h-4 text-emerald-400" />
               {currentDepot.city} Drivers ({visibleDrivers.length})
             </button>
-
-            <button
-              onClick={() => setActiveTab('my_depot')}
-              className={`px-4 py-2.5 rounded-xl font-black transition flex items-center gap-2 ${
-                activeTab === 'my_depot'
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-              }`}
-            >
-              <Compass className="w-4 h-4 text-blue-400" />
-              {currentDepot.city} Depot Parameters
-            </button>
           </>
         )}
       </div>
@@ -535,7 +539,148 @@ export const SettingsPage: React.FC<Props> = ({
       {/* TAB CONTENT PANELS */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200">
         
-        {/* PANEL 0: DRIVER DEFECT REPORTS & WORKSHOP INVESTIGATION */}
+        {/* PANEL: SKU RULES, LEAVE-SAFE ELIGIBILITY & 18+ AGE VERIFICATION */}
+        {activeTab === 'dwell' && isHeadOffice && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Sliders className="w-5 h-5 text-amber-600" />
+                Global SKU Catalog: Dwell Times, Leave-Safe Permissions & Age Verification
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Define product offload durations, whether an item is eligible for customer "Leave in Safe Place", and whether the product is a solvent/restricted chemical requiring 18+ photo ID verification.
+              </p>
+            </div>
+
+            <div className="border border-gray-200 rounded-2xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
+                  <tr>
+                    <th className="p-3.5">SKU Code</th>
+                    <th className="p-3.5">Product Description</th>
+                    <th className="p-3.5 text-center">Dwell Time</th>
+                    <th className="p-3.5 text-center">Allow Leave Safe?</th>
+                    <th className="p-3.5 text-center">18+ Age Verification?</th>
+                    <th className="p-3.5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {skuCatalog.map((item) => (
+                    <tr key={item.sku} className="hover:bg-slate-50">
+                      <td className="p-3.5 font-mono font-black text-blue-700 text-xs">{item.sku}</td>
+                      <td className="p-3.5 font-bold text-slate-800">{item.name}</td>
+                      <td className="p-3.5 text-center">
+                        <span className="bg-amber-50 text-amber-900 px-3 py-1 rounded-full font-black border border-amber-200">
+                          {item.defaultDwellMins} mins
+                        </span>
+                      </td>
+
+                      {/* Generic Leave Safe Toggle */}
+                      <td className="p-3.5 text-center">
+                        <button
+                          onClick={() => handleToggleSkuProperty(item.sku, 'allowLeaveSafe')}
+                          className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border transition cursor-pointer ${
+                            item.allowLeaveSafe !== false
+                              ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                              : 'bg-rose-100 text-rose-900 border-rose-300'
+                          }`}
+                        >
+                          {item.allowLeaveSafe !== false ? '✓ Permitted' : '⛔ Signature Only'}
+                        </button>
+                      </td>
+
+                      {/* 18+ Age Verification Standalone Toggle */}
+                      <td className="p-3.5 text-center">
+                        <button
+                          onClick={() => handleToggleSkuProperty(item.sku, 'requiresAgeVerification')}
+                          className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border transition cursor-pointer ${
+                            item.requiresAgeVerification
+                              ? 'bg-amber-100 text-amber-950 border-amber-400 flex items-center gap-1 mx-auto'
+                              : 'bg-slate-100 text-slate-500 border-slate-200'
+                          }`}
+                        >
+                          {item.requiresAgeVerification ? (
+                            <>
+                              <ShieldAlert className="w-3 h-3 text-amber-700" />
+                              <span>18+ Challenge 25</span>
+                            </>
+                          ) : (
+                            'No Age Check'
+                          )}
+                        </button>
+                      </td>
+
+                      <td className="p-3.5 text-right">
+                        <button
+                          onClick={() => handleDeleteSku(item.sku)}
+                          className="text-rose-600 hover:text-rose-800 p-1 font-bold"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Add SKU Rule Form */}
+            <form onSubmit={handleAddSku} className="p-5 bg-slate-50 rounded-2xl border border-gray-200 grid grid-cols-1 sm:grid-cols-6 gap-3 items-end">
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">SKU</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. GUT-6M-BRN"
+                  value={newSku.sku}
+                  onChange={(e) => setNewSku({ ...newSku, sku: e.target.value })}
+                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Product Description</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 6m Deepflow Gutter"
+                  value={newSku.name}
+                  onChange={(e) => setNewSku({ ...newSku, name: e.target.value })}
+                  className="w-full text-xs font-semibold p-2.5 border rounded-xl bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Dwell (Mins)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={newSku.defaultDwellMins}
+                  onChange={(e) => setNewSku({ ...newSku, defaultDwellMins: parseInt(e.target.value) || 15 })}
+                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Leave Safe?</label>
+                <select
+                  value={newSku.allowLeaveSafe ? 'true' : 'false'}
+                  onChange={(e) => setNewSku({ ...newSku, allowLeaveSafe: e.target.value === 'true' })}
+                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
+                >
+                  <option value="true">✓ Allow Safe</option>
+                  <option value="false">⛔ Signature Only</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                className="py-2.5 bg-slate-900 text-white font-black text-xs rounded-xl shadow hover:bg-black flex items-center justify-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" /> Add SKU Rule
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* PANEL: DEFECT REPORTS */}
         {activeTab === 'faults' && (
           <div className="space-y-6">
             <div>
@@ -636,7 +781,176 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 1: VAN FLEET, MOTS & OPERATIONAL STATUS CONTROLS */}
+        {/* PANEL: ALL UK DEPOTS & SAME-DAY RESCHEDULE POLICIES */}
+        {activeTab === 'depots' && isHeadOffice && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Compass className="w-5 h-5 text-blue-600" />
+                All 22 UK Depots • Operating Radii & Same-Day Reschedule Policies
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Head Office configuration for customer reschedule policies and in-flight safe-place changes.
+              </p>
+            </div>
+
+            <div className="border border-gray-200 rounded-2xl overflow-hidden">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
+                  <tr>
+                    <th className="p-3.5">Depot Hub</th>
+                    <th className="p-3.5">Postcode</th>
+                    <th className="p-3.5 text-center">Radius</th>
+                    <th className="p-3.5 text-center">Allow Same-Day Reschedule?</th>
+                    <th className="p-3.5 text-center">Cutoff Time</th>
+                    <th className="p-3.5 text-center">In-Flight Safe Place?</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {localDepots.map((depot) => {
+                    const policy = depot.policySettings || {
+                      allowSameDayReschedule: true,
+                      sameDayCutoffTime: '09:00',
+                      allowInFlightSafePlace: true,
+                    };
+
+                    return (
+                      <tr key={depot.id} className="hover:bg-slate-50">
+                        <td className="p-3.5">
+                          <span className="font-bold text-slate-900 block">{depot.name}</span>
+                          <span className="text-[10px] text-slate-400">{depot.region}</span>
+                        </td>
+                        <td className="p-3.5">
+                          <input
+                            type="text"
+                            value={depot.postcode}
+                            onChange={(e) => handleUpdatePostcode(depot.id, e.target.value)}
+                            className="w-24 font-mono font-bold text-xs p-1.5 border rounded-xl bg-white uppercase text-center"
+                          />
+                        </td>
+                        <td className="p-3.5 text-center">
+                          <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-slate-100 border inline-block">
+                            {depot.maxDeliveryRadiusMiles} mi
+                          </span>
+                        </td>
+
+                        {/* Allow Same-Day Reschedule Policy Toggle */}
+                        <td className="p-3.5 text-center">
+                          <button
+                            onClick={() => handleUpdateDepotPolicy(depot.id, 'allowSameDayReschedule', !policy.allowSameDayReschedule)}
+                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border transition ${
+                              policy.allowSameDayReschedule
+                                ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                                : 'bg-rose-100 text-rose-900 border-rose-300'
+                            }`}
+                          >
+                            {policy.allowSameDayReschedule ? '✓ Enabled' : '⛔ Blocked'}
+                          </button>
+                        </td>
+
+                        {/* Cutoff Time */}
+                        <td className="p-3.5 text-center">
+                          <input
+                            type="text"
+                            value={policy.sameDayCutoffTime}
+                            onChange={(e) => handleUpdateDepotPolicy(depot.id, 'sameDayCutoffTime', e.target.value)}
+                            className="w-16 text-center font-mono font-bold text-xs p-1 border rounded-lg bg-white"
+                          />
+                        </td>
+
+                        {/* In-Flight Safe Place Toggle */}
+                        <td className="p-3.5 text-center">
+                          <button
+                            onClick={() => handleUpdateDepotPolicy(depot.id, 'allowInFlightSafePlace', !policy.allowInFlightSafePlace)}
+                            className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border transition ${
+                              policy.allowInFlightSafePlace
+                                ? 'bg-blue-100 text-blue-900 border-blue-300'
+                                : 'bg-slate-100 text-slate-500 border-slate-200'
+                            }`}
+                          >
+                            {policy.allowInFlightSafePlace ? '✓ Allowed' : 'Off'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* PANEL: LOCAL DEPOT PARAMETERS */}
+        {activeTab === 'my_depot' && !isHeadOffice && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Compass className="w-5 h-5 text-blue-600" />
+                {currentDepot.name} • Local Operating & Reschedule Policies
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Adjust customer same-day rescheduling rules and delivery boundaries for {currentDepot.city}.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="p-5 bg-slate-50 rounded-2xl border border-gray-200 space-y-2">
+                <label className="block text-xs font-black text-slate-800">
+                  Allow Same-Day Customer Reschedule?
+                </label>
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    onClick={() => handleUpdateDepotPolicy(currentDepot.id, 'allowSameDayReschedule', !(currentDepot.policySettings?.allowSameDayReschedule ?? true))}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase border transition ${
+                      (currentDepot.policySettings?.allowSameDayReschedule ?? true)
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                    }`}
+                  >
+                    {(currentDepot.policySettings?.allowSameDayReschedule ?? true) ? '✓ Allowed on Manifest' : '⛔ Block Same-Day'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  If disabled, customers cannot cancel/reschedule once the van is loaded and departed.
+                </p>
+              </div>
+
+              <div className="p-5 bg-slate-50 rounded-2xl border border-gray-200 space-y-2">
+                <label className="block text-xs font-black text-slate-800">
+                  Same-Day Reschedule Cutoff Time
+                </label>
+                <input
+                  type="text"
+                  value={currentDepot.policySettings?.sameDayCutoffTime || '09:00'}
+                  onChange={(e) => handleUpdateDepotPolicy(currentDepot.id, 'sameDayCutoffTime', e.target.value)}
+                  className="w-full font-mono font-bold text-sm p-2.5 border rounded-xl bg-white text-center"
+                />
+                <p className="text-[11px] text-slate-500">Customers requesting reschedule after this time are blocked.</p>
+              </div>
+
+              <div className="p-5 bg-slate-50 rounded-2xl border border-gray-200 space-y-2">
+                <label className="block text-xs font-black text-slate-800">
+                  Allow In-Flight Safe Place Updates?
+                </label>
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    onClick={() => handleUpdateDepotPolicy(currentDepot.id, 'allowInFlightSafePlace', !(currentDepot.policySettings?.allowInFlightSafePlace ?? true))}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase border transition ${
+                      (currentDepot.policySettings?.allowInFlightSafePlace ?? true)
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : 'bg-slate-200 text-slate-700 border-slate-300'
+                    }`}
+                  >
+                    {(currentDepot.policySettings?.allowInFlightSafePlace ?? true) ? '✓ Live Alerts to Driver' : 'Disabled'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-500">Permit customers to submit a safe-place while van is en route.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PANEL: VAN FLEET */}
         {(activeTab === 'all_vans' || activeTab === 'my_vans') && (
           <div className="space-y-6">
             <div>
@@ -645,7 +959,7 @@ export const SettingsPage: React.FC<Props> = ({
                 {isHeadOffice ? 'All UK Van Fleet • MOT & Vehicle Status Manager' : `${currentDepot.city} Van Fleet • MOT & Vehicle Status Manager`}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Manage vehicle compliance dates, statutory MOT expiries, service due dates, and operational status (`AVAILABLE`, `FAULT_REPORTED`, `MAINTENANCE`, `GROUNDED`). <em>"ON ROUTE" is automatically set dynamically when the driver starts their tour and GPS movement begins.</em>
+                Manage vehicle compliance dates, statutory MOT expiries, service due dates, and operational status (`AVAILABLE`, `FAULT_REPORTED`, `MAINTENANCE`, `GROUNDED`).
               </p>
             </div>
 
@@ -680,7 +994,6 @@ export const SettingsPage: React.FC<Props> = ({
                           </span>
                         </td>
 
-                        {/* MOT Expiry Input */}
                         <td className="p-3.5">
                           <div className="flex items-center gap-1.5">
                             <Calendar className="w-3.5 h-3.5 text-slate-400" />
@@ -693,7 +1006,6 @@ export const SettingsPage: React.FC<Props> = ({
                           </div>
                         </td>
 
-                        {/* Next Service Due Input */}
                         <td className="p-3.5">
                           <div className="flex items-center gap-1.5">
                             <Wrench className="w-3.5 h-3.5 text-slate-400" />
@@ -706,7 +1018,6 @@ export const SettingsPage: React.FC<Props> = ({
                           </div>
                         </td>
 
-                        {/* Mileage */}
                         <td className="p-3.5">
                           <input
                             type="number"
@@ -717,7 +1028,6 @@ export const SettingsPage: React.FC<Props> = ({
                           <span className="text-[10px] text-slate-400 ml-1">mi</span>
                         </td>
 
-                        {/* OPERATIONAL STATUS (ON_ROUTE IS DYNAMIC AND DISPLAYED AS LIVE BADGE IF ACTIVE) */}
                         <td className="p-3.5 text-center">
                           {v.status === 'ON_ROUTE' ? (
                             <div className="inline-flex flex-col items-center">
@@ -766,7 +1076,7 @@ export const SettingsPage: React.FC<Props> = ({
 
                         <td className="p-3.5 text-right">
                           <button
-                            onClick={() => handleDeleteVan(v.id)}
+                            onClick={() => onUpdateVans(vans.filter((item) => item.id !== v.id))}
                             className="text-rose-600 hover:text-rose-800 p-1 font-bold text-xs"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -848,7 +1158,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 2: STAFF & DEPOT TRANSFERS (HEAD OFFICE ADMIN ONLY) */}
+        {/* PANEL: STAFF ACCOUNTS */}
         {activeTab === 'staff' && isHeadOffice && (
           <div className="space-y-6">
             <div>
@@ -935,7 +1245,7 @@ export const SettingsPage: React.FC<Props> = ({
                         <td className="p-3.5 text-right">
                           {usr.id !== currentUser.id && (
                             <button
-                              onClick={() => handleDeleteUser(usr.id)}
+                              onClick={() => onUpdateUsers(users.filter((item) => item.id !== usr.id))}
                               className="text-rose-600 hover:text-rose-800 p-1 font-bold text-xs"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -1016,7 +1326,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 3: DRIVER ROSTER */}
+        {/* PANEL: DRIVER ROSTER */}
         {(activeTab === 'all_drivers' || activeTab === 'my_drivers') && (
           <div className="space-y-6">
             <div>
@@ -1093,7 +1403,7 @@ export const SettingsPage: React.FC<Props> = ({
 
                         <td className="p-3.5 text-right">
                           <button
-                            onClick={() => handleDeleteDriver(drv.id)}
+                            onClick={() => onUpdateDrivers(drivers.filter((item) => item.id !== drv.id))}
                             className="text-rose-600 hover:text-rose-800 p-1 font-bold text-xs"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1162,256 +1472,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 4: ALL UK DEPOTS (HEAD OFFICE ADMIN ONLY) */}
-        {activeTab === 'depots' && isHeadOffice && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Compass className="w-5 h-5 text-blue-600" />
-                All 22 UK Depots • Catchment & Van Capacities
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Head Office configuration for all distribution centres across the UK network.
-              </p>
-            </div>
-
-            <div className="border border-gray-200 rounded-2xl overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
-                  <tr>
-                    <th className="p-3.5">Depot Hub</th>
-                    <th className="p-3.5">Center Postcode</th>
-                    <th className="p-3.5 text-center">Catchment Radius</th>
-                    <th className="p-3.5 text-center bg-blue-50/50 text-blue-900">Max Orders / Van</th>
-                    <th className="p-3.5 text-center">Min Orders / Route</th>
-                    <th className="p-3.5 text-right">Fleet Capacity</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {localDepots.map((depot) => (
-                    <tr key={depot.id} className="hover:bg-slate-50">
-                      <td className="p-3.5">
-                        <span className="font-bold text-slate-900 block">{depot.name}</span>
-                        <span className="text-[10px] text-slate-400">{depot.region}</span>
-                      </td>
-                      <td className="p-3.5">
-                        <input
-                          type="text"
-                          value={depot.postcode}
-                          onChange={(e) => handleUpdatePostcode(depot.id, e.target.value)}
-                          className="w-24 font-mono font-bold text-xs p-1.5 border rounded-xl bg-white uppercase text-center"
-                        />
-                      </td>
-                      <td className="p-3.5 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <input
-                            type="range"
-                            min="5"
-                            max="50"
-                            value={depot.maxDeliveryRadiusMiles}
-                            onChange={(e) => handleUpdateRadius(depot.id, parseInt(e.target.value) || 10)}
-                            className="w-20 h-1.5 bg-gray-200 rounded cursor-pointer"
-                          />
-                          <span className="font-mono font-bold text-xs px-2.5 py-1 rounded-lg bg-slate-100 border min-w-[55px] inline-block text-center">
-                            {depot.maxDeliveryRadiusMiles} mi
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="p-3.5 text-center bg-blue-50/30">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <input
-                            type="number"
-                            min="2"
-                            max="15"
-                            value={depot.maxOrdersPerVan || 6}
-                            onChange={(e) => handleUpdateMaxPerVan(depot.id, parseInt(e.target.value) || 6)}
-                            className="w-16 font-black text-xs p-1.5 border-2 border-blue-500 rounded-xl bg-white text-center text-blue-900 shadow-2xs"
-                          />
-                          <span className="text-[10px] font-bold text-slate-500">drops/van</span>
-                        </div>
-                      </td>
-
-                      <td className="p-3.5 text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          <input
-                            type="number"
-                            min="1"
-                            max="10"
-                            value={depot.minOrdersPerRoute || 3}
-                            onChange={(e) => handleUpdateMinOrders(depot.id, parseInt(e.target.value) || 3)}
-                            className="w-14 font-bold text-xs p-1.5 border rounded-xl bg-white text-center"
-                          />
-                          <span className="text-[10px] text-slate-400">min</span>
-                        </div>
-                      </td>
-
-                      <td className="p-3.5 text-right">
-                        <span className="font-black text-slate-900 block text-xs">
-                          {(depot.maxOrdersPerVan || 6) * depot.activeVansCount} total
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {depot.activeVansCount} vans @ {depot.maxOrdersPerVan || 6}/van
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* PANEL 5: LOCAL DEPOT PARAMETERS */}
-        {activeTab === 'my_depot' && !isHeadOffice && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Compass className="w-5 h-5 text-blue-600" />
-                {currentDepot.name} • Local Operating Parameters
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Adjust van capacity and local delivery radius for {currentDepot.city}.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div className="p-5 bg-slate-50 rounded-2xl border border-gray-200 space-y-2">
-                <label className="block text-xs font-black text-slate-800">
-                  Local Postcode Center
-                </label>
-                <input
-                  type="text"
-                  value={currentDepot.postcode}
-                  onChange={(e) => handleUpdatePostcode(currentDepot.id, e.target.value)}
-                  className="w-full font-mono font-bold text-sm p-2.5 border rounded-xl bg-white uppercase text-center"
-                />
-                <p className="text-[11px] text-slate-500">Center point for territory distance calculations.</p>
-              </div>
-
-              <div className="p-5 bg-slate-50 rounded-2xl border border-gray-200 space-y-2">
-                <label className="block text-xs font-black text-slate-800">
-                  Max Orders / Drops per Van
-                </label>
-                <input
-                  type="number"
-                  min="2"
-                  max="15"
-                  value={currentDepot.maxOrdersPerVan || 6}
-                  onChange={(e) => handleUpdateMaxPerVan(currentDepot.id, parseInt(e.target.value) || 6)}
-                  className="w-full font-black text-sm p-2.5 border-2 border-blue-500 rounded-xl bg-white text-center text-blue-900"
-                />
-                <p className="text-[11px] text-slate-500">Physical vehicle capacity (default 5–6 drops).</p>
-              </div>
-
-              <div className="p-5 bg-slate-50 rounded-2xl border border-gray-200 space-y-2">
-                <label className="block text-xs font-black text-slate-800">
-                  Delivery Radius ({currentDepot.maxDeliveryRadiusMiles} miles)
-                </label>
-                <input
-                  type="range"
-                  min="5"
-                  max="50"
-                  value={currentDepot.maxDeliveryRadiusMiles}
-                  onChange={(e) => handleUpdateRadius(currentDepot.id, parseInt(e.target.value) || 10)}
-                  className="w-full h-2 bg-gray-200 rounded cursor-pointer mt-2"
-                />
-                <p className="text-[11px] text-slate-500">Depot catchment boundary for customer order fulfillment.</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* PANEL 6: SKU DWELL TIMES (HEAD OFFICE ADMIN ONLY) */}
-        {activeTab === 'dwell' && isHeadOffice && (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-amber-600" />
-                Global SKU Handling & Dwell Times (Admin Control)
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Centrally configured product offload durations applied to route feasibility algorithms across all depots.
-              </p>
-            </div>
-
-            <div className="border border-gray-200 rounded-2xl overflow-hidden">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-700 font-black uppercase border-b text-[11px]">
-                  <tr>
-                    <th className="p-3.5">SKU Code</th>
-                    <th className="p-3.5">Product Description</th>
-                    <th className="p-3.5 text-center">Standard Dwell Duration</th>
-                    <th className="p-3.5 text-right">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {skuCatalog.map((item) => (
-                    <tr key={item.sku} className="hover:bg-slate-50">
-                      <td className="p-3.5 font-mono font-black text-blue-700 text-xs">{item.sku}</td>
-                      <td className="p-3.5 font-bold text-slate-800">{item.name}</td>
-                      <td className="p-3.5 text-center">
-                        <span className="bg-amber-50 text-amber-900 px-3 py-1 rounded-full font-black border border-amber-200">
-                          {item.defaultDwellMins} mins
-                        </span>
-                      </td>
-                      <td className="p-3.5 text-right">
-                        <button
-                          onClick={() => handleDeleteSku(item.sku)}
-                          className="text-rose-600 hover:text-rose-800 p-1 font-bold"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <form onSubmit={handleAddSku} className="p-5 bg-slate-50 rounded-2xl border border-gray-200 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">SKU</label>
-                <input
-                  type="text"
-                  placeholder="e.g. GUT-6M-BRN"
-                  value={newSku.sku}
-                  onChange={(e) => setNewSku({ ...newSku, sku: e.target.value })}
-                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Product Description</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 6m Deepflow Gutter"
-                  value={newSku.name}
-                  onChange={(e) => setNewSku({ ...newSku, name: e.target.value })}
-                  className="w-full text-xs font-semibold p-2.5 border rounded-xl bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Dwell (Mins)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="120"
-                  value={newSku.defaultDwellMins}
-                  onChange={(e) => setNewSku({ ...newSku, defaultDwellMins: parseInt(e.target.value) || 15 })}
-                  className="w-full text-xs font-bold p-2.5 border rounded-xl bg-white"
-                />
-              </div>
-              <button
-                type="submit"
-                className="py-2.5 bg-slate-900 text-white font-black text-xs rounded-xl shadow hover:bg-black flex items-center justify-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" /> Add SKU Rule
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* PANEL 7: SHIFT & TRAFFIC (HEAD OFFICE ADMIN ONLY) */}
+        {/* PANEL: SHIFT BUFFERS */}
         {activeTab === 'shift' && isHeadOffice && (
           <div className="space-y-6">
             <div>
@@ -1476,7 +1537,7 @@ export const SettingsPage: React.FC<Props> = ({
           </div>
         )}
 
-        {/* PANEL 8: BRANDING (HEAD OFFICE ADMIN ONLY) */}
+        {/* PANEL: BRANDING */}
         {activeTab === 'branding' && isHeadOffice && (
           <div className="space-y-6">
             <div>

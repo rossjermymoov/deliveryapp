@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, VanVehicle, VehicleFaultReport } from '../types';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, VanVehicle, VehicleFaultReport, LeaveSafePreference } from '../types';
 import { DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
 import { MorningDashboard } from './MorningDashboard';
@@ -7,6 +7,7 @@ import { ScanToVanModal } from './ScanToVanModal';
 import { OrdersManager } from './OrdersManager';
 import { RoutesManager } from './RoutesManager';
 import { SettingsPage } from './SettingsPage';
+import { CustomerTrackingPortal } from './CustomerTrackingPortal';
 import { 
   Package, 
   Route as RouteIcon, 
@@ -48,6 +49,8 @@ interface Props {
   onSimulateNewOrder: (order: Partial<Order>) => void;
   onSwitchToDriver: (driverId: string) => void;
   onConfirmRouteLoaded: (routeId: string) => void;
+  onUpdateOrderLeaveSafe?: (orderId: string, preference: LeaveSafePreference) => void;
+  onRescheduleOrder?: (orderId: string, targetDate: string, reason?: string) => void;
 }
 
 export const AdminPortal: React.FC<Props> = ({
@@ -77,6 +80,8 @@ export const AdminPortal: React.FC<Props> = ({
   onUpdateSkuCatalog,
   onSwitchToDriver,
   onConfirmRouteLoaded,
+  onUpdateOrderLeaveSafe,
+  onRescheduleOrder,
 }) => {
   const isHeadOfficeAdmin = currentUser.role === 'HEAD_OFFICE_ADMIN';
   
@@ -94,6 +99,9 @@ export const AdminPortal: React.FC<Props> = ({
 
   // Scan to Van modal state
   const [loadingRoute, setLoadingRoute] = useState<DeliveryRoute | null>(null);
+
+  // Customer In-Flight Tracking & Safe Place Portal state
+  const [customerPortalOrder, setCustomerPortalOrder] = useState<Order | null>(null);
 
   // Shift & Traffic Parameters
   const [shiftParams, setShiftParams] = useState<ShiftParameters>(DEFAULT_SHIFT_PARAMS);
@@ -167,6 +175,29 @@ export const AdminPortal: React.FC<Props> = ({
           onConfirmLoaded={(rId) => {
             onConfirmRouteLoaded(rId);
             setLoadingRoute(null);
+          }}
+        />
+      )}
+
+      {/* Customer Tracking & Safe Place In-Flight Portal Modal */}
+      {customerPortalOrder && (
+        <CustomerTrackingPortal
+          order={customerPortalOrder}
+          depots={depots}
+          brandTheme={brandTheme}
+          isOpen={!!customerPortalOrder}
+          onClose={() => setCustomerPortalOrder(null)}
+          onUpdateOrderLeaveSafe={(orderId, pref) => {
+            if (onUpdateOrderLeaveSafe) {
+              onUpdateOrderLeaveSafe(orderId, pref);
+            }
+            setCustomerPortalOrder((prev) => prev ? { ...prev, leaveSafePreference: pref } : null);
+          }}
+          onRescheduleOrder={(orderId, targetDate, reason) => {
+            if (onRescheduleOrder) {
+              onRescheduleOrder(orderId, targetDate, reason);
+            }
+            setCustomerPortalOrder((prev) => prev ? { ...prev, status: 'RESCHEDULED', rescheduledTargetDate: targetDate, rescheduledReason: reason } : null);
           }}
         />
       )}
@@ -377,6 +408,7 @@ export const AdminPortal: React.FC<Props> = ({
             brandTheme={brandTheme}
             selectedDepotId={effectiveDepotId}
             onUpdateOrderDwell={onUpdateOrderDwell}
+            onOpenCustomerPortal={(order) => setCustomerPortalOrder(order)}
           />
         )}
 

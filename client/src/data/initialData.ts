@@ -37,17 +37,20 @@ export const PRESET_THEMES: Record<string, BrandTheme> = {
   },
 };
 
+// SKU CATALOG WITH GENERIC LEAVE-SAFE RULES & STANDALONE AGE VERIFICATION
 export const INITIAL_SKU_SETTINGS: SkuDwellSetting[] = [
-  { sku: 'FAS-5M-WHT', name: '5m Fascia Board (Pack of 5)', defaultDwellMins: 12 },
-  { sku: 'SOF-5M-BLK', name: '5m Hollow Soffit Board (Pack of 10)', defaultDwellMins: 10 },
-  { sku: 'GUT-4M-RND', name: '4m Roundline Gutter (Pack of 6)', defaultDwellMins: 15 },
-  { sku: 'CLAD-5M-ANT', name: '5m Shiplap Cladding Anthracite', defaultDwellMins: 20 },
-  { sku: 'DWN-4M-SQR', name: '4m Square Downpipe Pack', defaultDwellMins: 15 },
-  { sku: 'TRM-5M-OAK', name: '5m Architrave Trim Golden Oak', defaultDwellMins: 8 },
-  { sku: 'FOAM-GUN-750', name: 'Expanding Foam 750ml (Box of 12)', defaultDwellMins: 5 },
-  { sku: 'SEAL-SIL-CLR', name: 'Low Modulus Silicone (Box of 24)', defaultDwellMins: 5 },
-  { sku: 'POLY-SHEET-3X1', name: 'Multiwall Polycarbonate 3m x 1m', defaultDwellMins: 25 },
-  { sku: 'DRY-VERGE-GRY', name: 'Dry Verge Units Grey (Pack of 50)', defaultDwellMins: 10 },
+  { sku: 'FAS-5M-WHT', name: '5m Fascia Board (Pack of 5)', defaultDwellMins: 12, allowLeaveSafe: true, requiresAgeVerification: false },
+  { sku: 'SOF-5M-BLK', name: '5m Hollow Soffit Board (Pack of 10)', defaultDwellMins: 10, allowLeaveSafe: true, requiresAgeVerification: false },
+  { sku: 'GUT-4M-RND', name: '4m Roundline Gutter (Pack of 6)', defaultDwellMins: 15, allowLeaveSafe: true, requiresAgeVerification: false },
+  { sku: 'CLAD-5M-ANT', name: '5m Shiplap Cladding Anthracite', defaultDwellMins: 20, allowLeaveSafe: true, requiresAgeVerification: false },
+  { sku: 'DWN-4M-SQR', name: '4m Square Downpipe Pack', defaultDwellMins: 15, allowLeaveSafe: true, requiresAgeVerification: false },
+  { sku: 'TRM-5M-OAK', name: '5m Architrave Trim Golden Oak', defaultDwellMins: 8, allowLeaveSafe: true, requiresAgeVerification: false },
+  { sku: 'FOAM-GUN-750', name: 'Expanding Foam 750ml (Box of 12)', defaultDwellMins: 5, allowLeaveSafe: true, requiresAgeVerification: false },
+  { sku: 'SEAL-SIL-CLR', name: 'Low Modulus Silicone (Box of 24)', defaultDwellMins: 5, allowLeaveSafe: true, requiresAgeVerification: false },
+  { sku: 'POLY-SHEET-3X1', name: 'Multiwall Polycarbonate 3m x 1m', defaultDwellMins: 25, allowLeaveSafe: false, requiresAgeVerification: false }, // High value / fragile
+  { sku: 'SOLV-CLEANER-1L', name: 'PVC Solvent Cleaner & Degreaser 1L (18+)', defaultDwellMins: 5, allowLeaveSafe: true, requiresAgeVerification: true }, // 18+ Solvent
+  { sku: 'ADH-SOLV-500ML', name: 'Heavy Duty Solvent Weld Cement 500ml (18+)', defaultDwellMins: 5, allowLeaveSafe: true, requiresAgeVerification: true }, // 18+ Solvent
+  { sku: 'DRY-VERGE-GRY', name: 'Dry Verge Units Grey (Pack of 50)', defaultDwellMins: 10, allowLeaveSafe: true, requiresAgeVerification: false },
 ];
 
 export const UK_DEPOTS: Depot[] = [
@@ -67,6 +70,11 @@ export const UK_DEPOTS: Depot[] = [
     maxOrdersPerVan: 6,
     maxDailyCapacityOrders: 36,
     minOrdersPerRoute: 3,
+    policySettings: {
+      allowSameDayReschedule: true,
+      sameDayCutoffTime: '09:00',
+      allowInFlightSafePlace: true,
+    }
   },
   { 
     id: 'depot-lon-n', 
@@ -84,6 +92,11 @@ export const UK_DEPOTS: Depot[] = [
     maxOrdersPerVan: 6,
     maxDailyCapacityOrders: 48,
     minOrdersPerRoute: 3,
+    policySettings: {
+      allowSameDayReschedule: true,
+      sameDayCutoffTime: '09:00',
+      allowInFlightSafePlace: true,
+    }
   },
   { 
     id: 'depot-lon-s', 
@@ -101,6 +114,11 @@ export const UK_DEPOTS: Depot[] = [
     maxOrdersPerVan: 6,
     maxDailyCapacityOrders: 42,
     minOrdersPerRoute: 3,
+    policySettings: {
+      allowSameDayReschedule: true,
+      sameDayCutoffTime: '09:00',
+      allowInFlightSafePlace: true,
+    }
   },
   { 
     id: 'depot-man', 
@@ -118,6 +136,11 @@ export const UK_DEPOTS: Depot[] = [
     maxOrdersPerVan: 6,
     maxDailyCapacityOrders: 42,
     minOrdersPerRoute: 3,
+    policySettings: {
+      allowSameDayReschedule: false,
+      sameDayCutoffTime: '08:30',
+      allowInFlightSafePlace: true,
+    }
   },
   { 
     id: 'depot-lds', 
@@ -135,6 +158,11 @@ export const UK_DEPOTS: Depot[] = [
     maxOrdersPerVan: 6,
     maxDailyCapacityOrders: 30,
     minOrdersPerRoute: 3,
+    policySettings: {
+      allowSameDayReschedule: true,
+      sameDayCutoffTime: '09:00',
+      allowInFlightSafePlace: true,
+    }
   },
   { 
     id: 'depot-brs', 
@@ -152,6 +180,11 @@ export const UK_DEPOTS: Depot[] = [
     maxOrdersPerVan: 6,
     maxDailyCapacityOrders: 30,
     minOrdersPerRoute: 3,
+    policySettings: {
+      allowSameDayReschedule: true,
+      sameDayCutoffTime: '09:00',
+      allowInFlightSafePlace: true,
+    }
   },
   { 
     id: 'depot-ncl', 
@@ -169,6 +202,11 @@ export const UK_DEPOTS: Depot[] = [
     maxOrdersPerVan: 6,
     maxDailyCapacityOrders: 24,
     minOrdersPerRoute: 3,
+    policySettings: {
+      allowSameDayReschedule: true,
+      sameDayCutoffTime: '09:00',
+      allowInFlightSafePlace: true,
+    }
   },
   { 
     id: 'depot-sou', 
@@ -186,6 +224,11 @@ export const UK_DEPOTS: Depot[] = [
     maxOrdersPerVan: 6,
     maxDailyCapacityOrders: 24,
     minOrdersPerRoute: 3,
+    policySettings: {
+      allowSameDayReschedule: true,
+      sameDayCutoffTime: '09:00',
+      allowInFlightSafePlace: true,
+    }
   },
 ];
 
@@ -439,34 +482,164 @@ export const REALISTIC_POD_PHOTOS = [
 export function generateLargeOrderDataset(): Order[] {
   const seedData = [
     // Birmingham Hub (BHM)
-    { name: 'Marcus Evans (Apex Builders)', phone: '07711 223344', email: 'm.evans@apex.co.uk', addr: '42 Highfield Rd, Edgbaston', city: 'Birmingham', pc: 'B15 3DZ', lat: 52.4688, lng: -1.9325, depot: 'depot-bhm', status: 'DELIVERED', date: 'Today 08:15 AM', notes: 'Signed at trade counter', photoIdx: 0 },
-    { name: 'Janet Wood (Wood Renovations)', phone: '07822 334455', email: 'janet@wood.co.uk', addr: '15 Sutton Rd, Erdington', city: 'Birmingham', pc: 'B23 6QJ', lat: 52.5273, lng: -1.8411, depot: 'depot-bhm', status: 'OUT_FOR_DELIVERY' },
-    { name: 'Liam Patterson (Patterson Plastics)', phone: '07933 445566', email: 'liam@patterson.co.uk', addr: 'Unit 4 Redfern Estate, Tyseley', city: 'Birmingham', pc: 'B11 2BE', lat: 52.4578, lng: -1.8415, depot: 'depot-bhm', status: 'ROUTED' },
-    { name: 'Claire Smith (Shirley Roofing)', phone: '07544 112233', email: 'claire@shirleyroof.co.uk', addr: '88 Solihull Rd, Shirley', city: 'Solihull', pc: 'B90 3HG', lat: 52.4144, lng: -1.8211, depot: 'depot-bhm', status: 'DELIVERED', date: 'Today 08:35 AM', notes: 'Large parcel pack placed securely behind front gate', photoIdx: 1 },
-    { name: 'Arthur Pendelton (Midlands Cladding)', phone: '07633 889900', email: 'arthur@midlandsclad.co.uk', addr: '102 Walsall Rd, Perry Barr', city: 'Birmingham', pc: 'B42 1SG', lat: 52.5204, lng: -1.9056, depot: 'depot-bhm', status: 'PENDING' },
-    { name: 'David Miller (Miller Gutters)', phone: '07412 884411', email: 'dave@millers.co.uk', addr: '19 Harborne High St', city: 'Birmingham', pc: 'B17 9NT', lat: 52.4590, lng: -1.9442, depot: 'depot-bhm', status: 'PENDING' },
-    { name: 'Keith Reynolds (Brum Fascias)', phone: '07700 882211', email: 'keith@brumfascias.co.uk', addr: '77 Kingsbury Rd', city: 'Birmingham', pc: 'B24 8QQ', lat: 52.5180, lng: -1.8320, depot: 'depot-bhm', status: 'PENDING' },
-    { name: 'Darren Cox (Telford Far Outpost)', phone: '07700 994433', email: 'darren@telforddev.co.uk', addr: '88 Wrekin View, Telford', city: 'Telford', pc: 'TF1 2AA', lat: 52.6780, lng: -2.4490, depot: 'depot-bhm', status: 'PENDING', belowRouteCriteria: true, criteriaReason: 'Isolated single stop (32 miles from depot cluster). Awaiting order consolidation.' },
+    { 
+      name: 'Marcus Evans (Apex Builders)', 
+      phone: '07711 223344', 
+      email: 'm.evans@apex.co.uk', 
+      addr: '42 Highfield Rd, Edgbaston', 
+      city: 'Birmingham', 
+      pc: 'B15 3DZ', 
+      lat: 52.4688, 
+      lng: -1.9325, 
+      depot: 'depot-bhm', 
+      status: 'DELIVERED', 
+      date: 'Today 08:15 AM', 
+      notes: 'Signed at trade counter', 
+      photoIdx: 0,
+      allowLeaveSafe: true,
+      requiresAgeVerification: false
+    },
+    { 
+      name: 'Janet Wood (Wood Renovations)', 
+      phone: '07822 334455', 
+      email: 'janet@wood.co.uk', 
+      addr: '15 Sutton Rd, Erdington', 
+      city: 'Birmingham', 
+      pc: 'B23 6QJ', 
+      lat: 52.5273, 
+      lng: -1.8411, 
+      depot: 'depot-bhm', 
+      status: 'OUT_FOR_DELIVERY',
+      allowLeaveSafe: true,
+      requiresAgeVerification: true, // Solvent order
+      itemsExtra: [{ id: 'itm-solv-1', sku: 'SOLV-CLEANER-1L', name: 'PVC Solvent Cleaner 1L (18+)', quantity: 2, dwellMins: 5, allowLeaveSafe: true, requiresAgeVerification: true }]
+    },
+    { 
+      name: 'Liam Patterson (Patterson Plastics)', 
+      phone: '07933 445566', 
+      email: 'liam@patterson.co.uk', 
+      addr: 'Unit 4 Redfern Estate, Tyseley', 
+      city: 'Birmingham', 
+      pc: 'B11 2BE', 
+      lat: 52.4578, 
+      lng: -1.8415, 
+      depot: 'depot-bhm', 
+      status: 'ROUTED',
+      allowLeaveSafe: true,
+      requiresAgeVerification: false,
+      leaveSafePreference: {
+        requested: true,
+        locationType: 'BEHIND_SIDE_GATE',
+        accessInstructions: 'Side gate is unlocked. Please leave under the lean-to roof.',
+        requestedAt: '08:30 AM',
+        inFlightUpdate: true
+      }
+    },
+    { 
+      name: 'Claire Smith (Shirley Roofing)', 
+      phone: '07544 112233', 
+      email: 'claire@shirleyroof.co.uk', 
+      addr: '88 Solihull Rd, Shirley', 
+      city: 'Solihull', 
+      pc: 'B90 3HG', 
+      lat: 52.4144, 
+      lng: -1.8211, 
+      depot: 'depot-bhm', 
+      status: 'DELIVERED', 
+      date: 'Today 08:35 AM', 
+      notes: 'Large parcel pack placed securely behind front gate', 
+      photoIdx: 1,
+      allowLeaveSafe: true,
+      requiresAgeVerification: false
+    },
+    { 
+      name: 'Arthur Pendelton (Midlands Cladding)', 
+      phone: '07633 889900', 
+      email: 'arthur@midlandsclad.co.uk', 
+      addr: '102 Walsall Rd, Perry Barr', 
+      city: 'Birmingham', 
+      pc: 'B42 1SG', 
+      lat: 52.5204, 
+      lng: -1.9056, 
+      depot: 'depot-bhm', 
+      status: 'PENDING',
+      allowLeaveSafe: false, // Polycarbonate fragile sheets
+      requiresAgeVerification: false,
+      itemsExtra: [{ id: 'itm-poly-1', sku: 'POLY-SHEET-3X1', name: 'Multiwall Polycarbonate 3m x 1m', quantity: 4, dwellMins: 25, allowLeaveSafe: false, requiresAgeVerification: false }]
+    },
+    { 
+      name: 'David Miller (Miller Gutters)', 
+      phone: '07412 884411', 
+      email: 'dave@millers.co.uk', 
+      addr: '19 Harborne High St', 
+      city: 'Birmingham', 
+      pc: 'B17 9NT', 
+      lat: 52.4590, 
+      lng: -1.9442, 
+      depot: 'depot-bhm', 
+      status: 'PENDING',
+      allowLeaveSafe: true,
+      requiresAgeVerification: false
+    },
+    { 
+      name: 'Keith Reynolds (Brum Fascias)', 
+      phone: '07700 882211', 
+      email: 'keith@brumfascias.co.uk', 
+      addr: '77 Kingsbury Rd', 
+      city: 'Birmingham', 
+      pc: 'B24 8QQ', 
+      lat: 52.5180, 
+      lng: -1.8320, 
+      depot: 'depot-bhm', 
+      status: 'PENDING',
+      allowLeaveSafe: true,
+      requiresAgeVerification: false
+    },
+    { 
+      name: 'Darren Cox (Telford Far Outpost)', 
+      phone: '07700 994433', 
+      email: 'darren@telforddev.co.uk', 
+      addr: '88 Wrekin View, Telford', 
+      city: 'Telford', 
+      pc: 'TF1 2AA', 
+      lat: 52.6780, 
+      lng: -2.4490, 
+      depot: 'depot-bhm', 
+      status: 'PENDING', 
+      belowRouteCriteria: true, 
+      criteriaReason: 'Isolated single stop (32 miles from depot cluster). Awaiting order consolidation.',
+      allowLeaveSafe: true,
+      requiresAgeVerification: false
+    },
 
     // London North Hub (LON-N)
-    { name: 'Graham Walker (Enfield Drainage)', phone: '07700 556677', email: 'graham@enfielddrain.co.uk', addr: '10 Innova Way, Enfield', city: 'London', pc: 'EN3 7FL', lat: 51.6680, lng: -0.0350, depot: 'depot-lon-n', status: 'PENDING' },
-    { name: 'Toby Marshall (Tottenham Timber & Plastic)', phone: '07700 667788', email: 'toby@tottenhamtp.co.uk', addr: '44 High Rd, Tottenham', city: 'London', pc: 'N17 9TA', lat: 51.5980, lng: -0.0710, depot: 'depot-lon-n', status: 'PENDING' },
-    { name: 'Oliver King (Barnet Building Supplies)', phone: '07700 778899', email: 'oliver@barnetbuild.co.uk', addr: '12 Wood St, Barnet', city: 'London', pc: 'EN5 4BP', lat: 51.6540, lng: -0.2010, depot: 'depot-lon-n', status: 'PENDING' },
-    { name: 'Dean Harris (Islington Civils)', phone: '07700 889911', email: 'dean@islingtoncivils.co.uk', addr: '82 Upper St, Islington', city: 'London', pc: 'N1 0NU', lat: 51.5380, lng: -0.1030, depot: 'depot-lon-n', status: 'DELIVERED', date: 'Yesterday 15:40', notes: 'Heavy parcel cargo offloaded into site store', photoIdx: 2 },
+    { name: 'Graham Walker (Enfield Drainage)', phone: '07700 556677', email: 'graham@enfielddrain.co.uk', addr: '10 Innova Way, Enfield', city: 'London', pc: 'EN3 7FL', lat: 51.6680, lng: -0.0350, depot: 'depot-lon-n', status: 'PENDING', allowLeaveSafe: true, requiresAgeVerification: false },
+    { name: 'Toby Marshall (Tottenham Timber & Plastic)', phone: '07700 667788', email: 'toby@tottenhamtp.co.uk', addr: '44 High Rd, Tottenham', city: 'London', pc: 'N17 9TA', lat: 51.5980, lng: -0.0710, depot: 'depot-lon-n', status: 'PENDING', allowLeaveSafe: true, requiresAgeVerification: true, itemsExtra: [{ id: 'itm-solv-2', sku: 'ADH-SOLV-500ML', name: 'Solvent Weld Cement 500ml (18+)', quantity: 4, dwellMins: 5, allowLeaveSafe: true, requiresAgeVerification: true }] },
+    { name: 'Oliver King (Barnet Building Supplies)', phone: '07700 778899', email: 'oliver@barnetbuild.co.uk', addr: '12 Wood St, Barnet', city: 'London', pc: 'EN5 4BP', lat: 51.6540, lng: -0.2010, depot: 'depot-lon-n', status: 'PENDING', allowLeaveSafe: true, requiresAgeVerification: false },
+    { name: 'Dean Harris (Islington Civils)', phone: '07700 889911', email: 'dean@islingtoncivils.co.uk', addr: '82 Upper St, Islington', city: 'London', pc: 'N1 0NU', lat: 51.5380, lng: -0.1030, depot: 'depot-lon-n', status: 'DELIVERED', date: 'Yesterday 15:40', notes: 'Heavy parcel cargo offloaded into site store', photoIdx: 2, allowLeaveSafe: true, requiresAgeVerification: false },
 
     // London South Hub (LON-S)
-    { name: 'Steven Clark (Croydon Roofing)', phone: '07700 443322', email: 'steven@croydonroof.co.uk', addr: '94 Purley Way', city: 'Croydon', pc: 'CR0 4XJ', lat: 51.3780, lng: -0.1190, depot: 'depot-lon-s', status: 'PENDING' },
-    { name: 'Ray Campbell (Bromley Plastics)', phone: '07700 332211', email: 'ray@bromleyplastics.co.uk', addr: '28 Masons Hill', city: 'Bromley', pc: 'BR2 9HG', lat: 51.3980, lng: 0.0190, depot: 'depot-lon-s', status: 'PENDING' },
-    { name: 'Lewis Finch (Mitcham Civils)', phone: '07700 221100', email: 'lewis@mitcham.co.uk', addr: '14 London Rd', city: 'Mitcham', pc: 'CR4 2YR', lat: 51.4020, lng: -0.1680, depot: 'depot-lon-s', status: 'DELIVERED', date: 'Yesterday 11:20', notes: 'Palletized trade goods delivered at loading bay', photoIdx: 3 },
+    { name: 'Steven Clark (Croydon Roofing)', phone: '07700 443322', email: 'steven@croydonroof.co.uk', addr: '94 Purley Way', city: 'Croydon', pc: 'CR0 4XJ', lat: 51.3780, lng: -0.1190, depot: 'depot-lon-s', status: 'PENDING', allowLeaveSafe: true, requiresAgeVerification: false },
+    { name: 'Ray Campbell (Bromley Plastics)', phone: '07700 332211', email: 'ray@bromleyplastics.co.uk', addr: '28 Masons Hill', city: 'Bromley', pc: 'BR2 9HG', lat: 51.3980, lng: 0.0190, depot: 'depot-lon-s', status: 'PENDING', allowLeaveSafe: true, requiresAgeVerification: false },
+    { name: 'Lewis Finch (Mitcham Civils)', phone: '07700 221100', email: 'lewis@mitcham.co.uk', addr: '14 London Rd', city: 'Mitcham', pc: 'CR4 2YR', lat: 51.4020, lng: -0.1680, depot: 'depot-lon-s', status: 'DELIVERED', date: 'Yesterday 11:20', notes: 'Palletized trade goods delivered at loading bay', photoIdx: 3, allowLeaveSafe: true, requiresAgeVerification: false },
 
     // Newcastle & North East (NCL)
-    { name: 'Ian Robson (Tyne Valley Plastics)', phone: '07700 665544', email: 'ian@tyneplastics.co.uk', addr: '34 Team Valley Way', city: 'Gateshead', pc: 'NE11 0QA', lat: 54.9350, lng: -1.6150, depot: 'depot-ncl', status: 'PENDING' },
-    { name: 'Barry Dobson (Durham Trade Counters)', phone: '07700 554433', email: 'barry@durhamtrade.co.uk', addr: 'Unit 2 Belmont Estate', city: 'Durham', pc: 'DH1 1TW', lat: 54.7890, lng: -1.5420, depot: 'depot-ncl', status: 'PENDING' },
-    { name: 'Graeme Watson (Sunderland Roofing)', phone: '07700 445566', email: 'graeme@sunderlandroof.co.uk', addr: '18 Riverside Rd', city: 'Sunderland', pc: 'SR5 3JG', lat: 54.9120, lng: -1.4110, depot: 'depot-ncl', status: 'PENDING' },
+    { name: 'Ian Robson (Tyne Valley Plastics)', phone: '07700 665544', email: 'ian@tyneplastics.co.uk', addr: '34 Team Valley Way', city: 'Gateshead', pc: 'NE11 0QA', lat: 54.9350, lng: -1.6150, depot: 'depot-ncl', status: 'PENDING', allowLeaveSafe: true, requiresAgeVerification: false },
+    { name: 'Barry Dobson (Durham Trade Counters)', phone: '07700 554433', email: 'barry@durhamtrade.co.uk', addr: 'Unit 2 Belmont Estate', city: 'Durham', pc: 'DH1 1TW', lat: 54.7890, lng: -1.5420, depot: 'depot-ncl', status: 'PENDING', allowLeaveSafe: true, requiresAgeVerification: false },
+    { name: 'Graeme Watson (Sunderland Roofing)', phone: '07700 445566', email: 'graeme@sunderlandroof.co.uk', addr: '18 Riverside Rd', city: 'Sunderland', pc: 'SR5 3JG', lat: 54.9120, lng: -1.4110, depot: 'depot-ncl', status: 'PENDING', allowLeaveSafe: true, requiresAgeVerification: false },
   ];
 
   return seedData.map((s, idx) => {
     const isDelivered = s.status === 'DELIVERED';
+    const baseItems = [
+      { id: `itm-1-${idx}`, sku: 'FAS-5M-WHT', name: '5m Fascia Board White', quantity: 8, dwellMins: 12, allowLeaveSafe: true, requiresAgeVerification: false },
+      { id: `itm-2-${idx}`, sku: 'GUT-4M-RND', name: '4m Roundline Gutter', quantity: 12, dwellMins: 15, allowLeaveSafe: true, requiresAgeVerification: false },
+      { id: `itm-3-${idx}`, sku: 'SEAL-SIL-CLR', name: 'Low Mod Silicone Box', quantity: 2, dwellMins: 5, allowLeaveSafe: true, requiresAgeVerification: false },
+    ];
+    const finalItems = (s as any).itemsExtra ? [...baseItems, ...(s as any).itemsExtra] : baseItems;
+    const allowsSafe = finalItems.every((it) => it.allowLeaveSafe !== false);
+    const needsAge = finalItems.some((it) => it.requiresAgeVerification === true);
+
     return {
       id: `ord-oms-${idx + 1}`,
       trackingNumber: `KAL-${884000 + idx}`,
@@ -479,15 +652,17 @@ export function generateLargeOrderDataset(): Order[] {
       postcode: s.pc,
       lat: s.lat,
       lng: s.lng,
-      items: [
-        { id: `itm-1-${idx}`, sku: 'FAS-5M-WHT', name: '5m Fascia Board White', quantity: 8, dwellMins: 12 },
-        { id: `itm-2-${idx}`, sku: 'GUT-4M-RND', name: '4m Roundline Gutter', quantity: 12, dwellMins: 15 },
-        { id: `itm-3-${idx}`, sku: 'SEAL-SIL-CLR', name: 'Low Mod Silicone Box', quantity: 2, dwellMins: 5 },
-      ],
-      totalDwellMins: 32,
+      items: finalItems,
+      totalDwellMins: finalItems.reduce((acc, it) => acc + (it.dwellMins || 10), 0),
+      deliveryWindowStart: '08:00',
+      deliveryWindowEnd: '12:00',
+      scheduledDeliveryDate: new Date().toISOString().split('T')[0],
       status: s.status as any,
       belowRouteCriteria: (s as any).belowRouteCriteria || false,
       criteriaReason: (s as any).criteriaReason,
+      allowLeaveSafe: allowsSafe,
+      requiresAgeVerification: needsAge,
+      leaveSafePreference: (s as any).leaveSafePreference,
       createdAt: new Date(Date.now() - (idx * 7200000)).toISOString(),
       proofOfDelivery: isDelivered ? {
         id: `pod-oms-${idx + 1}`,
@@ -531,7 +706,7 @@ export const INITIAL_ROUTES: DeliveryRoute[] = [
     routeNumber: 'Route 2 (Birmingham North & Solihull)',
     depotId: 'depot-bhm',
     date: new Date().toISOString(),
-    status: 'UNASSIGNED',
+    status: 'IN_PROGRESS',
     totalDwellMins: 120,
     totalDrivingMins: 190,
     breakTimeMins: 45,
@@ -539,6 +714,10 @@ export const INITIAL_ROUTES: DeliveryRoute[] = [
     totalDistanceKm: 78.0,
     shiftUtilisationPct: 74,
     isProblemRoute: false,
+    driverId: 'drv-2',
+    driver: INITIAL_DRIVERS[1],
+    vanId: 'van-3',
+    vanRegistration: 'KV72 BHM',
     orders: [INITIAL_ORDERS[1], INITIAL_ORDERS[2], INITIAL_ORDERS[4]],
   },
 ];

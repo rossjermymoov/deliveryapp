@@ -1,4 +1,4 @@
-export type OrderStatus = 'PENDING' | 'ROUTED' | 'LOADED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'FAILED' | 'CANCELLED';
+export type OrderStatus = 'PENDING' | 'ROUTED' | 'LOADED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'RESCHEDULED' | 'FAILED' | 'CANCELLED';
 
 export type UserRole = 'HEAD_OFFICE_ADMIN' | 'DEPOT_CONTROLLER' | 'DRIVER';
 
@@ -55,7 +55,26 @@ export interface OrderItem {
   lengthMetres?: number;
   dwellMins?: number;
   dwellMinsPerUnit?: number;
+  allowLeaveSafe?: boolean;
+  requiresAgeVerification?: boolean;
   scanStatus?: 'PENDING' | 'LOADED_TO_VAN' | 'OFFLOADED' | 'EXCEPTION';
+}
+
+export interface AgeVerificationRecord {
+  verified: boolean;
+  idType: 'PASSPORT' | 'DRIVING_LICENCE' | 'PASS_CARD' | 'NATIONAL_IDENTITY_CARD' | 'VERIFIED_CHALLENGE_25';
+  recipientYearOfBirth: number;
+  verifiedAt: string;
+  notes?: string;
+}
+
+export interface LeaveSafePreference {
+  requested: boolean;
+  locationType: 'FRONT_PORCH' | 'BEHIND_SIDE_GATE' | 'SHED_GARAGE' | 'OUTBUILDING' | 'NEIGHBOUR' | 'OTHER';
+  neighbourHouseNumber?: string;
+  accessInstructions?: string;
+  requestedAt: string;
+  inFlightUpdate?: boolean;
 }
 
 export interface ProofOfDelivery {
@@ -70,6 +89,10 @@ export interface ProofOfDelivery {
   timestamp: string;
   hasItemExceptions?: boolean;
   itemExceptionNotes?: string;
+  // Age Verification & Leave-Safe
+  ageVerification?: AgeVerificationRecord;
+  leftInSafePlace?: boolean;
+  safePlacePhotoUrl?: string | null;
 }
 
 export interface Order {
@@ -89,6 +112,7 @@ export interface Order {
   manualDwellOverrideMins?: number;
   deliveryWindowStart?: string;
   deliveryWindowEnd?: string;
+  scheduledDeliveryDate?: string; // YYYY-MM-DD
   specialNotes?: string;
   status: OrderStatus;
   routeId?: string;
@@ -97,6 +121,12 @@ export interface Order {
   createdAt: string;
   belowRouteCriteria?: boolean;
   criteriaReason?: string;
+  // Product-Level Rules & Customer In-Flight Preferences
+  allowLeaveSafe?: boolean;
+  requiresAgeVerification?: boolean;
+  leaveSafePreference?: LeaveSafePreference;
+  rescheduledTargetDate?: string;
+  rescheduledReason?: string;
 }
 
 export interface Driver {
@@ -135,6 +165,12 @@ export interface DeliveryRoute {
   allLoaded?: boolean;
 }
 
+export interface DepotPolicySettings {
+  allowSameDayReschedule: boolean;
+  sameDayCutoffTime: string; // e.g. "09:00"
+  allowInFlightSafePlace: boolean;
+}
+
 export interface Depot {
   id: string;
   code: string;
@@ -152,12 +188,15 @@ export interface Depot {
   minOrdersPerRoute?: number;
   maxDistancePerDropMiles?: number;
   maxDailyCapacityOrders: number;
+  policySettings?: DepotPolicySettings;
 }
 
 export interface SkuDwellSetting {
   sku: string;
   name: string;
   defaultDwellMins: number;
+  allowLeaveSafe: boolean;
+  requiresAgeVerification: boolean;
 }
 
 export interface ShiftParameters {

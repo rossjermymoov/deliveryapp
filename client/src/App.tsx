@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_VANS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME, UK_DEPOTS, INITIAL_USERS, INITIAL_FAULTS } from './data/initialData';
-import { Order, Driver, VanVehicle, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot, UserAccount, VehicleFaultReport } from './types';
+import { Order, Driver, VanVehicle, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot, UserAccount, VehicleFaultReport, LeaveSafePreference } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
 
@@ -175,6 +175,61 @@ export const App: React.FC = () => {
       prev.map((o) =>
         o.id === orderId ? { ...o, manualDwellOverrideMins: manualDwell } : o
       )
+    );
+  };
+
+  const handleUpdateOrderLeaveSafe = (orderId: string, preference: LeaveSafePreference) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId ? { ...o, leaveSafePreference: preference } : o
+      )
+    );
+
+    setRoutes((prev) =>
+      prev.map((r) => ({
+        ...r,
+        orders: r.orders.map((o) => (o.id === orderId ? { ...o, leaveSafePreference: preference } : o)),
+      }))
+    );
+  };
+
+  const handleRescheduleOrder = (orderId: string, targetDate: string, reason?: string) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              status: 'RESCHEDULED',
+              rescheduledTargetDate: targetDate,
+              rescheduledReason: reason,
+              routeId: undefined,
+            }
+          : o
+      )
+    );
+
+    // Dynamically exclude the rescheduled order from today's manifest and recalculate route metrics
+    setRoutes((prev) =>
+      prev.map((r) => {
+        const hasOrder = r.orders.some((o) => o.id === orderId);
+        if (!hasOrder) return r;
+
+        const updatedOrders = r.orders.filter((o) => o.id !== orderId);
+        const totalDwell = updatedOrders.reduce((acc, o) => acc + (o.manualDwellOverrideMins ?? o.totalDwellMins), 0);
+        const totalDrive = Math.max(30, 45 + (updatedOrders.length * 15));
+        const totalEstimated = totalDwell + totalDrive + 45;
+
+        return {
+          ...r,
+          orders: updatedOrders,
+          totalDwellMins: totalDwell,
+          totalDrivingMins: totalDrive,
+          totalEstimatedMins: totalEstimated,
+          totalDistanceKm: Math.max(15, 20 + (updatedOrders.length * 7)),
+          shiftUtilisationPct: Math.round((totalEstimated / 480) * 100),
+          isProblemRoute: totalEstimated > 480,
+        };
+      })
     );
   };
 
@@ -361,6 +416,8 @@ export const App: React.FC = () => {
             setViewMode('driver');
           }}
           onConfirmRouteLoaded={handleConfirmRouteLoaded}
+          onUpdateOrderLeaveSafe={handleUpdateOrderLeaveSafe}
+          onRescheduleOrder={handleRescheduleOrder}
         />
       ) : (
         <DriverApp
