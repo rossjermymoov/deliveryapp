@@ -77,6 +77,18 @@ export interface LeaveSafePreference {
   inFlightUpdate?: boolean;
 }
 
+export interface CustomerNotificationEmail {
+  id: string;
+  orderId: string;
+  trackingNumber: string;
+  recipientEmail: string;
+  recipientName: string;
+  subject: string;
+  sentAt: string;
+  isRead?: boolean;
+  type: 'DISPATCH_ADVANCE' | 'OUT_FOR_DELIVERY' | 'SAFE_PLACE_CONFIRMED' | 'RESCHEDULED_CONFIRMED';
+}
+
 export interface ProofOfDelivery {
   id: string;
   orderId: string;

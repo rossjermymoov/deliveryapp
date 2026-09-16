@@ -1,4 +1,4 @@
-import { SkuDwellSetting, BrandTheme, Depot, Order, Driver, VanVehicle, DeliveryRoute, UserAccount, VehicleFaultReport } from '../types';
+import { SkuDwellSetting, BrandTheme, Depot, Order, Driver, VanVehicle, DeliveryRoute, UserAccount, VehicleFaultReport, CustomerNotificationEmail } from '../types';
 
 export const KALSI_BRAND_THEME: BrandTheme = {
   companyName: 'Kalsi Plastics (UK) Ltd',
@@ -721,3 +721,40 @@ export const INITIAL_ROUTES: DeliveryRoute[] = [
     orders: [INITIAL_ORDERS[1], INITIAL_ORDERS[2], INITIAL_ORDERS[4]],
   },
 ];
+
+export const INITIAL_CUSTOMER_EMAILS: CustomerNotificationEmail[] = [
+  {
+    id: 'email-1',
+    orderId: INITIAL_ORDERS[1].id,
+    trackingNumber: INITIAL_ORDERS[1].trackingNumber,
+    recipientEmail: INITIAL_ORDERS[1].customerEmail || 'orders@midlandsroofing.co.uk',
+    recipientName: INITIAL_ORDERS[1].customerName,
+    subject: `Your Kalsi Plastics Delivery (${INITIAL_ORDERS[1].trackingNumber}) is Scheduled Today`,
+    sentAt: '08:15 AM',
+    isRead: false,
+    type: 'DISPATCH_ADVANCE',
+  },
+  {
+    id: 'email-2',
+    orderId: INITIAL_ORDERS[2].id,
+    trackingNumber: INITIAL_ORDERS[2].trackingNumber,
+    recipientEmail: INITIAL_ORDERS[2].customerEmail || 'd.turner@solihullbuild.co.uk',
+    recipientName: INITIAL_ORDERS[2].customerName,
+    subject: `Your Kalsi Plastics Delivery (${INITIAL_ORDERS[2].trackingNumber}) is Out for Delivery 🚚`,
+    sentAt: '08:45 AM',
+    isRead: true,
+    type: 'OUT_FOR_DELIVERY',
+  },
+  {
+    id: 'email-3',
+    orderId: INITIAL_ORDERS[4].id,
+    trackingNumber: INITIAL_ORDERS[4].trackingNumber,
+    recipientEmail: INITIAL_ORDERS[4].customerEmail || 'site@digbethdevelopments.co.uk',
+    recipientName: INITIAL_ORDERS[4].customerName,
+    subject: `Your Kalsi Plastics Delivery (${INITIAL_ORDERS[4].trackingNumber}) is Scheduled Today`,
+    sentAt: '08:15 AM',
+    isRead: false,
+    type: 'DISPATCH_ADVANCE',
+  },
+];
+

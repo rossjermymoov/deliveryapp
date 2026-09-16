@@ -27,6 +27,7 @@ interface Props {
   selectedDepotId: string;
   onUpdateOrderDwell: (orderId: string, manualDwell: number) => void;
   onOpenCustomerPortal?: (order: Order) => void;
+  onOpenCustomerSimulator?: (orderId: string) => void;
 }
 
 export const OrdersManager: React.FC<Props> = ({
@@ -36,6 +37,7 @@ export const OrdersManager: React.FC<Props> = ({
   selectedDepotId,
   onUpdateOrderDwell,
   onOpenCustomerPortal,
+  onOpenCustomerSimulator,
 }) => {
   const [activeTab, setActiveTab] = useState<'UNASSIGNED' | 'BELOW_CRITERIA' | 'AWAITING_DELIVERY' | 'COMPLETED'>('UNASSIGNED');
   const [searchQuery, setSearchQuery] = useState('');
@@ -341,6 +343,16 @@ export const OrdersManager: React.FC<Props> = ({
 
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {onOpenCustomerSimulator && (
+                            <button
+                              onClick={() => onOpenCustomerSimulator(order.id)}
+                              className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-black text-xs rounded-xl transition inline-flex items-center gap-1 border border-indigo-200"
+                              title="Simulate Customer Email & Live Tracking Subsite for this order"
+                            >
+                              <Mail className="w-3.5 h-3.5 text-indigo-600" />
+                              Customer ✉️
+                            </button>
+                          )}
                           {onOpenCustomerPortal && (
                             <button
                               onClick={() => onOpenCustomerPortal(order)}
@@ -550,18 +562,32 @@ export const OrdersManager: React.FC<Props> = ({
             </div>
 
             <div className="bg-slate-100 px-6 py-3 border-t border-gray-200 flex justify-between items-center">
-              {onOpenCustomerPortal && (
-                <button
-                  onClick={() => {
-                    const ord = selectedOrderForAudit;
-                    setSelectedOrderForAudit(null);
-                    onOpenCustomerPortal(ord);
-                  }}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow transition flex items-center gap-1.5"
-                >
-                  <Smartphone className="w-4 h-4" /> Open Customer Tracking Portal
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {onOpenCustomerSimulator && (
+                  <button
+                    onClick={() => {
+                      const ord = selectedOrderForAudit;
+                      setSelectedOrderForAudit(null);
+                      onOpenCustomerSimulator(ord.id);
+                    }}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow transition flex items-center gap-1.5"
+                  >
+                    <Mail className="w-4 h-4" /> Simulate Customer Email ✉️
+                  </button>
+                )}
+                {onOpenCustomerPortal && (
+                  <button
+                    onClick={() => {
+                      const ord = selectedOrderForAudit;
+                      setSelectedOrderForAudit(null);
+                      onOpenCustomerPortal(ord);
+                    }}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-black text-xs rounded-xl shadow transition flex items-center gap-1.5"
+                  >
+                    <Smartphone className="w-4 h-4" /> Open In-Flight Portal
+                  </button>
+                )}
+              </div>
               <button
                 onClick={() => setSelectedOrderForAudit(null)}
                 className="px-5 py-2 bg-slate-900 hover:bg-black text-white font-black text-xs rounded-xl shadow transition"

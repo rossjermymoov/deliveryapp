@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_VANS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME, UK_DEPOTS, INITIAL_USERS, INITIAL_FAULTS } from './data/initialData';
-import { Order, Driver, VanVehicle, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot, UserAccount, VehicleFaultReport, LeaveSafePreference } from './types';
+import { INITIAL_ORDERS, INITIAL_DRIVERS, INITIAL_VANS, INITIAL_ROUTES, INITIAL_SKU_SETTINGS, KALSI_BRAND_THEME, UK_DEPOTS, INITIAL_USERS, INITIAL_FAULTS, INITIAL_CUSTOMER_EMAILS } from './data/initialData';
+import { Order, Driver, VanVehicle, DeliveryRoute, ProofOfDelivery, SkuDwellSetting, BrandTheme, Depot, UserAccount, VehicleFaultReport, LeaveSafePreference, CustomerNotificationEmail } from './types';
 import { AdminPortal } from './components/AdminPortal';
 import { DriverApp } from './components/DriverApp';
+import { CustomerEmailSimulator } from './components/CustomerEmailSimulator';
 
 export const App: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
@@ -14,12 +15,14 @@ export const App: React.FC = () => {
   const [skuCatalog, setSkuCatalog] = useState<SkuDwellSetting[]>(INITIAL_SKU_SETTINGS);
   const [brandTheme, setBrandTheme] = useState<BrandTheme>(KALSI_BRAND_THEME);
   const [users, setUsers] = useState<UserAccount[]>(INITIAL_USERS);
+  const [customerEmails, setCustomerEmails] = useState<CustomerNotificationEmail[]>(INITIAL_CUSTOMER_EMAILS);
 
   // Active Signed-In User State
   const [currentUserId, setCurrentUserId] = useState<string>(INITIAL_USERS[0].id);
 
-  const [viewMode, setViewMode] = useState<'admin' | 'driver'>('admin');
+  const [viewMode, setViewMode] = useState<'admin' | 'driver' | 'customer'>('admin');
   const [activeDriverId, setActiveDriverId] = useState<string>(INITIAL_DRIVERS[0].id);
+  const [selectedCustomerOrderId, setSelectedCustomerOrderId] = useState<string | undefined>(undefined);
 
   const currentUser = users.find((u) => u.id === currentUserId) || users[0];
 
@@ -178,6 +181,32 @@ export const App: React.FC = () => {
     );
   };
 
+  const handleSendCustomerEmail = (orderId: string, type: CustomerNotificationEmail['type'] = 'DISPATCH_ADVANCE') => {
+    const targetOrder = orders.find((o) => o.id === orderId);
+    if (!targetOrder) return;
+
+    const newEmail: CustomerNotificationEmail = {
+      id: `email-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      orderId,
+      trackingNumber: targetOrder.trackingNumber,
+      recipientEmail: targetOrder.customerEmail || 'customer@trade.co.uk',
+      recipientName: targetOrder.customerName,
+      subject:
+        type === 'OUT_FOR_DELIVERY'
+          ? `Your Kalsi Delivery (${targetOrder.trackingNumber}) is Out for Delivery 🚚`
+          : type === 'SAFE_PLACE_CONFIRMED'
+          ? `Safe Place Request Confirmed (${targetOrder.trackingNumber}) 🏠`
+          : type === 'RESCHEDULED_CONFIRMED'
+          ? `Delivery Rescheduled (${targetOrder.trackingNumber}) 📅`
+          : `Your Kalsi Delivery (${targetOrder.trackingNumber}) is Scheduled Today`,
+      sentAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isRead: false,
+      type,
+    };
+
+    setCustomerEmails((prev) => [newEmail, ...prev]);
+  };
+
   const handleUpdateOrderLeaveSafe = (orderId: string, preference: LeaveSafePreference) => {
     setOrders((prev) =>
       prev.map((o) =>
@@ -191,6 +220,9 @@ export const App: React.FC = () => {
         orders: r.orders.map((o) => (o.id === orderId ? { ...o, leaveSafePreference: preference } : o)),
       }))
     );
+
+    // Auto-generate confirmation email for the customer
+    handleSendCustomerEmail(orderId, 'SAFE_PLACE_CONFIRMED');
   };
 
   const handleRescheduleOrder = (orderId: string, targetDate: string, reason?: string) => {
@@ -231,6 +263,9 @@ export const App: React.FC = () => {
         };
       })
     );
+
+    // Auto-generate reschedule confirmation email for the customer
+    handleSendCustomerEmail(orderId, 'RESCHEDULED_CONFIRMED');
   };
 
   const handleSimulateNewOrder = (newOrderData: Partial<Order>) => {
@@ -418,8 +453,13 @@ export const App: React.FC = () => {
           onConfirmRouteLoaded={handleConfirmRouteLoaded}
           onUpdateOrderLeaveSafe={handleUpdateOrderLeaveSafe}
           onRescheduleOrder={handleRescheduleOrder}
+          onOpenCustomerSimulator={(orderId) => {
+            setSelectedCustomerOrderId(orderId);
+            setViewMode('customer');
+          }}
+          onSendCustomerEmail={handleSendCustomerEmail}
         />
-      ) : (
+      ) : viewMode === 'driver' ? (
         <DriverApp
           driver={currentDriver}
           brandTheme={brandTheme}
@@ -433,6 +473,24 @@ export const App: React.FC = () => {
           onCompleteRoute={handleCompleteRoute}
           onSubmitFaultReport={handleDriverSubmitFault}
           onBackToAdmin={() => setViewMode('admin')}
+        />
+      ) : (
+        <CustomerEmailSimulator
+          emails={customerEmails}
+          orders={orders}
+          depots={depots}
+          routes={routes}
+          drivers={drivers}
+          brandTheme={brandTheme}
+          initialOrderId={selectedCustomerOrderId}
+          onSendNewEmail={handleSendCustomerEmail}
+          onUpdateOrderLeaveSafe={handleUpdateOrderLeaveSafe}
+          onRescheduleOrder={handleRescheduleOrder}
+          onBackToAdmin={() => setViewMode('admin')}
+          onSwitchToDriver={(driverId) => {
+            setActiveDriverId(driverId);
+            setViewMode('driver');
+          }}
         />
       )}
     </div>

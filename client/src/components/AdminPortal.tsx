@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, VanVehicle, VehicleFaultReport, LeaveSafePreference } from '../types';
+import { Order, Driver, DeliveryRoute, SkuDwellSetting, ShiftParameters, BrandTheme, Depot, UserAccount, VanVehicle, VehicleFaultReport, LeaveSafePreference, CustomerNotificationEmail } from '../types';
 import { DEFAULT_SHIFT_PARAMS } from '../utils/routing';
 import { DriverLiveMap } from './DriverLiveMap';
 import { MorningDashboard } from './MorningDashboard';
@@ -18,7 +18,8 @@ import {
   Settings,
   ShieldCheck,
   UserCheck,
-  ShieldAlert
+  ShieldAlert,
+  Mail
 } from 'lucide-react';
 
 interface Props {
@@ -51,6 +52,8 @@ interface Props {
   onConfirmRouteLoaded: (routeId: string) => void;
   onUpdateOrderLeaveSafe?: (orderId: string, preference: LeaveSafePreference) => void;
   onRescheduleOrder?: (orderId: string, targetDate: string, reason?: string) => void;
+  onOpenCustomerSimulator?: (orderId?: string) => void;
+  onSendCustomerEmail?: (orderId: string, type?: CustomerNotificationEmail['type']) => void;
 }
 
 export const AdminPortal: React.FC<Props> = ({
@@ -82,6 +85,8 @@ export const AdminPortal: React.FC<Props> = ({
   onConfirmRouteLoaded,
   onUpdateOrderLeaveSafe,
   onRescheduleOrder,
+  onOpenCustomerSimulator,
+  onSendCustomerEmail: _onSendCustomerEmail,
 }) => {
   const isHeadOfficeAdmin = currentUser.role === 'HEAD_OFFICE_ADMIN';
   
@@ -362,22 +367,35 @@ export const AdminPortal: React.FC<Props> = ({
             </button>
           </div>
 
-          {/* Launch Driver App Direct Workflow */}
-          {activeDrivers.length > 0 && (
-            <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs">
-              <Truck className="w-4 h-4 text-emerald-700" />
-              <span className="text-xs font-black text-emerald-900">Launch Driver Mobile App:</span>
-              {activeDrivers.slice(0, 3).map((drv) => (
-                <button
-                  key={drv.id}
-                  onClick={() => onSwitchToDriver(drv.id)}
-                  className="text-xs bg-white text-slate-800 font-black px-2.5 py-1 rounded-lg shadow-xs hover:bg-emerald-600 hover:text-white border border-gray-200 transition"
-                >
-                  {drv.name.split(' ')[0]} 📱
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Launch Driver App & Customer Simulator Direct Workflow */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {onOpenCustomerSimulator && (
+              <button
+                onClick={() => onOpenCustomerSimulator()}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-900 rounded-xl border border-blue-200 text-xs font-black shadow-2xs transition"
+                title="Open Customer Email Simulator & Live Tracking Subsite"
+              >
+                <Mail className="w-3.5 h-3.5 text-blue-600" />
+                <span>Customer Simulator ✉️</span>
+              </button>
+            )}
+
+            {activeDrivers.length > 0 && (
+              <div className="flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs">
+                <Truck className="w-4 h-4 text-emerald-700" />
+                <span className="text-xs font-black text-emerald-900">Driver App:</span>
+                {activeDrivers.slice(0, 3).map((drv) => (
+                  <button
+                    key={drv.id}
+                    onClick={() => onSwitchToDriver(drv.id)}
+                    className="text-xs bg-white text-slate-800 font-black px-2.5 py-1 rounded-lg shadow-xs hover:bg-emerald-600 hover:text-white border border-gray-200 transition"
+                  >
+                    {drv.name.split(' ')[0]} 📱
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* TAB 0: CONTROLLER DISPATCH DASHBOARD */}
@@ -409,6 +427,7 @@ export const AdminPortal: React.FC<Props> = ({
             selectedDepotId={effectiveDepotId}
             onUpdateOrderDwell={onUpdateOrderDwell}
             onOpenCustomerPortal={(order) => setCustomerPortalOrder(order)}
+            onOpenCustomerSimulator={onOpenCustomerSimulator}
           />
         )}
 
